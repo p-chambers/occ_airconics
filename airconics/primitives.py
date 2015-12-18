@@ -9,10 +9,10 @@ from pkg_resources import resource_string, resource_exists
 import numpy as np
 
 from OCC.Geom import Handle_Geom_BSplineCurve_DownCast
-from OCC.Geom2dAPI import Geom2dAPI_PointsToBSpline
+#from OCC.Geom2dAPI import Geom2dAPI_PointsToBSpline
 from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec
-from OCC.GeomAPI import geomapi
-from OCC.FairCurve import FairCurve_MinimalVariation
+from OCC.GeomAPI import geomapi, GeomAPI_PointsToBSpline
+#from OCC.FairCurve import FairCurve_MinimalVariation
 
 
 import airconics.AirCONICStools as act
@@ -100,16 +100,16 @@ class Airfoil:
         N = len(x)
         # Note: not sure why the points need to be defined as (z, x) here rather 
         # than (x, z) as pythonocc example suggests it should be (x,z):
-        section_pts_2d = [gp_Pnt2d(x[i],z[i]) for i in xrange(N)]
-        pt_array = act.point2d_list_to_TColgp_Array1OfPnt2d(section_pts_2d)
+        section_pts = [gp_Pnt(x[i],0.,z[i]) for i in xrange(N)]
+        pt_array = act.point_list_to_TColgp_Array1OfPnt(section_pts)
 #        plan = gp_Pln(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.))  # XZ plane
 
         # use the array to create a spline describing the airfoil section
-        spline_2d = Geom2dAPI_PointsToBSpline(pt_array,
+        spline = GeomAPI_PointsToBSpline(pt_array,
                                               N-1,  # order min
                                               N)   # order max
 #        spline = geomapi.To3d(spline_2d.Curve(), plan)
-        return spline_2d.Curve()
+        return spline.Curve()
 
               
     def _AirfoilPointsSeligFormat(self, SeligProfile):
@@ -144,8 +144,7 @@ class Airfoil:
             vals = line.split()    # vals[0] = x coord, vals[1] = y coord
             x[i] = float(vals[0])
             z[i] = float(vals[1])
-#        return x*self._ChordLength, z*self._ChordLength
-        return x, z
+        return x*self._ChordLength, z*self._ChordLength
 
     def _NACA4cambercurve(self, MaxCamberLocTenthChord, MaxCamberPercChord):
         """ Generates the camber curve of a NACA 4-digit airfoil
@@ -262,7 +261,11 @@ class Airfoil:
 
         xu, zu, xl, zl, Theta = self._camberplusthickness(ChordCoord, zcam,
                                                           dzcamdx, t)
-        
+#        Scale points:
+        xu *= self._ChordLength
+        zu *= self._ChordLength
+        xl *= self._ChordLength
+        zl *= self._ChordLength
         # Leading edge radius
         RLE = 1.1019*(MaxThicknessPercChord/100.0)**2.0
         
@@ -328,3 +331,5 @@ class Airfoil:
 #            self.SmoothingIterations = Smoothing
         self._TransformAirfoil()
         return None
+
+
