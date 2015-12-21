@@ -12,6 +12,8 @@ Then the Python-OCC AirCONICS package can be installed by running (in the direct
 
 - pip install OCC_AirCONICS
 
-AirCONICS is a Rhino Aircraft geometry plugin created by Andras Sobester, see the following links for further information:
+Examples can be found in the ipython notebook in the 'examples' directory.
+
+*AirCONICS is a Rhino Aircraft geometry plugin created by Andras Sobester, see the following links for further information:
 - https://github.com/sobester/AirCONICS
 - https://aircraftgeometrycodes.wordpress.com/
