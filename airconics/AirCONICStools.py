@@ -95,7 +95,7 @@ def export_STEPFile(shapes, filename):
 
     # transfer shapes
     for shape in shapes:
-        step_writer.Transfer(shape.Shape, STEPControl_AsIs)
+        step_writer.Transfer(shape, STEPControl_AsIs)
     
     status = step_writer.Write(filename)
     

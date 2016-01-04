@@ -331,5 +331,10 @@ class Airfoil:
 #            self.SmoothingIterations = Smoothing
         self._TransformAirfoil()
         return None
+        
+#        def Delete(self):
+#            """Use to remove shape"""
+#            # TODO: Delete function
+#            return None
 
 
