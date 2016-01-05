@@ -14,7 +14,7 @@ from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec
 from OCC.GeomAPI import geomapi, GeomAPI_PointsToBSpline
 #from OCC.FairCurve import FairCurve_MinimalVariation
 
-
+import CRMfoil
 import airconics.AirCONICStools as act
 
 
@@ -29,6 +29,8 @@ class Airfoil:
                  SeligProfile=False,
                  Naca4Profile=False,
                  Naca5Profile=False,
+                 CRMProfile=False,
+                 CRM_Epsilon=0.,
                  EnforceSharpTE=False):
         """Class Constructor: creates and returns an Airfoil instance
         Parameters
@@ -47,6 +49,11 @@ class Airfoil:
             Name of the airfoil in NACA 4 format   
         NACA5Profile - string
             Name of the airfoil in NACA 5 format
+        CRM_Profile - bool
+            If true, airfoil profile will be interpolated from Common Research
+            Model (CRM). Must also declare 'CRMEpsilon' variable.
+        CRM_Epsilon - float
+            Spanwise fraction between 0 and 1 to interpolate profile from CRM
         EnforceSharpTE - bool
             Enforces sharp trailing edge (NACA airfoils only)
         Notes
@@ -55,32 +62,40 @@ class Airfoil:
         this function. Specifying more than one profile will give an error.
         
         """
-        Profiles = [SeligProfile, Naca4Profile, Naca5Profile]
+        Profiles = [SeligProfile, Naca4Profile, Naca5Profile, CRMProfile]
 #        Input checks:
         assert(any(Profiles)),\
             "No Profile specified. See help(Airfoil)"
         assert(sum([1 for prof in Profiles if prof])),\
             "Ambiguous airfoil: More than one profile has been specified"
+        if CRMProfile:
+            assert(CRM_Epsilon >= 0 and CRM_Epsilon <= 1), \
+                "No Spanwise interpolation Epsilon given: See help(Airfoil)"
+            self.CRM_Epsilon = CRM_Epsilon
         
         self._LE = LeadingEdgePoint
         self._ChordLength = ChordLength
         self._Rotation = Rotation
         self._Twist = Twist
         self._EnforceSharpTE = EnforceSharpTE
-        self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile)
+        self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile,
+                           CRMProfile)
 
 
-    def _make_airfoil(self, SeligProfile, Naca4Profile, Naca5Profile):
+    def _make_airfoil(self, SeligProfile, Naca4Profile, Naca5Profile,
+                      CRMProfile):
         """Selects airfoil 'add' function based on Profile specified """
         if SeligProfile:
-            self._profile = SeligProfile
+            self.SeligProfile = SeligProfile
             self.AddAirfoilFromSeligFile(SeligProfile)
         elif Naca4Profile:
-            self._profile = Naca4Profile
+            self.Naca4Profile = Naca4Profile
             self.AddNACA4(Naca4Profile)
         elif Naca5Profile:
             raise NotImplementedError("Oops, This function is not yet\
                 implemented for Naca 5 digit profiles")
+        elif CRMProfile:
+            self.AddCRMLinear()
         else:
             raise TypeError("Unknown airfoil type: see help(Airfoil)")
 
@@ -105,9 +120,9 @@ class Airfoil:
 #        plan = gp_Pln(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.))  # XZ plane
 
         # use the array to create a spline describing the airfoil section
-        spline = GeomAPI_PointsToBSpline(pt_array,
-                                              N-1,  # order min
-                                              N)   # order max
+        spline = GeomAPI_PointsToBSpline(pt_array)#,
+                                             # N-1,  # order min
+                                             # N)   # order max
 #        spline = geomapi.To3d(spline_2d.Curve(), plan)
         return spline.Curve()
 
@@ -327,6 +342,18 @@ class Airfoil:
                                                          MaxThicknessPercChord)
                                                          
         self.Curve = self._fitAirfoiltoPoints(x, z)
+#        if 'Smoothing' in locals():
+#            self.SmoothingIterations = Smoothing
+        self._TransformAirfoil()
+        return None
+        
+    def AddCRMLinear(self, Smoothing=1):
+        """Linearly interpolate airfoil curve from CRM"""
+        x, z = CRMfoil.CRMlinear(self.CRM_Epsilon)
+        x *= self._ChordLength
+        z *= self._ChordLength
+        self.Curve = self._fitAirfoiltoPoints(x, z)
+        # TODO: Smoothing..
 #        if 'Smoothing' in locals():
 #            self.SmoothingIterations = Smoothing
         self._TransformAirfoil()

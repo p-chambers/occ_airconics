@@ -1,7 +1,10 @@
 # This file contains some section data extracted from the CRM (Common Research 
 # Model) wing geometry. This is used to build the transonic wing geometry example.
+import numpy as np
+
+
 def CRMlinear(Epsilon):
-    XRoot = [1,
+    XRoot = np.array([1,
     0.9497,
     0.8992,
     0.8487,
@@ -41,9 +44,9 @@ def CRMlinear(Epsilon):
     0.8478,
     0.8983,
     0.949,
-    1]
+    1])
     
-    ZRoot = [0.0014,
+    ZRoot = np.array([0.0014,
     0.0088,
     0.0145,
     0.0195,
@@ -83,9 +86,9 @@ def CRMlinear(Epsilon):
     -0.0238,
     -0.0144,
     -0.0063,
-    -0.0009]
+    -0.0009])
     
-    XTip = [1,
+    XTip = np.array([1,
     0.9502,
     0.9001,
     0.85,
@@ -125,9 +128,9 @@ def CRMlinear(Epsilon):
     0.8487,
     0.8991,
     0.9496,
-    1]
+    1])
     
-    ZTip = [0.0028,
+    ZTip = np.array([0.0028,
     0.0112,
     0.0178,
     0.024,
@@ -167,19 +170,10 @@ def CRMlinear(Epsilon):
     -0.0055,
     -0.0015,
     0.0003,
-    -0.0019]
+    -0.0019])
     
-    i = -1
+    # Linearly interpolate curve X,Z points at spanwise location epsilon:
+    x = XRoot*(1-Epsilon) + XTip*Epsilon
+    z = ZRoot*(1-Epsilon) + ZTip*Epsilon
     
-    x = []
-    z = []
-    
-    for XR in XRoot:
-        i = i + 1
-        ZR = ZRoot[i]
-        XT = XTip[i]
-        ZT = ZTip[i]
-        list.append(x, XR*(1-Epsilon)+XT*Epsilon)
-        list.append(z, ZR*(1-Epsilon)+ZT*Epsilon)
-
     return x, z

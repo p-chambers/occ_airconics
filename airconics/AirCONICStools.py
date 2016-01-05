@@ -103,18 +103,29 @@ def export_STEPFile(shapes, filename):
     return status
 
 
-def surface_from_airfoils(Airfoil1, Airfoil2):
+def AddSurfaceLoft(objs):
     """Create a lift surface through airfoils (currently expecting 2 only)
     Parameters
     ----------
-    
+    objs - list of python classes
+        Each obj is expected to have an obj.Curve attribute :
+        see airconics.primitives.airfoil class
     Returns
     -------
     """
+    assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
+    
     generator = BRepOffsetAPI_ThruSections(False, True)
-    for i, Airfoil in enumerate([Airfoil1, Airfoil2]):
-        edge = make_edge(Airfoil.Curve)
-        generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
+    
+    for obj in objs:
+        try:
+            edge = make_edge(obj.Curve)
+            generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
+        except AttributeError:
+            print("""Warning: one or more object has no 'Curve' attribute and
+            could not be added to the loft""")
+            continue
+
     generator.Build()
     return generator.Shape()
 
