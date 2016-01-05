@@ -8,10 +8,13 @@ It is recommended that the dependencies of this package are first installed from
 
 - conda install -c http://conda.anaconda.org/dlr-sc pythonocc-core
 
-Then the AirCONICS can be installed from source with
+Then the Python-OCC AirCONICS package can be installed by running (in the directory containing the downloaded OCC_AirCONICS folder)
 
-- python setup.py install
+- pip install OCC_AirCONICS
 
-AirCONICS is created by Andras Sobester, see the following links for further information:
+## Examples
+Examples can be found in the ipython notebook in the 'examples' directory. No automated testing platform is provided yet.
+
+*AirCONICS is a Rhino Aircraft geometry plugin created by Andras Sobester, see the following links for further information:
 - https://github.com/sobester/AirCONICS
 - https://aircraftgeometrycodes.wordpress.com/
