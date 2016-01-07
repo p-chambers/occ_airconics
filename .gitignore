@@ -4,3 +4,5 @@
 /dist/
 *.pyc
 /examples/.ipynb_checkpoints/
+*.stp
+*.p

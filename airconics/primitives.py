@@ -10,8 +10,7 @@ import numpy as np
 
 from OCC.Geom import Handle_Geom_BSplineCurve_DownCast
 #from OCC.Geom2dAPI import Geom2dAPI_PointsToBSpline
-from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec
-from OCC.GeomAPI import geomapi, GeomAPI_PointsToBSpline
+from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec, gp_OX, gp_OY
 #from OCC.FairCurve import FairCurve_MinimalVariation
 
 import CRMfoil
@@ -37,8 +36,8 @@ class Airfoil:
         ----------
         LeadingEdgePoint - array of float (,3)
             (x, y, z) origin of the airfoil LE
-        ChordLength - 
-            #TODO
+        ChordLength - scalar
+            Length of the airfoil chord
         Rotation - 
             #TODO
         Twist - 
@@ -92,7 +91,7 @@ class Airfoil:
             self.Naca4Profile = Naca4Profile
             self.AddNACA4(Naca4Profile)
         elif Naca5Profile:
-            raise NotImplementedError("Oops, This function is not yet\
+            raise NotImplementedError("This function is not yet\
                 implemented for Naca 5 digit profiles")
         elif CRMProfile:
             self.AddCRMLinear()
@@ -113,18 +112,17 @@ class Airfoil:
         
         """
         N = len(x)
-        # Note: not sure why the points need to be defined as (z, x) here rather 
-        # than (x, z) as pythonocc example suggests it should be (x,z):
-        section_pts = [gp_Pnt(x[i],0.,z[i]) for i in xrange(N)]
-        pt_array = act.point_list_to_TColgp_Array1OfPnt(section_pts)
+        pnts = [gp_Pnt(x[i], 0., z[i]) for i in xrange(N)]
 #        plan = gp_Pln(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.))  # XZ plane
 
         # use the array to create a spline describing the airfoil section
-        spline = GeomAPI_PointsToBSpline(pt_array)#,
+#        spline = GeomAPI_PointsToBSpline(pt_array)#,
                                              # N-1,  # order min
                                              # N)   # order max
 #        spline = geomapi.To3d(spline_2d.Curve(), plan)
-        return spline.Curve()
+
+        Curve = act.points_to_bspline(pnts)
+        return Curve
 
               
     def _AirfoilPointsSeligFormat(self, SeligProfile):
@@ -289,19 +287,29 @@ class Airfoil:
         return x, z, xu, zu, xl, zl, RLE   
         
     def _TransformAirfoil(self):
-        """Given a normal airfoil, unit chord, nose in origin, chord along 
-        x axis, applies scaling, rotations, positioning and smoothing
+        """Given a normal airfoil, nose in origin, chord along 
+        x axis, applies rotations, translation and (soon) smoothing
         """
         # TODO: Smoothing
 #        for i in range(self.SmoothingIterations):
 #            rs.FairCurve(self.Curve)
-        
-#        Translation: 
         Curve = self.Curve.GetObject()
+
+#        Rotations - Note that direction is opposite to Rhino
+#        Dihedral:
+        if self._Rotation:
+            # self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Rotate(A1))
+            Curve.Rotate(gp_OX(), np.radians(self._Rotation))
+#            act.rotate(Curve, gp_OX(), -self._Rotation)
+
+#        Twist:
+        if self._Twist:
+            Curve.Rotate(gp_OY(), -np.radians(self._Twist))
+        
+#        Translation:
         self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
                                                         gp_Vec(*self._LE))
                                                         )
-
         return None
 
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):

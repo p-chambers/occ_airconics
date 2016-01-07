@@ -5,21 +5,46 @@ Created on Fri Dec  4 11:58:52 2015
 @author: pchambers
 """
 # Geometry Manipulation libraries:
-from OCC.BRepBndLib import brepbndlib_Add
 import OCC.Bnd
+from OCC.ShapeConstruct import shapeconstruct
+from OCC.GeomAPI import GeomAPI_PointsToBSpline
+from OCC.BRepBndLib import brepbndlib_Add
 from OCC.TColgp import TColgp_Array1OfPnt
 from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections
 from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
-                                BRepBuilderAPI_MakeEdge)
+                                BRepBuilderAPI_MakeEdge,
+                                BRepBuilderAPI_Transform)
+from OCC.gp import gp_Trsf, gp_Lin
 
 # FileIO libraries:
-from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs
+from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
+                             STEPControl_Reader
 from OCC.Interface import Interface_Static_SetCVal
-from OCC.IFSelect import IFSelect_RetDone
+from OCC.IFSelect import IFSelect_RetDone  #, IFSelect_ItemsByEntity
 
 # Standard Python libraries
 import numpy as np
 
+# TODO: Add TE function (required for creating tip face)
+#def AddTEtoOpenAirfoil(Airfoil):
+#    """If the airfoil curve given as an argument is open at the trailing edge,
+#    adds a line between the ends of the curve and joins this with the rest
+#    of the curve. """
+#    assert(hasattr(Airfoil, 'Curve')), 'Input object does not have a Curve atribute'
+#
+#    handle = Airfoil.Curve.GetObject()
+#    if not handle.IsClosed():
+#        try:
+#            EP = handle.EndPoint()
+#            SP = handle.StartPoint()
+#            Closure = gp_Lin(Ep, SP)
+#            shapeconstruct
+#    else:
+#        print("Curve is already closed")
+#        
+#    assert(handle.IsClosed()), "Failed to Add Trailing Edge"        
+#        
+#    return None
 
 def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
     """Compute the extents in the X, Y and Z direction (in the current
@@ -52,21 +77,51 @@ def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
         return gp_Vec(xmin, ymin, zmin), gp_Vec(xmax, ymax, zmax)
 
 
-def _Tcol_dim_1(li, _type):
-    """
-    Function factory for 1-dimensional TCol* types
-    """
-    pts = _type(0, len(li)-1)
+#def _Tcol_dim_1(li, _type):
+#    """
+#    Function factory for 1-dimensional TCol* types: pythonocc-utils
+#    """
+#    pts = _type(0, len(li)-1)
+#    for n, i in enumerate(li):
+#        pts.SetValue(n, i)
+#    return pts
+
+
+def point_list_to_TColgp_Array1OfPnt(li):
+    pts = TColgp_Array1OfPnt(0, len(li)-1)
     for n, i in enumerate(li):
         pts.SetValue(n, i)
     return pts
 
 
-def point_list_to_TColgp_Array1OfPnt(li):
+def points_to_bspline(pnts):
     """
-    List of gp_Pnt2d to TColgp_Array1OfPnt2d
+    Points to bspline: obtained from pythonocc-utils
     """
-    return _Tcol_dim_1(li, TColgp_Array1OfPnt)
+    pnts = point_list_to_TColgp_Array1OfPnt(pnts)
+    crv = GeomAPI_PointsToBSpline(pnts)
+    return crv.Curve()
+
+
+def scale_uniformal(brep, pnt, factor, copy=False):
+    '''
+    translate a brep over a vector : from pythonocc-utils
+    Paramters
+    ---------
+    brep - TopoDS_Shape
+        the TopoDS_Shape to scale
+    pnt - gp_Pnt
+        Origin of scaling
+    factor - scalar
+        Scaling factor
+    copy - bool
+        copies to brep if True
+    '''
+    trns = gp_Trsf()
+    trns.SetScale(pnt, factor)
+    brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
+    brep_trns.Build()
+    return brep_trns.Shape()
 
 
 def coslin(TransitionPoint, NCosPoints=8, NLinPoints=8):
@@ -103,8 +158,18 @@ def export_STEPFile(shapes, filename):
     return status
 
 
+#def import_STEPFile(shapes, filename):
+#    # TODO: initialize the STEP importer
+#    step_writer = STEPControl_Reader()
+#    
+#    status = step_reader.ReadFile(filename)
+#    
+#    assert(status == IFSelect_RetDone)
+#    return status
+
+
 def AddSurfaceLoft(objs):
-    """Create a lift surface through airfoils (currently expecting 2 only)
+    """Create a lift surface through curve objects
     Parameters
     ----------
     objs - list of python classes
@@ -115,7 +180,10 @@ def AddSurfaceLoft(objs):
     """
     assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
     
-    generator = BRepOffsetAPI_ThruSections(False, True)
+    # Note: This is to give a smooth loft.
+    isSolid = False; ruled = False; pres3d=1e-08
+    args = [isSolid, ruled, pres3d]    # args (in order) for ThruSections
+    generator = BRepOffsetAPI_ThruSections(*args)
     
     for obj in objs:
         try:

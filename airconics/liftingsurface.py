@@ -17,7 +17,7 @@ import numpy as np
 import primitives
 import AirCONICStools as act
 
-#from OCC.gp import gp_Pnt
+from OCC.gp import gp_Pnt
 
 
 class LiftingSurface:
@@ -124,7 +124,7 @@ class LiftingSurface:
         Sections = [self.AirfoilFunct(Eps[i], LEPoints[i], self.ChordFunct,
                                       ChordFactor, self.DihedralFunct,
                                       self.TwistFunct)
-                                      for i in xrange(self.SegmentNo)]
+                                      for i in xrange(self.SegmentNo+1)]
         
         # TODO: Implement chord projection and Curve start/end points 
         # to rescale smoothed curves and for secondary loft methods
@@ -163,13 +163,11 @@ class LiftingSurface:
 
         if self.TipRequired:
             pass
-###############################################################################
             # TODO: Not yet implemented 'TipRequired'
 #            TipCurve = Sections[-1]
 #            TipCurve = act.AddTEtoOpenAirfoil(TipCurve)
 #            WingTip = rs.AddPlanarSrf(TipCurve)
 #            rs.DeleteObject(TipCurve)
-###############################################################################
 
 # TODO: Calculating surface area
 #        # Calculate projected area
@@ -190,7 +188,7 @@ class LiftingSurface:
 #            LS_area = rs.SurfaceArea(LS)
 #            LSP_area = 0.5*LS_area[0]
 
-# TODO: Check bounding box
+# TODO: Check bounding box size
 #        BB = rs.BoundingBox(LS)
 #        if BB:
 #            ActualSemiSpan = BB[2].Y - BB[0].Y
@@ -206,13 +204,14 @@ class LiftingSurface:
 #            print "Cleanup: no projected sections to delete"
 #        rs.DeleteObjects(LEPoints)
         
-# TODO: Scaling
-#        # Scaling
-#        Origin = gp_Pnt([0,0,0])
-#        ScaleXYZ = (ScaleFactor, ScaleFactor, ScaleFactor)
-#        LS = rs.ScaleObject(LS, Origin, ScaleXYZ)
-#        if self.TipRequired and WingTip:
-#            WingTip = rs.ScaleObject(WingTip, Origin, ScaleXYZ)
+        # Scaling
+        if self.ScaleFactor != 1:
+            Origin = gp_Pnt(0.,0.,0.)
+            LS = act.scale_uniformal(LS, Origin, self.ScaleFactor)
+            # TODO: Wing tip scaling (TipRequired is not implemented yet)
+            if self.TipRequired and WingTip:
+                pass
+#               WingTip = rs.ScaleObject(WingTip, Origin, ScaleXYZ)
 #
 #        rs.DeleteObject(Origin)
 #
