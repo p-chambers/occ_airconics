@@ -5,12 +5,13 @@ Created on Thu Jan  7 13:49:32 2016
 @author: pchambers
 """
 from airconics.AirCONICStools import *
+import numpy as np
 
 
 def test_coslin():
     abscissa = coslin(0.5)[0]
     ans = np.array([0.0,
-                    0.02253604390908819,
+                    0.01253604390908819,
                     0.04951556604879043,
                     0.1090842587659851,
                     0.1882550990706332,
