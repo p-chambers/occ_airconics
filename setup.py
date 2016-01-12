@@ -16,6 +16,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     # package_data={'': ['*.dat']},
+    install_requires=["numpy"],
     author='Andras Sobester, Paul Chambers',
     author_email='A.Sobester@soton.ac.uk, P.R.Chambers@soton.ac.uk'
 )
