@@ -27,3 +27,5 @@ def test_coslin():
                     0.9375,
                     1.0])
     assert(np.all(np.abs(abscissa - ans) < 1e-10))
+
+

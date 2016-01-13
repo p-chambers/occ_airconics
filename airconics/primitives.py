@@ -21,14 +21,14 @@ class Airfoil:
     """ Lifting surface section primitive class """
 
     def __init__(self,
-                 LeadingEdgePoint,
+                 LeadingEdgePoint=[0., 0., 0.],
                  ChordLength=1,
                  Rotation=0,
                  Twist=0,
-                 SeligProfile=False,
-                 Naca4Profile=False,
-                 Naca5Profile=False,
-                 CRMProfile=False,
+                 SeligProfile=None,
+                 Naca4Profile=None,
+                 Naca5Profile=None,
+                 CRMProfile=None,
                  CRM_Epsilon=0.,
                  EnforceSharpTE=False):
         """Class Constructor: creates and returns an Airfoil instance
@@ -43,7 +43,8 @@ class Airfoil:
         Twist - 
             #TODO
         SeligProfile - string
-            Name of the Selig airfoil curve points
+            Name of the Selig airfoil: see 
+            http://m-selig.ae.illinois.edu/ads/coord_database.html
         NACA4Profile - string
             Name of the airfoil in NACA 4 format   
         NACA5Profile - string
@@ -57,46 +58,48 @@ class Airfoil:
             Enforces sharp trailing edge (NACA airfoils only)
         Notes
         -----
-        Either SeligProfile, Naca4Profile or Naca5Profile should be given to
-        this function. Specifying more than one profile will give an error.
+        - Preference is that users allow the class constructor to handle
+            building the Airfoil i.e. pass all physical definitions as class
+            arguments
+            
+        - Although the physical attributes can changed i.e. rotation, twist,
+            ChordLength, LeadingEdgePoint etc., it is the users responsibility
+            to rebuild the Airfoil with the 'Add***Airfoil' afterwards
         
         """
+        if CRM_Epsilon:
+            CRMProfile = True
         Profiles = [SeligProfile, Naca4Profile, Naca5Profile, CRMProfile]
-#        Input checks:
-        assert(any(Profiles)),\
-            "No Profile specified. See help(Airfoil)"
-        assert(sum([1 for prof in Profiles if prof])),\
+
+        assert(sum([1 for prof in Profiles if prof]) < 2),\
             "Ambiguous airfoil: More than one profile has been specified"
-        if CRMProfile:
-            assert(CRM_Epsilon >= 0 and CRM_Epsilon <= 1), \
-                "No Spanwise interpolation Epsilon given: See help(Airfoil)"
-            self.CRM_Epsilon = CRM_Epsilon
         
-        self._LE = LeadingEdgePoint
-        self._ChordLength = ChordLength
-        self._Rotation = Rotation
-        self._Twist = Twist
+        self.LE = LeadingEdgePoint
+        self.ChordLength = ChordLength
+        self.Rotation = Rotation
+        self.Twist = Twist
         self._EnforceSharpTE = EnforceSharpTE
         self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile,
-                           CRMProfile)
+                           CRMProfile, CRM_Epsilon)
 
 
     def _make_airfoil(self, SeligProfile, Naca4Profile, Naca5Profile,
-                      CRMProfile):
+                      CRMProfile, CRM_Epsilon):
         """Selects airfoil 'add' function based on Profile specified """
-        if SeligProfile:
-            self.SeligProfile = SeligProfile
+        if SeligProfile is not None:
             self.AddAirfoilFromSeligFile(SeligProfile)
-        elif Naca4Profile:
-            self.Naca4Profile = Naca4Profile
+        elif Naca4Profile is not None:
             self.AddNACA4(Naca4Profile)
-        elif Naca5Profile:
-            raise NotImplementedError("This function is not yet\
+        elif Naca5Profile is not None:
+            raise NotImplementedError("This class is not yet\
                 implemented for Naca 5 digit profiles")
         elif CRMProfile:
-            self.AddCRMLinear()
+            self.AddCRMLinear(CRM_Epsilon)
         else:
-            raise TypeError("Unknown airfoil type: see help(Airfoil)")
+            # 'Empty' Profile
+            print("No Profile specified: Creating 'empty' Airfoil")
+            self.Curve = None
+            self.Profile = None
 
     def _fitAirfoiltoPoints(self, x, z):
         """ Fits an OCC curve to airfoil x, z points
@@ -157,7 +160,7 @@ class Airfoil:
             vals = line.split()    # vals[0] = x coord, vals[1] = y coord
             x[i] = float(vals[0])
             z[i] = float(vals[1])
-        return x*self._ChordLength, z*self._ChordLength
+        return x*self.ChordLength, z*self.ChordLength
 
     def _NACA4cambercurve(self, MaxCamberLocTenthChord, MaxCamberPercChord):
         """ Generates the camber curve of a NACA 4-digit airfoil
@@ -275,10 +278,10 @@ class Airfoil:
         xu, zu, xl, zl, Theta = self._camberplusthickness(ChordCoord, zcam,
                                                           dzcamdx, t)
 #        Scale points:
-        xu *= self._ChordLength
-        zu *= self._ChordLength
-        xl *= self._ChordLength
-        zl *= self._ChordLength
+        xu *= self.ChordLength
+        zu *= self.ChordLength
+        xl *= self.ChordLength
+        zl *= self.ChordLength
         # Leading edge radius
         RLE = 1.1019*(MaxThicknessPercChord/100.0)**2.0
         
@@ -297,18 +300,18 @@ class Airfoil:
 
 #        Rotations - Note that direction is opposite to Rhino
 #        Dihedral:
-        if self._Rotation:
+        if self.Rotation:
             # self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Rotate(A1))
-            Curve.Rotate(gp_OX(), np.radians(self._Rotation))
-#            act.rotate(Curve, gp_OX(), -self._Rotation)
+            Curve.Rotate(gp_OX(), np.radians(self.Rotation))
+#            act.rotate(Curve, gp_OX(), -self.Rotation)
 
 #        Twist:
-        if self._Twist:
-            Curve.Rotate(gp_OY(), -np.radians(self._Twist))
+        if self.Twist:
+            Curve.Rotate(gp_OY(), -np.radians(self.Twist))
         
 #        Translation:
         self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
-                                                        gp_Vec(*self._LE))
+                                                        gp_Vec(*self.LE))
                                                         )
         return None
 
@@ -322,8 +325,11 @@ class Airfoil:
         -------
         
         """
-        assert(type(SeligProfile) == str), "Selig Profile must be a string"
-        assert(SeligProfile != ''), "No Selig Profile given (string)"
+        if type(SeligProfile) != str:
+            raise(TypeError, "SeligProfile must be a string")
+        assert(SeligProfile != ''), "Selig Profile was found to be empty"
+
+        self.Profile = {'SeligProfile': SeligProfile}
         x, z = self._AirfoilPointsSeligFormat(SeligProfile) 
         self.Curve = self._fitAirfoiltoPoints(x, z)
         self._TransformAirfoil()
@@ -337,10 +343,12 @@ class Airfoil:
         Returns
         -------
         """
-        assert(type(Naca4Profile) == str), "Selig Profile must be a string"
+        if type(Naca4Profile) is not str:
+            raise TypeError("NACA 4 Profile must be a string")
         assert(len(Naca4Profile)==4), \
             "Invalid Naca4 '{}': should be 4 digit string".format(Naca4Profile)
-        
+
+        self.Profile = {'Naca4Profile': Naca4Profile}
         MaxCamberPercChord     = int(Naca4Profile[0])
         MaxCamberLocTenthChord = int(Naca4Profile[1])
         MaxThicknessPercChord  = int(Naca4Profile[2:])
@@ -355,11 +363,17 @@ class Airfoil:
         self._TransformAirfoil()
         return None
         
-    def AddCRMLinear(self, Smoothing=1):
+    def AddCRMLinear(self, CRM_Epsilon, Smoothing=1):
         """Linearly interpolate airfoil curve from CRM"""
-        x, z = CRMfoil.CRMlinear(self.CRM_Epsilon)
-        x *= self._ChordLength
-        z *= self._ChordLength
+        CRM_Epsilon = float(CRM_Epsilon)
+        assert(CRM_Epsilon >= 0 and CRM_Epsilon <= 1), \
+            """Spanwise Interpolation factor Epsilon Out of range\n
+            Should be between 0 and 1, found {}""".format(CRM_Epsilon)
+        
+        self.Profile = {'CRM_Epsilon': str(CRM_Epsilon)}
+        x, z = CRMfoil.CRMlinear(CRM_Epsilon)
+        x *= self.ChordLength
+        z *= self.ChordLength
         self.Curve = self._fitAirfoiltoPoints(x, z)
         # TODO: Smoothing..
 #        if 'Smoothing' in locals():
