@@ -12,7 +12,7 @@ import numpy as np
 import OCC.Geom
 
 
-@pytest.fixture( params =[
+@pytest.fixture(params=[
     # tuple with {Profile type, Argument Value}
     ('Naca4Profile', '0012'),
     ('SeligProfile', 'b707a'),
@@ -54,7 +54,7 @@ def test_nonzero_twist():
     # Test Non-zero Twist (around Y axis):
     Af = Airfoil(ChordLength=1, Naca4Profile='0012', Twist=10)
     start_pt = get_Airfoil_startpoint(Af)
-        
+
     beta = Af.Twist * np.pi/180.
     SP_ref = twist_matrix(-beta).dot(default_SP)
     assert(np.all((start_pt - SP_ref) < 1e-10))
@@ -64,7 +64,7 @@ def test_nonzero_rotation():
     # Use Start Point of untwisted, unrotated, unit chord, LE in origin NACA4
     # Airfoil as reference
     default_SP = np.array([1.,  0.,  0.00126])
-    
+
     # Test Non-Zero Rotation (Around X axis):
     Af = Airfoil(ChordLength=1, Naca4Profile='0012', Rotation=10)
     start_pt = get_Airfoil_startpoint(Af)
@@ -78,9 +78,9 @@ def test_Transform_Airfoil():
     # Use Start Point of untwisted, unrotated, unit chord, LE in origin NACA4
     # Airfoil as reference
     default_SP = np.array([1.,  0.,  0.00126])
-    
+
     # Test Translation, Rotation and Twist :
-    Af = Airfoil(LeadingEdgePoint=[1.,1.,1.], ChordLength=1,
+    Af = Airfoil(LeadingEdgePoint=[1., 1., 1.], ChordLength=1,
                  Naca4Profile='0012', Rotation=10, Twist=5)
     start_pt = get_Airfoil_startpoint(Af)
     beta = Af.Twist * np.pi/180.
@@ -90,12 +90,13 @@ def test_Transform_Airfoil():
     rotation = Yrot_mat.dot(Xrot_mat)
     SP_ref = rotation.dot(default_SP) + np.array([1., 1., 1.])
     assert(np.all((start_pt - SP_ref) < 1e-10))
-    
 
-#def test_EnforceSharpTE():
-#    # Test if airfoil is closed, NACA0012? - Haven't got this feature to work
-#    raise NotImplementedError
-    
+
+@pytest.mark.xfail
+def test_EnforceSharpTE():
+    # Test if airfoil is closed, NACA0012? - Haven't got this feature to work
+    raise NotImplementedError
+
 
 def test_overdefined_Airfoil():
     with pytest.raises(AssertionError):
@@ -108,9 +109,9 @@ def test_Airfoil_constructor(airfoil_examples):
 
     # Have to use eval here as keyword given in airfoil_examples is a string
     Af = eval("Airfoil(" + ProfileType + "='" + str(Profile) + "')")
-    
+
     # Test the Airfoil.Profile is the expected dictionary
-    assert(Af.Profile.has_key(ProfileType))
+    assert(ProfileType in Af.Profile.keys())
     assert(Af.Profile[ProfileType] == str(Profile))
 
     # Test the Curve has been generated
@@ -119,7 +120,7 @@ def test_Airfoil_constructor(airfoil_examples):
     # Test the python-occ spline object:
     assert(type(Af.Curve) == OCC.Geom.Handle_Geom_BSplineCurve)
     assert(Af.Curve.IsNull() == False)
-    
+
     # Check the Trailing Edge X is roughly equal to the chord length
     start_pt = get_Airfoil_startpoint(Af)
     assert((np.abs(start_pt[0] - Af.ChordLength) / Af.ChordLength) < 0.01)
@@ -139,10 +140,10 @@ def test_Airfoil_manual(airfoil_examples):
         Af.AddCRMLinear(Profile)
     else:
         raise NotImplementedError(
-        '{} is not an Implemented Airfoil type'.format(ProfileType))
-    
+            '{} is not an Implemented Airfoil type'.format(ProfileType))
+
     # Test the Airfoil.Profile is the expected dictionary
-    assert(Af.Profile.has_key(ProfileType))
+    assert(ProfileType in Af.Profile.keys())
     assert(Af.Profile[ProfileType] == str(Profile))
 
     # Test the Curve has been generated
@@ -151,12 +152,11 @@ def test_Airfoil_manual(airfoil_examples):
     # Test the python-occ spline object:
     assert(type(Af.Curve) == OCC.Geom.Handle_Geom_BSplineCurve)
     assert(Af.Curve.IsNull() == False)
-    
+
     # Check the Trailing Edge X is roughly equal to the chord length
     start_pt = get_Airfoil_startpoint(Af)
     assert((np.abs(start_pt[0] - Af.ChordLength) / Af.ChordLength) < 0.01)
-    
-    
+
 
 def test_NACA4_Airfoil_Assertions():
     # Test that an empty profile string raises an error
@@ -168,7 +168,7 @@ def test_NACA4_Airfoil_Assertions():
     # Test that a non existant Selig Airfoil raises an error
     with pytest.raises(AssertionError):
         Af = Airfoil(Naca4Profile='SomeImaginaryAirfoil')
-    
+
 
 def test_CRM_Airfoil_Assertions():
     # Test that an out of range epsilon produces an error
@@ -179,10 +179,10 @@ def test_CRM_Airfoil_Assertions():
         Af = Airfoil(CRM_Epsilon='d')
 
 
-#def test_NACA5_Airfoil_Assertions
+# def test_NACA5_Airfoil_Assertions
 #
 
-    
+
 def test_Selig_Airfoil_Assertions():
     # Test that an empty profile string raises an error
     with pytest.raises(AssertionError):
@@ -194,7 +194,7 @@ def test_Selig_Airfoil_Assertions():
     with pytest.raises(AssertionError):
         Af = Airfoil(SeligProfile='SomeImaginaryAirfoil')
 
-  
+
 # END OF TESTS
 
 # ---------------------------------------------------------------------------

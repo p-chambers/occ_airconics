@@ -91,18 +91,19 @@ class LiftingSurface:
         
 #        Initialise LE coordinate arrays and add first OCC gp_pnt at [0,0,0]:
 #        Note: Might be faster to bypass XLE arrays and use local x only
-        XLE = np.zeros(self.SegmentNo + 1)
-        YLE = np.zeros(self.SegmentNo + 1)
-        ZLE = np.zeros(self.SegmentNo + 1)
+#        XLE = np.zeros(self.SegmentNo + 1)
+#        YLE = np.zeros(self.SegmentNo + 1)
+#        ZLE = np.zeros(self.SegmentNo + 1)
 #        LEPoints = [gp_Pnt(XLE[0], YLE[0], ZLE[0])]
         LEPoints = np.zeros((self.SegmentNo + 1, 3))
 
-        for i in xrange(self.SegmentNo):
-            XLE[i+1] = XLE[i] + DeltaXs[i]
-            YLE[i+1] = YLE[i] + DeltaYs[i]
-            ZLE[i+1] = ZLE[i] + DeltaZs[i]
-            LEPoints[i+1, :] = XLE[i+1], YLE[i+1], ZLE[i+1]
-#            LEPoints.append(gp_Pnt(XLE[i+1], YLE[i+1], ZLE[i+1]))
+#        for i in xrange(self.SegmentNo):
+#            XLE[i+1] = XLE[i] + DeltaXs[i]
+#            YLE[i+1] = YLE[i] + DeltaYs[i]
+#            ZLE[i+1] = ZLE[i] + DeltaZs[i]
+#            LEPoints[i+1, :] = XLE[i+1], YLE[i+1], ZLE[i+1]
+        Deltas = np.vstack([DeltaXs, DeltaYs, DeltaZs]).T
+        LEPoints [1:, :] = np.cumsum(Deltas, axis=0)
 
         return LEPoints
 

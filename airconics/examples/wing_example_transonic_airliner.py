@@ -4,16 +4,11 @@ Created on Mon Jan  4 17:28:37 2016
 
 Example script for generating a transonic airliner wing external geometry.
 
-Note: These example functions are also available in the built-in
-airconics.examples.wing_example_transonic_airliner module, however they are
-repeated here for clarity
-
 @author: pchambers
 """
 import numpy as np
 from airconics import primitives
 from airconics import liftingsurface
-import PyQt4
 
 # ==============================================================================
 # Transonic passanger airliner wing geometry example
@@ -100,4 +95,3 @@ if __name__ == "__main__":
     
     display.DisplayShape(Wing.Shape, update=True)
 
-    start_display()
