@@ -17,7 +17,8 @@ import numpy as np
 import primitives
 import AirCONICStools as act
 
-from OCC.gp import gp_Pnt
+from OCC.gp import gp_Pnt, gp_Trsf, gp_Vec
+from OCC.BRepBuilderAPI import BRepBuilderAPI_Transform
 
 
 class LiftingSurface:
@@ -35,7 +36,7 @@ class LiftingSurface:
                  SegmentNo=11,
                  TipRequired = True):
 
-        self.ApexPoint = ApexPoint
+        self.ApexPoint = gp_Pnt(*ApexPoint)
         self.SweepFunct = SweepFunct
         self.DihedralFunct = DihedralFunct
         self.TwistFunct = TwistFunct
@@ -126,6 +127,8 @@ class LiftingSurface:
                                       ChordFactor, self.DihedralFunct,
                                       self.TwistFunct)
                                       for i in xrange(self.SegmentNo+1)]
+
+        self._Sections = Sections   # I used from debugging - remove it?
         
         # TODO: Implement chord projection and Curve start/end points 
         # to rescale smoothed curves and for secondary loft methods
@@ -258,7 +261,54 @@ class LiftingSurface:
 
         LS, ActualSemiSpan, LSP_area,  RootChord, AR, WingTip = \
                                                 self._BuildLS(x0[0], x0[1])
+        
+        # Position the wing at the apex:
+        vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)
+        LS = act.translate_topods_from_vector(LS, vec)  
+        
         self.Shape = LS
+
         return None
 
-        
+    def Rotate(self, axis, degrees):
+        """Rotates the LiftingSurface.shape around axis by angle (degrees)
+
+        Parameters
+        ----------
+        axis - OCC.gp.gp_Ax1
+            An opencascade axis type e.g. X axis = OCC.gp.gp_OX()
+        degrees - float
+            Angle by which to rotate the shape (degrees)
+        """
+        if self.Shape is None:
+            print("Shape not found: No rotation possible")
+            return None
+        else:
+            # Translate the shape:
+            self.Shape = act.rotate(self.Shape, axis, degrees)
+
+            # Translate the apex: will come in useful for future?
+            self.ApexPoint.Rotate(axis, degrees)
+
+    def Translate_ByApex(self, newapex):
+        """Translate the LiftingSurface.shape and its apex point to newapex
+        Parameters
+        ----------
+        newapex - OCC.gp.gp_Pnt or array of float
+            The new LE point or X, Y, Z coordinates
+        """
+        if self.Shape is None:
+            print("Shape not found: No rotation possible")
+            return None
+        else:
+            if type(newapex) is not gp_Pnt:
+                newapex = gp_Pnt(*newapex)
+
+            # Create the Translation vector:
+            vec = gp_Vec(self.ApexPoint, newapex)
+
+            # Store the new apex point:
+            self.ApexPoint = newapex
+
+            # Translate surface:
+            self.Shape = act.translate_topods_from_vector(self.Shape, vec)

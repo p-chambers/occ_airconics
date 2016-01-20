@@ -6,15 +6,21 @@ Created on Fri Dec  4 11:58:52 2015
 """
 # Geometry Manipulation libraries:
 import OCC.Bnd
+from OCC.AIS import AIS_WireFrame, AIS_Shape
 from OCC.ShapeConstruct import shapeconstruct
+from OCC.Geom import Geom_BezierCurve
 from OCC.GeomAPI import GeomAPI_PointsToBSpline
 from OCC.BRepBndLib import brepbndlib_Add
 from OCC.TColgp import TColgp_Array1OfPnt
 from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections
 from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
-                                BRepBuilderAPI_Transform)
-from OCC.gp import gp_Trsf, gp_Lin
+                                BRepBuilderAPI_Transform,
+                                BRepBuilderAPI_MakeFace)
+from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox
+from OCC.TopoDS import TopoDS_Shape
+from OCC.gp import gp_Trsf, gp_Lin, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec
+from OCC.GeomAbs import GeomAbs_C2
 
 # FileIO libraries:
 from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
@@ -22,8 +28,30 @@ from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
 from OCC.Interface import Interface_Static_SetCVal
 from OCC.IFSelect import IFSelect_RetDone  #, IFSelect_ItemsByEntity
 
+
 # Standard Python libraries
 import numpy as np
+
+
+class assert_isdone(object):
+    '''
+    raises an assertion error when IsDone() returns false, with the error
+    specified in error_statement
+    -> this is from the pythonocc-utils utility-may not use it?
+    '''
+    def __init__(self, to_check, error_statement):
+        self.to_check = to_check
+        self.error_statement = error_statement
+
+    def __enter__(self, ):
+        if self.to_check.IsDone():
+            pass
+        else:
+            raise AssertionError(self.error_statement)
+
+    def __exit__(self, type, value, traceback):
+        pass
+
 
 # TODO: Add TE function (required for creating tip face)
 #def AddTEtoOpenAirfoil(Airfoil):
@@ -46,6 +74,7 @@ import numpy as np
 #        
 #    return None
 
+
 def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
     """Compute the extents in the X, Y and Z direction (in the current
     coordinate system) of the objects listed in the argument.
@@ -64,17 +93,26 @@ def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
          representing the bounding box
     """
 
-    BB = OCC.Bnd.Bnd_Box()
-    BB.SetGap(tol)
-    
+    bbox = OCC.Bnd.Bnd_Box()
+    bbox.SetGap(tol)
+
     for shape in ObjectIds:
         brepbndlib_Add(shape, bbox)
-        
+
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
     if as_vec is False:
         return xmin, ymin, zmin, xmax, ymax, zmax
     else:
         return gp_Vec(xmin, ymin, zmin), gp_Vec(xmax, ymax, zmax)
+
+
+def BBox_FromExtents(xmin, ymin, zmin, xmax, ymax, zmax):
+    """Generates the Wire Edges defining the Bounding Box defined in the input
+    arguments: Can be used to display the bounding box"""
+    s = BRepPrimAPI_MakeBox(gp_Pnt(xmin, ymin, zmin), gp_Pnt(xmax, ymax, zmax)).Shape()
+    ais_bbox = AIS_Shape(s)
+    ais_bbox.SetDisplayMode(AIS_WireFrame)
+    return ais_bbox.GetHandle()
 
 
 #def _Tcol_dim_1(li, _type):
@@ -93,14 +131,76 @@ def point_list_to_TColgp_Array1OfPnt(li):
         pts.SetValue(n, i)
     return pts
 
+def array_to_TColgp_Array1OfPnt(array):
+    """Function to return curve from numpy array
+    Parameters
+    ----------
+    array - array (Npts x 3)
+        Array of xyz points for which to fit a bspline
+    Returns
+    -------
+    pt_arr - TCOLgp_Array1OfPnt
+        OCC type array of points
+    """
+    dims = array.shape
+    # Attempt to tranpose if x, y, z points span columns (should span rows)
+    if dims[0] == 3:
+        array = array.T
+    elif dims[1] != 3:
+        raise ValueError("Array must have dimension Npnts x 3 (x, y, z)")
+    N = array.shape[0]
+    pt_arr = TColgp_Array1OfPnt(0, N-1)
+    for i, pt in enumerate(array):
+        pt_arr.SetValue(i, gp_Pnt(*pt))
+    return pt_arr
+
 
 def points_to_bspline(pnts):
     """
-    Points to bspline: obtained from pythonocc-utils
+    Points to bspline: originally from pythonocc-utils, changed to allow numpy
+    arrays as input
     """
-    pnts = point_list_to_TColgp_Array1OfPnt(pnts)
+    if type(pnts) is np.ndarray:
+        pnts = array_to_TColgp_Array1OfPnt(pnts)
+    elif type(pnts) is list:
+        if type(pnts[0]) is gp_Pnt:
+            pass
+        else:
+            assert(len(pnts[0]) == 3),  ("""Points should have length 3 (x, y, z).
+                  Found {}""".format(len(pnts[0])))
+            pnts = [gp_Pnt(pt) for pt in pnts]
+        pnts = point_list_to_TColgp_Array1OfPnt(pnts)
+
+    # Fit the curve to the point array
     crv = GeomAPI_PointsToBSpline(pnts)
     return crv.Curve()
+
+
+def points_to_BezierCurve(pnts):
+    """
+    Creates a Bezier curve from an array of points.
+    
+    Parameters
+    ----------
+    pnts - array or list
+        x, y, z for an array of points. Allowable inputs are numpy arrays
+        (with dimensions (Npoints x 3)), python list with elements [xi, yi, zi]
+        or list of OCC.gp.gp_Pnt objects
+    """
+    if type(pnts) is np.ndarray:
+        pnts = array_to_TColgp_Array1OfPnt(pnts)
+    elif type(pnts) is list:
+        if type(pnts[0]) is gp_Pnt:
+            pass
+        else:
+            assert(len(pnts[0]) == 3),  ("""Points should have length 3 (x, y, z).
+                  Found {}""".format(len(pnts[0])))
+            pnts = [gp_Pnt(pt) for pt in pnts]
+        pnts = point_list_to_TColgp_Array1OfPnt(pnts)
+
+    # Fit the curve to the point array
+    crv = Geom_BezierCurve(pnts)
+    return crv
 
 
 def scale_uniformal(brep, pnt, factor, copy=False):
@@ -168,7 +268,7 @@ def export_STEPFile(shapes, filename):
 #    return status
 
 
-def AddSurfaceLoft(objs):
+def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True):
     """Create a lift surface through curve objects
     Parameters
     ----------
@@ -179,7 +279,6 @@ def AddSurfaceLoft(objs):
     -------
     """
     assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
-    
     # Note: This is to give a smooth loft.
     isSolid = False; ruled = False; pres3d=1e-08
     args = [isSolid, ruled, pres3d]    # args (in order) for ThruSections
@@ -193,9 +292,108 @@ def AddSurfaceLoft(objs):
             print("""Warning: one or more object has no 'Curve' attribute and
             could not be added to the loft""")
             continue
-
+    
+    generator.CheckCompatibility(check_compatibility)
+    generator.SetContinuity(continuity)
     generator.Build()
-    return generator.Shape()
+    with assert_isdone(generator, 'failed lofting'):
+        return generator.Shape()
+#    return generator.Shape()
+
+
+def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
+    """Given an array of spanwise coordinates epsilon along a curvilinear
+    leading-edge attached coordinate system, and a set of values describing
+    e.g. Chord, Sweep at each station, generate and return a function
+    f(epsilon) which will give the interpolated value.
+    Parameters
+    ----------
+    EpsArray - array of float
+        Distribution of spanwise coordinates at which the Values are known
+    Values - array of float
+        Values of e.g. chordlength, sweep at each spanwise location in EpsArray
+    uniform - bool
+        If True, assumes that Values corresponds to uniformly distribution
+        epsilon locations along the lifting surface span
+    """
+    if uniform:
+        EpsArray = np.linspace(0, 1, len(Values))
+
+    def f(Epsilon):
+        return np.interp(Epsilon, EpsArray, Values)
+
+    return f
+
+
+def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
+    '''
+    Function Originally from pythonocc-utils, modified to work on objects
+
+    translate a brep over a vector
+    Paramters
+    ---------
+    brep - the Topo_DS to translate
+    vec-  the vector defining the translation
+    copy - copies to brep if True
+    '''
+    trns = gp_Trsf()
+    trns.SetTranslation(vec)
+    if issubclass(brep_or_iterable.__class__, TopoDS_Shape):
+        brep_trns = BRepBuilderAPI_Transform(brep_or_iterable, trns, copy)
+        brep_trns.Build()
+        return brep_trns.Shape()
+    else:
+        return [translate_topods_from_vector(brep_or_iterable, vec, copy) for i in brep_or_iterable]
+
+
+def rotate(brep, axe, degree, copy=False):
+    '''
+    Originally from pythonocc-utils : might add dependency on this?
+
+    brep - shape to rotate
+    axe - axis of rotation
+    degree - Number of degrees to rotate through
+    '''
+    trns = gp_Trsf()
+    trns.SetRotation(axe, np.radians(degree))
+    brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
+    brep_trns.Build()
+    return brep_trns.Shape()
+
+
+def mirror(brep, plane='xz', axe2=None, copy=False):
+    """Originally from pythonocc-utils : might add dependency on this?
+    Mirror object
+    Params
+    ------
+    
+    Returns
+    -------
+    
+    Notes
+    -----
+    I added a functionality here to specify a plane using a string so that
+    users could avoid interacting with core occ objects"""
+    if axe2:
+        plane = None
+    else:
+        Orig = gp_Pnt(0., 0., 0.)
+        xdir = gp_Dir(1, 0, 0)
+        ydir = gp_Dir(0, 1, 0)
+        zdir = gp_Dir(0, 0, 1)
+        
+        if plane == 'xz':
+            axe2 = gp_Ax2(Orig, ydir)
+        elif plane == 'yz':
+            axe2 = gp_Ax2(Orig, xdir)
+        elif plane == 'xy':
+            axe2 = gp_Ax2(Orig, zdir)
+        else:
+            raise(AssertionError, "Unknown mirror plane string,", plane)
+    trns = gp_Trsf()
+    trns.SetMirror(axe2)
+    brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
+    return brep_trns.Shape()
 
 
 #def batten_curve(pt1, pt2, height, slope, angle1, angle2):
@@ -247,3 +445,11 @@ def make_wire(*args):
         return wire.Wire()
     wire = BRepBuilderAPI_MakeWire(*args)
     return wire.Wire()
+
+
+def make_face(*args):
+    face = BRepBuilderAPI_MakeFace(*args)
+    with assert_isdone(face, 'failed to produce face'):
+        result = face.Face()
+        face.Delete()
+        return result

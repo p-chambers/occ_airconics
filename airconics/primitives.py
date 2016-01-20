@@ -115,15 +115,8 @@ class Airfoil:
         
         """
         N = len(x)
-        pnts = [gp_Pnt(x[i], 0., z[i]) for i in xrange(N)]
-#        plan = gp_Pln(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.))  # XZ plane
-
-        # use the array to create a spline describing the airfoil section
-#        spline = GeomAPI_PointsToBSpline(pt_array)#,
-                                             # N-1,  # order min
-                                             # N)   # order max
-#        spline = geomapi.To3d(spline_2d.Curve(), plan)
-
+        y = [0. for i in xrange(N)]
+        pnts = np.vstack([x, y, z]).T
         Curve = act.points_to_bspline(pnts)
         return Curve
 

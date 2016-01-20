@@ -1,1 +1,3 @@
 recursive-include airconics/coord_seligFmt *.dat
+
+recursive-include airconics/examples *.dat
