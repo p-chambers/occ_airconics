@@ -9,17 +9,20 @@ import OCC.Bnd
 from OCC.AIS import AIS_WireFrame, AIS_Shape
 from OCC.ShapeConstruct import shapeconstruct
 from OCC.Geom import Geom_BezierCurve
-from OCC.GeomAPI import GeomAPI_PointsToBSpline
+from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS
 from OCC.BRepBndLib import brepbndlib_Add
 from OCC.TColgp import TColgp_Array1OfPnt
-from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections
+from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections, BRepOffsetAPI_MakePipeShell
 from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
                                 BRepBuilderAPI_Transform,
                                 BRepBuilderAPI_MakeFace)
 from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox
+from OCC.BRep import BRep_Tool_Surface
 from OCC.TopoDS import TopoDS_Shape
-from OCC.gp import gp_Trsf, gp_Lin, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec
+from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec
+from OCC.IntAna import IntAna_IntConicQuad
+from OCC.Precision import precision_Angular, precision_Confusion
 from OCC.GeomAbs import GeomAbs_C2
 
 # FileIO libraries:
@@ -27,7 +30,7 @@ from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
                              STEPControl_Reader
 from OCC.Interface import Interface_Static_SetCVal
 from OCC.IFSelect import IFSelect_RetDone  #, IFSelect_ItemsByEntity
-
+from OCC.TopoDS import TopoDS_Shape
 
 # Standard Python libraries
 import numpy as np
@@ -155,7 +158,7 @@ def array_to_TColgp_Array1OfPnt(array):
     return pt_arr
 
 
-def points_to_bspline(pnts):
+def points_to_bspline(pnts, deg=3, periodic=False):
     """
     Points to bspline: originally from pythonocc-utils, changed to allow numpy
     arrays as input
@@ -172,7 +175,14 @@ def points_to_bspline(pnts):
         pnts = point_list_to_TColgp_Array1OfPnt(pnts)
 
     # Fit the curve to the point array
-    crv = GeomAPI_PointsToBSpline(pnts)
+    deg_min = deg
+    deg_max = deg
+    from OCC.GeomAbs import GeomAbs_C1
+    continuity = GeomAbs_C1
+    
+    crv = GeomAPI_PointsToBSpline(pnts, deg_min, deg_max, continuity)
+    if periodic:
+        crv.Curve().GetObject().SetPeriodic()
     return crv.Curve()
 
 
@@ -286,11 +296,15 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True):
     
     for obj in objs:
         try:
-            edge = make_edge(obj.Curve)
+            edge = make_edge(obj)
             generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
-        except AttributeError:
-            print("""Warning: one or more object has no 'Curve' attribute and
-            could not be added to the loft""")
+        except TypeError:
+            try: 
+                edge = make_edge(obj.Curve)
+                generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
+            except AttributeError:
+                print("""Warning: one or more object has no 'Curve' attribute and
+                could not be added to the loft""")
             continue
     
     generator.CheckCompatibility(check_compatibility)
@@ -429,22 +443,33 @@ def mirror(brep, plane='xz', axe2=None, copy=False):
 
 # These functions are from the core_geometry_util examples in pythonocc-core
 def make_edge(*args):
-    edge = BRepBuilderAPI_MakeEdge(*args)
-    result = edge.Edge()
-    return result
+    try:
+        edge = BRepBuilderAPI_MakeEdge(*args)
+    except TypeError:
+        # Assume that all curve have been passed by object (not handle) if edge
+        # failed:
+        edge_handles = [c.GetHandle() for c in args]
+    with assert_isdone(edge, 'failed to produce edge'):
+        result = edge.Edge()
+        edge.Delete()
+        return result
 
 
 def make_wire(*args):
     # if we get an iterable, than add all edges to wire builder
     if isinstance(args[0], list) or isinstance(args[0], tuple):
         wire = BRepBuilderAPI_MakeWire()
+        #from OCC.TopTools import TopTools_ListOfShape
         for i in args[0]:
-            wire.Add(i)
+                wire.Add(i)
         wire.Build()
-        print(wire)
         return wire.Wire()
+
     wire = BRepBuilderAPI_MakeWire(*args)
-    return wire.Wire()
+    wire.Build()
+    with assert_isdone(wire, 'failed to produce wire'):
+        result = wire.Wire()
+        return result
 
 
 def make_face(*args):
@@ -453,3 +478,136 @@ def make_face(*args):
         result = face.Face()
         face.Delete()
         return result
+
+
+def make_pipe_shell(spine, profiles):
+    pipe = BRepOffsetAPI_MakePipeShell(spine)
+    try: 
+        for profile in profiles:
+            pipe.Add(profile)
+    except TypeError:
+        pipe.Add(profiles)
+    pipe.Build()
+    with assert_isdone(pipe, 'failed building pipe'):
+        return pipe.Shape()
+
+
+def project_curve_to_surface(curve, surface, dir):
+    '''
+    Returns a curve as projected onto the surface shape
+    
+    Parameters
+    ----------
+    curve - Geom_curve
+    surface - TopoDS_Shape
+    dir - gp_Dir
+        the direction of projection
+    Returns
+    -------
+    res_curve - geom_curve (bspline only?)
+    '''
+    wire = make_wire(make_edge(curve.GetHandle()))
+    from OCC.BRepProj import BRepProj_Projection
+    from OCC.BRepAdaptor import BRepAdaptor_CompCurve
+    proj = BRepProj_Projection(wire, surface, dir)
+    res_wire = proj.Current()
+    res_curve = BRepAdaptor_CompCurve(res_wire).BSpline().GetObject()
+    return res_curve
+
+
+def points_from_intersection(plane, curve):
+    '''
+    Find intersection points between plane and curve.
+    Parameters
+    ----------
+    plane - Geom_Plane
+        The Plane
+    curve - Geom_*Curve
+        The Curve
+    Returns
+    -------
+    P - Point or list of points
+        A single intersection point (OCC.gp.gp_Pnt) if one intersection is
+        found, or list of points if more than one is found.
+            - If No Intersection points were found, returns None
+    Notes
+    -----
+    The plane is first converted to a surface As the GeomAPI_IntCS class
+    requires this.
+    '''
+    intersector = GeomAPI_IntCS(curve.GetHandle(), plane.GetHandle())
+
+    with assert_isdone(intersector, 'failed to calculate intersection'):
+        nb_results = intersector.NbPoints()
+        if nb_results == 1:
+            return intersector.Point(1)
+        elif nb_results >= 1:
+            P = []
+            for i in range(1, nb_results + 1):
+                P.append(intersector.Point(i))
+        else:
+            return None
+
+
+#from OCC.BRepFill import BRepFill_Filling
+#from OCC.GeomAbs import GeomAbs_C0
+from OCC.GeomPlate import (GeomPlate_CurveConstraint, GeomPlate_BuildPlateSurface,
+                           GeomPlate_MakeApprox)
+from OCC.GeomAdaptor import GeomAdaptor_Curve, GeomAdaptor_HCurve
+
+from OCC.BRepAdaptor import BRepAdaptor_HCurve
+from OCC.BRepFill import BRepFill_CurveConstraint
+from OCC.Geom import Handle_Geom_Surface
+def Add_Network_Surface(curvenet, deg=3, initsurf=None):
+    '''
+    curvenet - list of Handle_GeomCurve
+    '''
+#    fill = BRepFill_Filling(deg)
+#    for curve in curvenet:
+#        try: 
+#            fill.Add(make_edge(curve), continuity)
+#        except TypeError:
+#            # If curve is given as object rather than handle
+#            fill.Add(make_edge(curve.GetHandle()), continuity)
+#    fill.Build()
+#    face = fill.Face()
+#    return face
+    builder = GeomPlate_BuildPlateSurface(deg, 15, 2)
+    if initsurf is not None:
+        "Loading Initial Surface"
+#        h = Handle_Geom_Surface.DownCast(initsurf.TShape())
+#        builder.LoadInitSurface(h)
+        "Initial Surface loaded"
+
+    
+    for curve in curvenet:
+#        adaptor = GeomAdaptor_Curve(curve)
+#        Hadapter = GeomAdaptor_HCurve(adaptor)
+#        constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
+#        builder.Add(constr.GetHandle())
+    
+        # first didnt work... attempt 2 :
+        edge = make_edge(curve)
+        C = BRepAdaptor_HCurve()
+        C.ChangeCurve().Initialize(edge)
+        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()        
+        builder.Add(Cont)
+    
+#    Try adding from wires instead.. attempt 3:
+#         exp =        
+        
+    builder.Perform()
+    with assert_isdone(builder, 'Failed to create Plate Surface'):
+        # Approximate the surface into a bspline surface
+        surf = builder.Surface()
+        print(type(surf))
+        approx = GeomPlate_MakeApprox(surf, 0.001, 10, 8, 0.0001, 0).Surface()
+        Umin, Umax, Vmin, Vmax = surf.GetObject().Bounds()
+        print(Umin, Umax, Vmin, Vmax)
+        print(type(approx))
+        print("about to make face:")
+        face = make_face(approx, Umin, Umax, Vmin, Vmax, 0.1)
+        print("Face made")
+        return face
+    
+        

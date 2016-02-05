@@ -118,6 +118,8 @@ class Airfoil:
         y = [0. for i in xrange(N)]
         pnts = np.vstack([x, y, z]).T
         Curve = act.points_to_bspline(pnts)
+        # Saving the points for visualisation (need to remove this)
+        self._points = [gp_Pnt(*pnt) for pnt in pnts]
         return Curve
 
               

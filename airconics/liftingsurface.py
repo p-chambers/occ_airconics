@@ -125,7 +125,7 @@ class LiftingSurface:
         Eps = np.linspace(0, 1, self.SegmentNo+1)
         Sections = [self.AirfoilFunct(Eps[i], LEPoints[i], self.ChordFunct,
                                       ChordFactor, self.DihedralFunct,
-                                      self.TwistFunct)
+                                      self.TwistFunct).Curve
                                       for i in xrange(self.SegmentNo+1)]
 
         self._Sections = Sections   # I used from debugging - remove it?
@@ -134,7 +134,14 @@ class LiftingSurface:
         # to rescale smoothed curves and for secondary loft methods
 
         LS = act.AddSurfaceLoft(Sections)    # LooseSurface may go here?
-
+#        LE = act.points_to_bspline(LEPoints)
+#        TE = act.points_to_bspline([Section.GetObject().EndPoint() for Section in Sections])
+#        print(type(LE))
+#        print(type(TE))
+#        print(type(Sections[0]))
+#        curvenet = Sections + [LE, TE]
+#        LS = act.Add_Network_Surface(curvenet, initsurf=LS)
+#        print(type(LS))
         if LS==None:
             pass
 ###############################################################################

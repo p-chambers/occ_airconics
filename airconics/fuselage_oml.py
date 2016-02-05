@@ -19,8 +19,11 @@ Created on Mon Jan 18 11:27:08 2016
 import AirCONICStools as act
 import numpy as np
 
-from OCC.gp import gp_Pnt, gp_Vec, gp_Pln, gp_Dir
-
+from OCC.gp import gp_Pnt, gp_Vec, gp_Pln, gp_Dir, gp_Ax2, gp_Trsf
+from OCC.Geom import Geom_Circle, Handle_Geom_BSplineCurve, Geom_Plane
+from OCC.BRep import BRep_Tool_Surface
+from OCC.TopoDS import topods
+from OCC.GeomAbs import GeomAbs_C0
 
 class Fuselage:
     
@@ -30,7 +33,7 @@ class Fuselage:
                  NoseCoordinates=[0., 0., 0],
                  CylindricalMidSection=False,
                  SimplificationReqd = False,
-                 Maxi_attempt=6):
+                 Maxi_attempt=1):
         """AirCONICS Fuselage class: builds a parameterised instance of
         an aircraft fuselage
         Parameters
@@ -150,7 +153,6 @@ class Fuselage:
 #        (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = act.ObjectsExtents([PP_Edge])
         (Xmin,Ymin,Zmin) = np.min(AFPVPort, axis=0)
         (Xmax,Ymax,Zmax) = np.max(AFPVPort, axis=0)
-        print(Xmin, Ymin, Zmin, Xmax, Ymax, Zmax)
 #        Store the visualisable bounding box:
 #        self._bbox = act.BBox_FromExtents(Xmin, Ymin, Zmin, Xmax, Ymax, Zmax)
         
@@ -166,28 +168,46 @@ class Fuselage:
 #        ParallelLoftEdgePort      = rs.CopyObject(FSVMeanCurve,(0,-1.1*abs(Ymax-Ymin),0))
 #        LSPort      = rs.AddSweep2((FSVMeanCurve,ParallelLoftEdgePort     ),(RuleLinePort,     AftLoftEdgePort     ))
 #
-#       Create the Side view mean curve & Edge
-        FSVMean = (FSVU+FSVL) / 2.        
+#       Mean Curve: This is wrong! But can't think of anything else yet
+        FSVMean = (FSVU+FSVL)/2.
+        
         FSVMeanCurve = act.points_to_BezierCurve(FSVMean)
         FSVMeanEdge = act.make_edge(FSVMeanCurve.GetHandle())
-        
+        self._MeanEdge = FSVMeanEdge
         RuleLinePort = act.make_edge(gp_Pnt(0.,0.,0.),
                                      gp_Pnt(0., -1.1*abs(Ymax-Ymin), 0.))
         FSVMCEP = FSVMeanCurve.EndPoint()
         MoveVec = gp_Vec(gp_Pnt(0, 0, 0), FSVMCEP)
-        AftLoftEdgePort = act.translate_topods_from_vector(RuleLinePort,
+        AftLoftEdgePort = topods.Edge(act.translate_topods_from_vector(RuleLinePort,
                                                            MoveVec,
-                                                           copy=True)
+                                                           copy=True))
+        
         # Make copy of the mean curve                                                    
         MoveVec = gp_Vec(gp_Pnt(0, 0, 0), gp_Pnt(0, -1.1*abs(Ymax-Ymin), 0))
-        ParallelLoftEdgePort = act.translate_topods_from_vector(
+        ParallelLoftEdgePort = topods.Edge(act.translate_topods_from_vector(
                                                         FSVMeanEdge,
                                                         MoveVec,
-                                                        copy=True)
-#        LSPort = 
+                                                        copy=True))
+        # Mean Surface        
+#        LSPort_edges = [RuleLinePort, FSVMeanEdge, AftLoftEdgePort, ParallelLoftEdgePort]
+        spine = act.make_wire(FSVMeanEdge)
+        section1 = act.make_wire(RuleLinePort)
+        section2 = act.make_wire(AftLoftEdgePort)
+#        support = act.make_wire(ParallelLoftEdgePort)
+        LSPort = act.make_pipe_shell(spine, [section1, section2])
+#        self._spine = spine
+#        self._section1 = section1
+#        self._section2 = section2
+#        self._support = support
+        self._LSPort = LSPort
         
 #        # Project the plan view onto the mean surface
-#        PortCurve      = rs.ProjectCurveToSurface(PlanPortCurve     , LSPort     ,(0,0,100))
+        from OCC.BRepProj import BRepProj_Projection
+        project = BRepProj_Projection(act.make_edge(PlanPortCurve.GetHandle(),),
+                                      LSPort, gp_Dir(0,100,0))
+        
+        PortCurveSimplified = act.project_curve_to_surface(PlanPortCurve, LSPort,
+                                                      gp_Dir(0,0,100))
 #    
 #        # TODO: House-keeping
 #        rs.DeleteObjects([LSPort,PlanPortCurve,ParallelLoftEdgePort,RuleLinePort,AftLoftEdgePort])
@@ -209,11 +229,28 @@ class Fuselage:
 #        (Xmin,Ymin,Zmin,Xmax3,Ymax,Zmax) = act.ObjectsExtents(FSVUCurve)
 #        (Xmin,Ymin,Zmin,Xmax4,Ymax,Zmax) = act.ObjectsExtents(FSVLCurve)
 #        EndX = min([Xmax1,Xmax2,Xmax3,Xmax4])
-        StarboardCurveSimplified = None
-        PortCurveSimplified = PlanPortCurve
-        FSVMeanCurve = None
+
+#        PortCurveSimplified = PlanPortCurve
+
+        # Seems easiest to mirror portcurve with handles? COULD MIRROR
+        # INTERSECTION POINTS FROM PORTCURVE INSTEAD?
+        h = Handle_Geom_BSplineCurve()
+        mirror_ax2 = gp_Ax2( gp_Pnt(0,0,0), gp_Dir(0, 1, 0) )
+        c = PortCurveSimplified.Copy()
+        c.GetObject().Mirror(mirror_ax2)
+        h2 = h.DownCast(c)
+        StarboardCurve = h2.GetObject()
+        
+#        StarboardCurve = None
+
         EndX = Xmax        #This is not correct: just trying to get it working
-        return StarboardCurveSimplified, PortCurveSimplified, FSVUCurve, FSVLCurve, FSVMeanCurve, NoseEndX, TailStartX, EndX
+        return StarboardCurve, PortCurveSimplified, FSVUCurve, FSVLCurve, FSVMeanCurve, NoseEndX, TailStartX, EndX
+
+
+
+
+
+
 
     def _BuildFuselageOML(self, Max_attempt):
         """Builds the Fuselage outer mould line"""
@@ -235,15 +272,17 @@ class Fuselage:
         self.FSVUCurve = FSVUCurve
         self.FSVLCurve = FSVLCurve
         self.PortCurve = PortCurve
+        self.FSVMeanCurve = FSVMeanCurve
+        self.StarBoardCurve = StarboardCurve
         
         # Note: I should remove this later as it overwrites input
         Max_attempt = 1
         
-        i_attempt = -1
-        while i_attempt <= Max_attempt:
+        i_attempt = 0
+        while i_attempt < Max_attempt:
 #    
             i_attempt = i_attempt + 1 
-#            
+#            print("Surface fit attempt ", i_attempt)
             # Construct array of cross section definition frames
             
             SX0 = 0
@@ -254,7 +293,7 @@ class Fuselage:
             SX5 = EndX
 
             Step01, Step12, Step23, Step34, Step45 = \
-                NetworkSrfSettings[i_attempt]
+                NetworkSrfSettings[i_attempt-1]
             
 #            print "Attempting network surface fit with network density setup ", NetworkSrfSettings[i_attempt][:]
             Stations01 = np.linspace(SX0, SX1, max([Step01, 2]))
@@ -266,64 +305,95 @@ class Fuselage:
             StationRange = np.hstack([Stations01[:-1], Stations12[:-1],
                                      Stations23[:-1], Stations34[:-1],
                                      Stations45])
-           
             C = []
             FirstTime = True
 
-            self._SectionPlanes = []            
+            # Need to remove these: added for testing
+            self._SectionPlanes = [] 
+            self._InterSectionPoints = []
             
-            for XStation in StationRange:
+            for i, XStation in enumerate(StationRange[1:]):
                 # Create plane normal to x direction
-                P = gp_Pln(gp_Pnt(XStation, 0, 0), gp_Dir(gp_Vec(1, 0, 0)))
-                # Make into a face so I can check:
-                self._SectionPlanes.append(act.make_face(P))              
+                            # Try 2: Make into a plane?
+                P = Geom_Plane(gp_Pln(gp_Pnt(XStation, 0, 0),
+                                      gp_Dir(gp_Vec(1, 0, 0))))
+                # Make into a face for visualisation/debugging
+                self._SectionPlanes.append(act.make_face(P.Pln(), -100, +100, -100, +100))
+                try:
+                    IPoint2 = act.points_from_intersection(P,FSVUCurve)
+                    IPoint3 = act.points_from_intersection(P,PortCurve)
+                    IPoint4 = act.points_from_intersection(P,FSVLCurve)
+                    IPoint1 = IPoint3.Mirrored(gp_Ax2(gp_Pnt(0,0,0),
+                                                      gp_Dir(0,1,0)))
+
+                    IPointCentre = act.points_from_intersection(P,FSVMeanCurve)
+                except RuntimeError:
+                    print("Intersection Points at Section X={} Not Found".format(XStation))
+                    print("Skipping this plane location")
+                    continue
                 
-#                P = rs.PlaneFromPoints((XStation,0,0),(XStation,1,0),(XStation,0,1))
-#                IP1 = rs.PlaneCurveIntersection(P,StarboardCurve)
-#                IP2 = rs.PlaneCurveIntersection(P,FSVUCurve)
-#                IP3 = rs.PlaneCurveIntersection(P,PortCurve)
-#                IP4 = rs.PlaneCurveIntersection(P,FSVLCurve)
-#                IPcentre = rs.PlaneCurveIntersection(P,FSVMeanCurve)
-#                IPoint1 = rs.AddPoint(IP1[0][1])
-#                IPoint2 = rs.AddPoint(IP2[0][1])
-#                IPoint3 = rs.AddPoint(IP3[0][1])
-#                IPoint4 = rs.AddPoint(IP4[0][1])
-#                IPointCentre = rs.AddPoint(IPcentre[0][1])
-#                PseudoDiameter = abs(IP4[0][1].Z-IP2[0][1].Z)
+                # Remove this later ( using it for testing here)
+                self._InterSectionPoints.append(IPoint1)
+                self._InterSectionPoints.append(IPoint2)
+                self._InterSectionPoints.append(IPoint3)
+                self._InterSectionPoints.append(IPoint4)
+                self._InterSectionPoints.append(IPointCentre)
+
+                if i == 68:
+                    self._ipts = ([IPoint1, IPoint2, IPoint3, IPoint4, IPoint1])
+
+                PseudoDiameter = abs(IPoint4.Z()-IPoint2.Z())
 #                if CylindricalMidSection and NoseEndX < XStation < TailStartX:
-#                # Ensure that the parallel section of the fuselage is cylindrical
-#                # if CylindricalMidSection is True
-#                    print "Enforcing circularity in the central section..."
-#                    if FirstTime:
-#                        PseudoRadius = PseudoDiameter/2
-#                        FirstTime = False
-#                    Pc = rs.PointCoordinates(IPointCentre)
-#                    P1 = P2 = P3 = Pc
-#                    P1 = rs.PointAdd(P1,(0,PseudoRadius,0))
+##                # Ensure that the parallel section of the fuselage is cylindrical
+                if self.CylindricalMidSection:
+                    print "Enforcing circularity in the central section..."
+                    if FirstTime:
+                        PseudoRadius = PseudoDiameter / 2.
+                        FirstTime = False
+                    # Note: Add Circle with radius PseudoRadius at Pc
+                    c = Geom_Circle(IPointCentre, PseudoRadius)
+                    
+
 #                    P2 = rs.PointAdd(P2,(0,0,PseudoRadius))
 #                    P3 = rs.PointAdd(P3,(0,-PseudoRadius,0))
 #                    c = rs.AddCircle3Pt(P1, P2, P3)
-#                else:
-#                    c = rs.AddInterpCurve([IPoint1,IPoint2,IPoint3,IPoint4,IPoint1],knotstyle=3)
+                else:
+                    c = act.points_to_bspline([IPoint1,IPoint2,IPoint3,IPoint4, IPoint1])
+    
+#                    c.GetObject().SetPeriodic()
 #                    # Once CSec is implemented in Rhino Python, this could be replaced
 #                rs.DeleteObjects([IPoint1,IPoint2,IPoint3,IPoint4,IPointCentre])
-#                list.append(C,c)
-#        
+                C.append(c)
 #            # Fit fuselage external surface
-#            CurveNet = []
+            CurveNet = [FSVUCurve.GetHandle(), PortCurve.GetHandle(),
+                         FSVLCurve.GetHandle()]
+                        # C +
+            self._C = C           
+            self._curvenet = CurveNet
 #            for c in C[1:]:
 #                list.append(CurveNet,c)
 #            list.append(CurveNet, FSVUCurve)
 #            list.append(CurveNet, PortCurve)
 #            list.append(CurveNet, FSVLCurve)
 #            list.append(CurveNet, StarboardCurve)
-#            FuselageOMLSurf = rs.AddNetworkSrf(CurveNet)
-#            rs.DeleteObjects(C)
+            
+            # Create the surface: start with a swept surface and built a plate?
+            spine = act.make_wire(act.make_edge(FSVMeanCurve.GetHandle()))
+            sections = [act.make_wire(act.make_edge(curve)) for curve in C]
+            guides = ([FSVUCurve.GetHandle(), PortCurve.GetHandle(),
+                       FSVLCurve.GetHandle(), StarboardCurve.GetHandle()])
+#            sweptsurf = act.make_pipe_shell(spine, sections)
+            # Adapt the swept surface using adaptor curve constraints            
+            
+#            FuselageOMLSurf = act.Add_Network_Surface(guides, initsurf=sweptsurf)
+#            self._FuselageOML = sweptsurf
+#            self._curvenet = sections
 #            
-#            if not(FuselageOMLSurf==None):
+#            if FuselageOMLSurf is not None:
 #                print "Network surface fit succesful on attempt ", i_attempt+1 
-#                i_attempt = Maxi_attempt+1 # Force an exit from 'while'
-#    
+#                self.Shape = FuselageOMLSurf
+#                return None
+    
 #        # If all attempts at fitting a network surface failed, we attempt a Sweep2
 #        if FuselageOMLSurf==None:
 #            print "Failed to fit network surface to the external shape of the fuselage"
@@ -361,79 +431,6 @@ class Fuselage:
 
 
 ###############################################################################
-
-
-
-
-
-
-
-
-#def CockpitWindowContours(Height = 1.620, Depth = 5):
-#    P1 = [0.000,0.076,Height-1.620+2.194]
-#    P2 = [0.000,0.852,Height-1.620+2.290]
-#    P3 = [0.000,0.904,Height+0.037]
-#    P4 = [0.000,0.076,Height]
-#    CWC1 = rs.AddPolyline([P1,P2,P3,P4,P1])
-#    rs.SelectObject(CWC1)
-#    rs.Command("_FilletCorners 0.08 ")
-#
-#    P1 = [0.000,0.951,Height-1.620+2.289]
-#    P2 = [0.000,1.343,Height-1.620+2.224]
-#    P3 = [0.000,1.634,Height-1.620+1.773]
-#    P4 = [0.000,1.557,Height-1.620+1.588]
-#    P5 = [0.000,1.027,Height-1.620+1.671]
-#    CWC2 = rs.AddPolyline([P1,P2,P3,P4,P5,P1])
-#    rs.SelectObject(CWC2)
-#    rs.Command("_FilletCorners 0.08 ")
-#
-#    CWC3 = act.MirrorObjectXZ(CWC1)
-#    CWC4 = act.MirrorObjectXZ(CWC2)
-#    
-#    ExtPathId = rs.AddLine([0,0,0],[Depth, 0, 0])
-#    
-#    CWC1s = rs.ExtrudeCurve(CWC1, ExtPathId)
-#    CWC2s = rs.ExtrudeCurve(CWC2, ExtPathId)
-#    CWC3s = rs.ExtrudeCurve(CWC3, ExtPathId)
-#    CWC4s = rs.ExtrudeCurve(CWC4, ExtPathId)
-#
-#    rs.DeleteObjects([CWC1, CWC2, CWC3, CWC4, ExtPathId])
-#
-#    return CWC1s, CWC2s, CWC3s, CWC4s
-#
-#
-#def WindowContour(WinCenter):
-#    P1 = [WinCenter[0], 0, WinCenter[1] + 0.468/2]
-#    P2 = [WinCenter[0] + 0.272/2, 0, WinCenter[1]]
-#    P3 = [WinCenter[0], 0, WinCenter[1] - 0.468/2]
-#    P4 = [WinCenter[0] - 0.272/2, 0, WinCenter[1]]
-#
-#    WCurveU = rs.AddInterpCurve([P4, P1, P2], start_tangent = [0, 0, 2.5], 
-#    end_tangent = [0, 0, -2.5])
-#    WCurveL = rs.AddInterpCurve([P2, P3, P4], start_tangent = [0, 0, -2.5], 
-#    end_tangent = [0, 0, 2.5])
-#    
-#    WCurve = rs.JoinCurves([WCurveU, WCurveL], delete_input=True)
-#    return WCurve
-#
-#def MakeWindow(FuselageSrf, Xwc, Zwc):
-#    WinCenter = [Xwc, Zwc]
-#    WCurve = WindowContour(WinCenter)
-#    
-#    ExtPathStbd = rs.AddLine([0,0,0],[0,10,0])
-#    ExtPathPort = rs.AddLine([0,0,0],[0,-10,0])
-#    
-#    TubeStbd = rs.ExtrudeCurve(WCurve, ExtPathStbd)
-#    FuselageSrf, WinStbd = rs.SplitBrep(FuselageSrf, TubeStbd, delete_input=True)
-#    TubePort = rs.ExtrudeCurve(WCurve, ExtPathPort)
-#    FuselageSrf, WinPort = rs.SplitBrep(FuselageSrf, TubePort, delete_input=True)
-#
-#    rs.DeleteObjects([TubeStbd, TubePort, ExtPathStbd, ExtPathPort, WCurve])
-#
-#    return WinStbd, WinPort, FuselageSrf
-
-
-
 
 
 
@@ -494,11 +491,65 @@ if __name__ == '__main__':
 #    NoseCoordinates = [0,0,0], 
 #    CylindricalMidSection = False, 
 #    SimplificationReqd = False)
-    
-#    display.DisplayShape(Fus.FSVUCurve, update=True)
-#    display.DisplayShape(Fus.FSVLCurve, update=True)
+#    from OCC.BRepOffsetAPI import BRepOffsetAPI_MakePipeShell
+#    spine = Fus._spine
+#    section1 = Fus._section1
+#    section2 = Fus._section2
+#    pipe = BRepOffsetAPI_MakePipeShell(spine)
+#    pipe.Add(section1)
+#    pipe.Add(section2)
+#    pipe.Build()
+#    S_mean = pipe.Shape()
+    display.DisplayShape(Fus.FSVUCurve, update=True)
+    display.DisplayShape(Fus.FSVLCurve, update=True)
     display.DisplayShape(Fus.PortCurve, update=True)
+    display.DisplayShape(Fus.StarBoardCurve, update=True)
     
-    for face in Fus._SectionPlanes:
-        display.DisplayShape(face, update=True)
+    # Create plane to check symmetry:
+    P = gp_Pln(gp_Pnt(0, 0, 0),
+                          gp_Dir(gp_Vec(0, 1, 0))) 
+    Fsym = act.make_face(P, -10, 10, 0, 100)
+    display.DisplayShape(Fsym, update=True)
+#    for i in xrange(len(Fus._InterSectionPoints)):
+#        display.DisplayShape(Fus._InterSectionPoints[i])
+#    for curve in Fus._curvenet:
+#        display.DisplayShape(curve, color='Black')
+#    display.DisplayShape(Fus._FuselageOML, update=True)
+        
+#    Look at the control points of some curve (not looking symmetric)
+    ic = 68
+    display.DisplayShape(Fus._C[ic])
+    c = Fus._C[ic].GetObject()
+    for i in xrange(1, c.NbPoles()):
+        display.DisplayShape(c.Pole(i), update=True)        
+#    for pt in Fus._ipts:
+#        display.DisplayShape(pt, update=True, color="Black")
+    display.DisplayShape(Fus._MeanEdge, update=True)
     start_display()
+    display.View_Right()
+    
+    
+    
+    from OCC.GeomAPI import GeomAPI_Interpolate
+    from OCC.TColgp import TColgp_HArray1OfPnt
+    
+#    harray = TColgp_HArray1OfPnt(1,5)
+#    pts = Fus._ipts
+#    pts = pts[:-1]
+#
+#    
+#    for i,pt in enumerate(pts):
+#        harray.SetValue(i+1, pt)
+#    
+#    interp = GeomAPI_Interpolate(harray.GetHandle(), True, 0.01)
+#    
+##    interp.Load(gp_Vec(0,0,1), gp_Vec(0,0,-1))
+#    
+#    interp.Perform
+#    
+#    interp.Perform()
+#    
+#    crv = interp.Curve()
+#    display.DisplayShape(crv, update=True, color='black')
+
+    
