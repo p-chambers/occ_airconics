@@ -9,9 +9,10 @@ import OCC.Bnd
 from OCC.AIS import AIS_WireFrame, AIS_Shape
 from OCC.ShapeConstruct import shapeconstruct
 from OCC.Geom import Geom_BezierCurve
-from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS
+from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS, GeomAPI_Interpolate
 from OCC.BRepBndLib import brepbndlib_Add
-from OCC.TColgp import TColgp_Array1OfPnt
+from OCC.TColgp import TColgp_Array1OfPnt, TColgp_HArray1OfPnt, TColgp_Array1OfVec
+from OCC.TColStd import TColStd_HArray1OfBoolean
 from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections, BRepOffsetAPI_MakePipeShell
 from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
@@ -20,7 +21,7 @@ from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
 from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.BRep import BRep_Tool_Surface
 from OCC.TopoDS import TopoDS_Shape
-from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec
+from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln, gp_Ax3, gp_Cone
 from OCC.IntAna import IntAna_IntConicQuad
 from OCC.Precision import precision_Angular, precision_Confusion
 from OCC.GeomAbs import GeomAbs_C2
@@ -128,62 +129,107 @@ def BBox_FromExtents(xmin, ymin, zmin, xmax, ymax, zmax):
 #    return pts
 
 
-def point_list_to_TColgp_Array1OfPnt(li):
-    pts = TColgp_Array1OfPnt(0, len(li)-1)
-    for n, i in enumerate(li):
-        pts.SetValue(n, i)
-    return pts
+#def point_list_to_TColgp_PntArrayType(li, _type=TColgp_Array1OfPnt):
+#    pts = _type(0, len(li)-1)
+#    for n, i in enumerate(li):
+#        pts.SetValue(n, i)
+#    return pts
 
-def array_to_TColgp_Array1OfPnt(array):
+def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
     """Function to return curve from numpy array
     Parameters
     ----------
-    array - array (Npts x 3)
+    array - array (Npts x 3) or list
         Array of xyz points for which to fit a bspline
+    _type - type of TColgp array
+        Tested inputs are:
+            - TColgp_Array1OfPnt
+            - TColgp_HArray1OfPnt
+        See Notes for more information
+        
     Returns
     -------
     pt_arr - TCOLgp_Array1OfPnt
         OCC type array of points
+    Notes
+    -----
+    USe TColgp_Harray when interpolating a curve from points with the
+    GeomAPI_Interpolate. Use TColgp_Array when interpolating a curve
+    from points with the GeomAPI_PointsToBspline
     """
-    dims = array.shape
-    # Attempt to tranpose if x, y, z points span columns (should span rows)
-    if dims[0] == 3:
-        array = array.T
-    elif dims[1] != 3:
-        raise ValueError("Array must have dimension Npnts x 3 (x, y, z)")
-    N = array.shape[0]
-    pt_arr = TColgp_Array1OfPnt(0, N-1)
-    for i, pt in enumerate(array):
-        pt_arr.SetValue(i, gp_Pnt(*pt))
+    try:
+        dims = np.shape(array)
+        # Attempt to tranpose if x, y, z points span columns (should span rows)
+        if dims[0] == 3:
+            array = array.T
+        elif dims[1] != 3:
+            raise ValueError("Array must have dimension Npnts x 3 (x, y, z)")
+        N = np.shape(array)[0]
+        pt_arr = _type(1, N)
+        for i, pt in enumerate(array):
+            pt_arr.SetValue(i+1, gp_Pnt(*pt))
+    except IndexError:
+        # Input pnts are likely to be a list of gp_Pnt:
+        N = len(array)
+        pt_arr = _type(1, N)
+        for i, pt in enumerate(array):
+            pt_arr.SetValue(i+1, pt)
     return pt_arr
 
 
-def points_to_bspline(pnts, deg=3, periodic=False):
+def points_to_bspline(pnts, deg=3, periodic=False, tangents=None, tangent_method=0,
+                      scale=False):
     """
     Points to bspline: originally from pythonocc-utils, changed to allow numpy
     arrays as input
+    Paramters
+    ---------
+    pnts - list or numpy array
+        array of x, y, z points
+    deg - integer
+        degree of the fitted bspline
+    periodic - Bool
+        If true, OCC.GeomAPI_Interpolate will be used instead of the
+        GeomAPI_PointsToBspline. Curve tangent vectors can then be 
+        enforced at the interpolation pnts
+    tangents - array
+        list of [x,y,z] tangent vectors to be specificied at points: 
+        if only 2 tangents are specified, these will be enforced at the
+        start and end points, otherwise tangents should have the same length
+        as pnts and will be enforced at each point.
+    Scale - Bool
+        Will scale the tangents (gives a smoother Periodic curve if False)
+    Notes
+    -----
+    If periodic is true, 
     """
-    if type(pnts) is np.ndarray:
-        pnts = array_to_TColgp_Array1OfPnt(pnts)
-    elif type(pnts) is list:
-        if type(pnts[0]) is gp_Pnt:
-            pass
-        else:
-            assert(len(pnts[0]) == 3),  ("""Points should have length 3 (x, y, z).
-                  Found {}""".format(len(pnts[0])))
-            pnts = [gp_Pnt(pt) for pt in pnts]
-        pnts = point_list_to_TColgp_Array1OfPnt(pnts)
-
-    # Fit the curve to the point array
-    deg_min = deg
-    deg_max = deg
-    from OCC.GeomAbs import GeomAbs_C1
-    continuity = GeomAbs_C1
-    
-    crv = GeomAPI_PointsToBSpline(pnts, deg_min, deg_max, continuity)
-    if periodic:
-        crv.Curve().GetObject().SetPeriodic()
-    return crv.Curve()
+    if not periodic and (tangents is None):
+        _type = TColgp_Array1OfPnt
+        pnts = point_array_to_TColgp_PntArrayType(pnts, _type)
+        # Fit the curve to the point array
+        deg_min = deg
+        deg_max = deg
+        crv = GeomAPI_PointsToBSpline(pnts, deg_min, deg_max).Curve()
+    else:
+        _type = TColgp_HArray1OfPnt
+        pnts = point_array_to_TColgp_PntArrayType(pnts, _type)
+        tol = 0.001
+        interp = GeomAPI_Interpolate(pnts.GetHandle(), periodic, tol)
+        if tangents is not None:
+            N = tangents.shape[0]
+            if N == 2:
+                interp.Load(gp_Vec(*tangents[0,:]), gp_Vec(*tangents[1,:]),
+                            scale)
+            else:
+                tan_array = TColgp_Array1OfVec(1, N)
+                for i in xrange(1, N+1):
+                    tan_array.SetValue(i, gp_Vec(*tangents[i-1,:]))
+                tan_flags = TColStd_HArray1OfBoolean(1, N)
+                tan_flags.Init(True)   #Set all true i.e. enforce all tangents
+                interp.Load(tan_array, tan_flags.GetHandle(), scale)
+        interp.Perform()
+        crv = interp.Curve()
+    return crv
 
 
 def points_to_BezierCurve(pnts):
@@ -198,7 +244,7 @@ def points_to_BezierCurve(pnts):
         or list of OCC.gp.gp_Pnt objects
     """
     if type(pnts) is np.ndarray:
-        pnts = array_to_TColgp_Array1OfPnt(pnts)
+        pnts = point_array_to_TColgp_PntArrayType(pnts)
     elif type(pnts) is list:
         if type(pnts[0]) is gp_Pnt:
             pass
@@ -278,41 +324,52 @@ def export_STEPFile(shapes, filename):
 #    return status
 
 
-def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True):
+def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
+                   solid=True, first_vertex=None):
     """Create a lift surface through curve objects
     Parameters
     ----------
     objs - list of python classes
         Each obj is expected to have an obj.Curve attribute :
         see airconics.primitives.airfoil class
+    vertices - list of TopoDS_Vertex
+        A list of the vertices to add to the 'ThruSections' algorithm
     Returns
     -------
     """
     assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
     # Note: This is to give a smooth loft.
-    isSolid = False; ruled = False; pres3d=1e-08
-    args = [isSolid, ruled, pres3d]    # args (in order) for ThruSections
+    ruled = False; pres3d=1e-6
+    args = [solid, ruled, pres3d]    # args (in order) for ThruSections
     generator = BRepOffsetAPI_ThruSections(*args)
-    
+    generator.SetMaxDegree(3)
+    from OCC.GeomAbs import GeomAbs_G1
+    from OCC.Approx import Approx_ChordLength
+    generator.SetParType(Approx_ChordLength)
+    generator.SetContinuity(GeomAbs_G1)
+    print(generator.CriteriumWeight)
+    if first_vertex:
+        generator.AddVertex(first_vertex)
     for obj in objs:
         try:
             edge = make_edge(obj)
             generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
         except TypeError:
             try: 
+                # If working with an airconics object, the OCC curve is stored 
+                # in obj.Curve:
                 edge = make_edge(obj.Curve)
                 generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
             except AttributeError:
                 print("""Warning: one or more object has no 'Curve' attribute and
                 could not be added to the loft""")
             continue
-    
+
     generator.CheckCompatibility(check_compatibility)
     generator.SetContinuity(continuity)
     generator.Build()
     with assert_isdone(generator, 'failed lofting'):
         return generator.Shape()
-#    return generator.Shape()
 
 
 def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
@@ -443,12 +500,7 @@ def mirror(brep, plane='xz', axe2=None, copy=False):
 
 # These functions are from the core_geometry_util examples in pythonocc-core
 def make_edge(*args):
-    try:
-        edge = BRepBuilderAPI_MakeEdge(*args)
-    except TypeError:
-        # Assume that all curve have been passed by object (not handle) if edge
-        # failed:
-        edge_handles = [c.GetHandle() for c in args]
+    edge = BRepBuilderAPI_MakeEdge(*args)
     with assert_isdone(edge, 'failed to produce edge'):
         result = edge.Edge()
         edge.Delete()
@@ -490,6 +542,12 @@ def make_pipe_shell(spine, profiles):
     pipe.Build()
     with assert_isdone(pipe, 'failed building pipe'):
         return pipe.Shape()
+
+from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
+def make_vertex(*args):
+    vert = BRepBuilderAPI_MakeVertex(*args)
+    result = vert.Vertex()
+    return result
 
 
 def project_curve_to_surface(curve, surface, dir):
@@ -548,7 +606,7 @@ def points_from_intersection(plane, curve):
         else:
             return None
 
-
+# This section is experimental
 #from OCC.BRepFill import BRepFill_Filling
 #from OCC.GeomAbs import GeomAbs_C0
 from OCC.GeomPlate import (GeomPlate_CurveConstraint, GeomPlate_BuildPlateSurface,
@@ -561,6 +619,9 @@ from OCC.Geom import Handle_Geom_Surface
 def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     '''
     curvenet - list of Handle_GeomCurve
+    Notes
+    -----
+    This function is not tested and should not be used with certainty
     '''
 #    fill = BRepFill_Filling(deg)
 #    for curve in curvenet:
@@ -572,27 +633,26 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
 #    fill.Build()
 #    face = fill.Face()
 #    return face
-    builder = GeomPlate_BuildPlateSurface(deg, 15, 2)
+    print("This function is not tested and should not be used with certainty")
+    builder = GeomPlate_BuildPlateSurface(deg, 15, 5)
     if initsurf is not None:
         "Loading Initial Surface"
-#        h = Handle_Geom_Surface.DownCast(initsurf.TShape())
-#        builder.LoadInitSurface(h)
+        builder.LoadInitSurface()
         "Initial Surface loaded"
 
     
     for curve in curvenet:
-#        adaptor = GeomAdaptor_Curve(curve)
-#        Hadapter = GeomAdaptor_HCurve(adaptor)
-#        constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
-#        builder.Add(constr.GetHandle())
-    
+        adaptor = GeomAdaptor_Curve(curve)
+        Hadapter = GeomAdaptor_HCurve(adaptor)
+        constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
+        builder.Add(constr.GetHandle())
         # first didnt work... attempt 2 :
-        edge = make_edge(curve)
-        C = BRepAdaptor_HCurve()
-        C.ChangeCurve().Initialize(edge)
-        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()        
-        builder.Add(Cont)
-    
+#        edge = make_edge(curve)
+#        C = BRepAdaptor_HCurve()
+#        C.ChangeCurve().Initialize(edge)
+#        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()        
+#        builder.Add(Cont)
+#    
 #    Try adding from wires instead.. attempt 3:
 #         exp =        
         
@@ -600,14 +660,70 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     with assert_isdone(builder, 'Failed to create Plate Surface'):
         # Approximate the surface into a bspline surface
         surf = builder.Surface()
-        print(type(surf))
-        approx = GeomPlate_MakeApprox(surf, 0.001, 10, 8, 0.0001, 0).Surface()
+        approx = GeomPlate_MakeApprox(surf, 0.001, 10, 8, 0.001, 0).Surface()
         Umin, Umax, Vmin, Vmax = surf.GetObject().Bounds()
         print(Umin, Umax, Vmin, Vmax)
-        print(type(approx))
         print("about to make face:")
-        face = make_face(approx, Umin, Umax, Vmin, Vmax, 0.1)
+        face = make_face(approx, 0.1)#, Umin, Umax, Vmin, Vmax, 0.1)
         print("Face made")
         return face
     
-        
+def CutSect(Shape, SpanStation):
+    # SpanStation is assumed to be along the y direction, in the range [0,1]
+    
+    (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Shape])
+    
+    YStation = Ymin + (Ymax-Ymin)*SpanStation
+    OriginX = Xmin -1
+    OriginZ = Zmin -1
+    
+
+    P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0))) 
+    CutPlaneSrf = make_face(P, OriginZ, Zmax+1, OriginX, Xmax+1)
+
+    
+#    CutPlane = rs.PlaneFromPoints((OriginX, YStation, OriginZ), (Xmax+1, YStation, OriginZ), (OriginX, YStation, Zmax + 1))
+#    CutPlaneSrf = rs.AddPlaneSurface(CutPlane, max([(Xmax-Xmin),(Ymax-Ymin),(Zmax-Zmin)])+1, max([(Xmax-Xmin),(Ymax-Ymin),(Zmax-Zmin)])+1 )
+
+
+
+    from OCC.BRepAlgoAPI import BRepAlgoAPI_Section
+    I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
+    I.Build()
+    Section = I.Shape()
+
+    (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Section])
+    
+#    
+#    # Find the apparent chord of the section (that is, the line connecting the fore
+#    # most and aftmost points on the curve
+#    DivPoints = rs.DivideCurve(Section, 200)
+#
+#    Xs = []
+#    Ys = []
+#    Zs = []
+#    for DP in DivPoints:
+#        list.append(Xs, DP[0])
+#        list.append(Ys, DP[1])
+#        list.append(Zs, DP[2])
+#        
+#    val, idx = min((val, idx) for (idx, val) in enumerate(Xs))
+#    LeadingPoint = [Xs[idx], Ys[idx], Zs[idx]]
+#    val, idx = max((val, idx) for (idx, val) in enumerate(Xs))
+#    TrailingPoint = [Xs[idx], Ys[idx], Zs[idx]]
+#    
+#    Chord = rs.AddLine(TrailingPoint, LeadingPoint)
+    Chord = None
+    return Section, Chord   
+
+
+def AddCone(BasePoint, Apex, Radius):
+    """Generates a cone shape originating at BasePoint with base radius Radius,
+    and defined by its Apex"""
+    Apex = np.array(Apex)
+    BasePoint = np.array(BasePoint)
+    h = np.linalg.norm(Apex - BasePoint)
+    ang = np.arctan(h/float(Radius))
+    cone = gp_Cone(gp_Ax3(gp_Pnt(*BasePoint), gp_Dir(*(Apex-BasePoint))),
+                           ang, Radius)
+    return cone

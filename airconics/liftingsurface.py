@@ -133,15 +133,25 @@ class LiftingSurface:
         # TODO: Implement chord projection and Curve start/end points 
         # to rescale smoothed curves and for secondary loft methods
 
-        LS = act.AddSurfaceLoft(Sections)    # LooseSurface may go here?
+        LS = act.AddSurfaceLoft(Sections)    # Skip second (gives strange surface)
+#        LS = act.Add_Network_Surface(Sections)
+        
+        # Trying out a different surface fit (LE was wavy)
 #        LE = act.points_to_bspline(LEPoints)
 #        TE = act.points_to_bspline([Section.GetObject().EndPoint() for Section in Sections])
-#        print(type(LE))
-#        print(type(TE))
-#        print(type(Sections[0]))
-#        curvenet = Sections + [LE, TE]
-#        LS = act.Add_Network_Surface(curvenet, initsurf=LS)
-#        print(type(LS))
+#        LS = act.Add_Network_Surface([TE, LE, Sections[0], Sections[-1]], initsurf=LS)
+#        from OCC.BRepFill import BRepFill_Filling
+#        fill = BRepFill_Filling(3)
+#        curves = Sections+[LE,TE]
+#        fill.LoadInitSurface(LS)
+#        fill.Add(make_edge(Sections[0]),1)
+#        fill.Add(make_edge(Sections[-1]),1)
+#        fill.Add(make_edge(LE),1)
+#        fill.Add(make_edge(TE),1)
+
+#        fill.Build()
+#        LS = fill.Generated()
+        
         if LS==None:
             pass
 ###############################################################################

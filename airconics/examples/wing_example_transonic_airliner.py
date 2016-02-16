@@ -91,7 +91,7 @@ if __name__ == "__main__":
         myDihedralFunctionAirliner, 
         myTwistFunctionAirliner, 
         myChordFunctionAirliner, 
-        myAirfoilFunctionAirliner, SegmentNo=NSeg)
+        myAirfoilFunctionAirliner, SegmentNo=NSeg, ScaleFactor=ScaleFactor)
     
     display.DisplayShape(Wing.Shape, update=True)
-
+    
