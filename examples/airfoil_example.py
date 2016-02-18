@@ -16,6 +16,9 @@ Created on Tue Dec  8 12:56:10 2015
 """
 if __name__ == '__main__':
     from airconics import primitives
+    # Visualisation with Python-OCC (ensure plot windows are set to qt)
+    from OCC.Display.SimpleGui import init_display
+    display, start_display, add_menu, add_function_to_menu = init_display()
     
     
     # ==============================================================================
@@ -35,9 +38,14 @@ if __name__ == '__main__':
     Af = primitives.Airfoil(LEPoint, ChordLength, Rotation, Twist,
                             SeligProfile=AirfoilSeligName)
     
-    # Visualisation with Python-OCC (ensure plot windows are set to qt4)
-    from OCC.Display.SimpleGui import init_display
-    display, start_display, add_menu, add_function_to_menu = init_display()
     
-    display.DisplayShape(Af.shape, update=True)
+    display.DisplayShape(Af.Curve, update=True)
+    
     start_display()
+    
+    # If using interactive mode i.e. ipython, Airfoil can be removed with:
+#    display.Context.Erase(Af1_disp.GetObject().GetHandle())
+#    Af1.Curve.GetObject().Delete()   # Not sure if this truly collects the garbage yet
+#    
+#    # Or Clear the display:
+#    display.EraseAll()

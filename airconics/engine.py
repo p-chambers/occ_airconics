@@ -2,6 +2,8 @@
 """
 Created on Wed Feb 10 16:38:47 2016
 
+This is a work in progress
+
 @author: pchambers
 """
 
@@ -66,9 +68,9 @@ class Engine:
 #    
 #        # Outflow cone
         TailConeBasePoint = np.array([MeanNacelleLength*0.84, 0,0])
-        TailConeApex    = np.array([MeanNacelleLength*1.35, 0, 0])
+        TailConeHeight    = MeanNacelleLength*1.35
         TailConeRadius    =  HighlightRadius*0.782
-        TailCone = act.AddCone(TailConeBasePoint, TailConeApex, TailConeRadius)
+        TailCone = act.AddCone(TailConeBasePoint, TailConeRadius, TailConeHeight)
         self._TailCone = TailCone
 #        # Spinner cone
 #        SpinnerConeBasePoint = [MeanNacelleLength*0.26, 0,0]
@@ -214,5 +216,5 @@ if __name__ == "__main__":
     display.DisplayShape(act.make_edge(eng1._FC), update=True)
     display.DisplayShape(EngineSection, update=True, color='Black')    
     display.DisplayShape(eng1._FDisk, update=True)
-    display.DisplayShape(act.make_face(eng1._TailCone))
+    display.DisplayShape(eng1._TailCone)
     start_display()

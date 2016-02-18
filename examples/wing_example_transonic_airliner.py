@@ -99,5 +99,8 @@ if __name__ == "__main__":
         myAirfoilFunctionAirliner, SegmentNo=NSeg)
     
     display.DisplayShape(Wing.Shape, update=True)
-
+    
+#    To export the STEP file, uncomment the following line:
+#    act.export_STEPFile([Wing.Shape], 'wing.stp')
+    
     start_display()

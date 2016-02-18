@@ -33,7 +33,7 @@ class Fuselage:
                  NoseCoordinates=[0., 0., 0],
                  CylindricalMidSection=False,
                  SimplificationReqd = False,
-                 Maxi_attempt=1):
+                 Maxi_attempt=5):
         """AirCONICS Fuselage class: builds a parameterised instance of
         an aircraft fuselage
         Parameters
@@ -61,6 +61,7 @@ class Fuselage:
         self.SimplificationReqd = SimplificationReqd
         
         self._BuildFuselageOML(Maxi_attempt)
+        self._TransformOML()
 
         
     def _AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
@@ -232,16 +233,13 @@ class Fuselage:
 
 #        PortCurveSimplified = PlanPortCurve
 
-        # Seems easiest to mirror portcurve with handles? COULD MIRROR
-        # INTERSECTION POINTS FROM PORTCURVE INSTEAD?
+        # Seems easiest to mirror portcurve with handles?
         h = Handle_Geom_BSplineCurve()
         mirror_ax2 = gp_Ax2( gp_Pnt(0,0,0), gp_Dir(0, 1, 0) )
         c = PortCurveSimplified.Copy()
         c.GetObject().Mirror(mirror_ax2)
         h2 = h.DownCast(c)
         StarboardCurve = h2.GetObject()
-        
-#        StarboardCurve = None
 
         EndX = Xmax        #This is not correct: just trying to get it working
         return StarboardCurve, PortCurveSimplified, FSVUCurve, FSVLCurve, FSVMeanCurve, NoseEndX, TailStartX, EndX
@@ -275,9 +273,9 @@ class Fuselage:
         while i_attempt < Max_attempt:
 #    
             i_attempt = i_attempt + 1 
-#            print("Surface fit attempt ", i_attempt)
-            # Construct array of cross section definition frames
+            print("Surface fit attempt ", i_attempt)
             
+            # Construct array of cross section definition frames
             SX0 = 0
             SX1 = 0.04*NoseEndX
             SX2 = SX1 + 0.25*NoseEndX
@@ -288,7 +286,7 @@ class Fuselage:
             Step01, Step12, Step23, Step34, Step45 = \
                 NetworkSrfSettings[i_attempt-1]
             
-#            print "Attempting network surface fit with network density setup ", NetworkSrfSettings[i_attempt][:]
+            print "Attempting network surface fit with network density setup ", NetworkSrfSettings[i_attempt][:]
             Stations01 = np.linspace(SX0, SX1, max([Step01, 2]))
             Stations12 = np.linspace(SX1, SX2, max([Step12, 2]))
             Stations23 = np.linspace(SX2, SX3, max([Step23, 2]))
@@ -301,7 +299,7 @@ class Fuselage:
             C = []
             FirstTime = True
             
-            for i, XStation in enumerate(StationRange[:]):
+            for i, XStation in enumerate(StationRange[1:]):
                 # Create plane normal to x direction
                 P = Geom_Plane(gp_Pln(gp_Pnt(XStation, 0, 0),
                                       gp_Dir(gp_Vec(1, 0, 0))))
@@ -338,7 +336,6 @@ class Fuselage:
                                          [0,  0, -1],
                                          [0,  1,  0],
                                          [0,  0,  1]])
-#                    print("Starting rib curve interpolation")
                     c = act.points_to_bspline([IPoint2,IPoint3,IPoint4, IPoint1],
                                                 periodic=True, scale=False,
                                                 tangents=tangents)
@@ -361,7 +358,7 @@ class Fuselage:
                 self.OMLSurf = None
             
             if self.OMLSurf is not None:
-                print "Network surface fit succesful on attempt ", i_attempt+1 
+                print "Network surface fit succesful on attempt ", i_attempt 
                 return None
     
 #        # If all attempts at fitting a network surface failed, we attempt a Sweep2
@@ -391,7 +388,25 @@ class Fuselage:
         
         return None
 
+    def _TransformOML(self):
+        """Use parameters defined in self to scale and translate the fuselage"""
+        ScalingF = [0, 0, 0]
+        ScalingF[0] = self.Scaling[0] / 55.902
+        ScalingF[1] = self.Scaling[1] / 55.902
+        ScalingF[2] = self.Scaling[2] / 55.902
+#    
+#        # Overall scaling and translation:
+        MoveVec = self.NoseCoordinates
+        self.OMLSurf = act.transform_nonuniformal(self.OMLSurf, ScalingF, vec=MoveVec)
 
+#        SternPoint[0] = SternPoint[0]*ScalingF[0]
+#        SternPoint[1] = SternPoint[1]*ScalingF[1]
+#        SternPoint[2] = SternPoint[2]*ScalingF[2]
+#    
+#        # Positioning
+#        SternPoint[0] = SternPoint[0]+NoseCoordinates[0]
+#        SternPoint[1] = SternPoint[1]+NoseCoordinates[1]
+#        SternPoint[2] = SternPoint[2]+NoseCoordinates[2]
 
 
 
@@ -416,22 +431,11 @@ class Fuselage:
 #    FuselageOMLSurf = act.ScaleObjectWorld000(FuselageOMLSurf, ScalingF)
 
 
-    # A few other ways of performing the scaling...
-    # Variant one: this depends on the current CPlane!
-    # FuselageOMLSurf = rs.ScaleObject(FuselageOMLSurf, (0,0,0), Scaling)
-    
     # Variant two: define plane in World coordinates
     #P = rs.PlaneFromFrame((0,0,0),(1,0,0),(0,1,0))
     #TransfMatrix = Rhino.Geometry.Transform.Scale(P, Scaling[0], Scaling[1], Scaling[2])
     #FuselageOMLSurf = rs.TransformObjects(FuselageOMLSurf, TransfMatrix)
 
-    # Variant three: World coordinate system based scaling
-    #xform = rs.XformScale(Scaling)
-    #FuselageOMLSurf = rs.TransformObjects(FuselageOMLSurf, xform)
-
-#    SternPoint[0] = SternPoint[0]*ScalingF[0]
-#    SternPoint[1] = SternPoint[1]*ScalingF[1]
-#    SternPoint[2] = SternPoint[2]*ScalingF[2]
 #
 #    # Positioning
 #    MoveVec = rs.VectorCreate(NoseCoordinates, [0,0,0])
@@ -449,7 +453,12 @@ if __name__ == '__main__':
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-    Fus = Fuselage()
+    Fus = Fuselage(NoseLengthRatio=0.182,
+                 TailLengthRatio=0.293,
+                 Scaling=[55.902, 55.902, 55.902],
+                 NoseCoordinates=[0., 0., 0],
+                 CylindricalMidSection=False,
+                 Maxi_attempt=5)
     
     # Create plane to check symmetry:
 #    P = gp_Pln(gp_Pnt(0, 0, 0),
@@ -464,5 +473,7 @@ if __name__ == '__main__':
         display.DisplayShape(section, color='Black')
     for support in Fus._Csections:
         display.DisplayShape(support, color='Blue') 
+
+
     
     start_display()

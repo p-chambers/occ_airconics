@@ -7,7 +7,7 @@ Created on Fri Dec  4 11:58:52 2015
 # Geometry Manipulation libraries:
 import OCC.Bnd
 from OCC.AIS import AIS_WireFrame, AIS_Shape
-from OCC.ShapeConstruct import shapeconstruct
+#from OCC.ShapeConstruct import shapeconstruct
 from OCC.Geom import Geom_BezierCurve
 from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS, GeomAPI_Interpolate
 from OCC.BRepBndLib import brepbndlib_Add
@@ -18,13 +18,14 @@ from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
                                 BRepBuilderAPI_Transform,
                                 BRepBuilderAPI_MakeFace)
-from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox
-from OCC.BRep import BRep_Tool_Surface
+from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone
+from OCC.BRepAlgoAPI import BRepAlgoAPI_Section
+from OCC.BRepFeat import BRepFeat_SplitShape
+#from OCC.BRep import BRep_Tool_Surface
 from OCC.TopoDS import TopoDS_Shape
-from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln, gp_Ax3, gp_Cone
-from OCC.IntAna import IntAna_IntConicQuad
-from OCC.Precision import precision_Angular, precision_Confusion
-from OCC.GeomAbs import GeomAbs_C2
+from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln, gp_Ax3#, gp_Cone
+#from OCC.Precision import precision_Angular, precision_Confusion
+from OCC.GeomAbs import GeomAbs_G2
 
 # FileIO libraries:
 from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
@@ -32,6 +33,7 @@ from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
 from OCC.Interface import Interface_Static_SetCVal
 from OCC.IFSelect import IFSelect_RetDone  #, IFSelect_ItemsByEntity
 from OCC.TopoDS import TopoDS_Shape
+from OCC.GC import GC_MakeCircle
 
 # Standard Python libraries
 import numpy as np
@@ -278,6 +280,40 @@ def scale_uniformal(brep, pnt, factor, copy=False):
     brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
     brep_trns.Build()
     return brep_trns.Shape()
+    
+def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
+    """Nonuniformly scale brep with respect to pnt by the x y z scaling factors
+    provided in 'factors', and translate by vector 'vec'
+    Parameters
+    ----------
+    factors - List of factors [Fx, Fy, Fz]
+        Scaling factors with respect to origin (0,0,0)
+    vec - List of x,y,z or gp_Vec
+        the translation vector (default is [0,0,0])
+    
+    Notes
+    -----
+    * Only tested on 3d shapes
+    * Assumes factors are define with respect to the origin (0,0,0)
+    """
+    assert(len(factors) == 3),\
+        ("factors should have [Fx, Fy, Fz] scaling factors: Found length ",
+         len(factors))
+    from OCC.gp import gp_GTrsf, gp_Mat, gp_XYZ
+
+    M = np.diag(factors).flatten()
+    trns_M = gp_Mat(*M)
+
+    try:
+        V = gp_XYZ(*vec)
+    except NotImplementedError:
+        V = gp_XYZ(vec.X(), vec.Y(), vec.Z())
+    trns = gp_GTrsf(trns_M, V)
+
+    from OCC.BRepBuilderAPI import BRepBuilderAPI_GTransform
+    brep_trns = BRepBuilderAPI_GTransform(brep, trns, copy)
+    brep_trns.Build()
+    return brep_trns.Shape()
 
 
 def coslin(TransitionPoint, NCosPoints=8, NLinPoints=8):
@@ -324,8 +360,8 @@ def export_STEPFile(shapes, filename):
 #    return status
 
 
-def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
-                   solid=True, first_vertex=None):
+def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
+                   solid=True, first_vertex=None, max_degree=8, close_sections=True):
     """Create a lift surface through curve objects
     Parameters
     ----------
@@ -342,28 +378,38 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
     ruled = False; pres3d=1e-6
     args = [solid, ruled, pres3d]    # args (in order) for ThruSections
     generator = BRepOffsetAPI_ThruSections(*args)
-    generator.SetMaxDegree(3)
-    from OCC.GeomAbs import GeomAbs_G1
+    generator.SetMaxDegree(max_degree)
+#    from OCC.GeomAbs import GeomAbs_G1
     from OCC.Approx import Approx_ChordLength
     generator.SetParType(Approx_ChordLength)
-    generator.SetContinuity(GeomAbs_G1)
-    print(generator.CriteriumWeight)
+#    generator.SetContinuity(GeomAbs_G1)
     if first_vertex:
         generator.AddVertex(first_vertex)
     for obj in objs:
         try:
-            edge = make_edge(obj)
-            generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
-        except TypeError:
-            try: 
-                # If working with an airconics object, the OCC curve is stored 
-                # in obj.Curve:
-                edge = make_edge(obj.Curve)
-                generator.AddWire(BRepBuilderAPI_MakeWire(edge).Wire())
-            except AttributeError:
-                print("""Warning: one or more object has no 'Curve' attribute and
-                could not be added to the loft""")
-            continue
+            # Check if this is an airconics object with a GeomBspline handle
+            # as its 'Curve' attribute
+            obj = obj.Curve
+#            edge = [make_edge(obj)]
+        except: 
+            # Assume the object is already a geombspline handle
+            pass
+#        
+#            try: 
+#                # If working with an airconics object, the OCC curve is stored 
+#                # in obj.Curve:
+        edges = [make_edge(obj)]
+
+        if close_sections:
+            crv = obj.GetObject()
+            if crv.IsClosed():
+                # Add Finite TE edge
+                TE = act.make_edge(crv.EndPoint(), crv.StartPoint())
+                edges.append(TE)
+            
+        generator.AddWire(BRepBuilderAPI_MakeWire(*edges).Wire())
+#        else:
+#            generator
 
     generator.CheckCompatibility(check_compatibility)
     generator.SetContinuity(continuity)
@@ -548,6 +594,44 @@ def make_vertex(*args):
     vert = BRepBuilderAPI_MakeVertex(*args)
     result = vert.Vertex()
     return result
+    
+
+def make_ellipsoid(centre_pt, dx, dy, dz):
+    """Creates an ellipsoid from non-uniformly scaled unit sphere"""
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakeSphere
+    sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0,0,0), 1)
+    ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz], vec=centre_pt)
+    return ellipsoid
+    
+def make_circle3pt(pt1, pt2, pt3):
+    """Makes a circle allowing python lists as input points"""
+    try:
+        pt1 = gp_Pnt(*pt1)
+        pt2 = gp_Pnt(*pt2)
+        pt3 = gp_Pnt(*pt3)
+    except:
+        pass
+    return GC_MakeCircle(pt1, pt2, pt3).Value()
+    
+
+def PlanarSurf(geomcurve):
+    """Adds a planar surface to curve
+    Parameters
+    ----------
+    geomcurve - OCC.Geom type curve
+        The edge of the profile
+    Returns
+    -------
+    surf - TopoDS_face
+        the planar surface
+    """
+    try:
+        wire = make_wire(make_edge(geomcurve))
+    except:
+        # If the geomcurve is passed directly rather than by it's handle:
+        wire = make_wire(make_edge(geomcurve.GetHandle()))
+    face = make_face(wire)
+    return face
 
 
 def project_curve_to_surface(curve, surface, dir):
@@ -687,7 +771,6 @@ def CutSect(Shape, SpanStation):
 
 
 
-    from OCC.BRepAlgoAPI import BRepAlgoAPI_Section
     I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
     I.Build()
     Section = I.Shape()
@@ -717,13 +800,64 @@ def CutSect(Shape, SpanStation):
     return Section, Chord   
 
 
-def AddCone(BasePoint, Apex, Radius):
+def AddCone(BasePoint, height, Radius, direction=gp_Dir(1, 0, 0)):
     """Generates a cone shape originating at BasePoint with base radius Radius,
-    and defined by its Apex"""
-    Apex = np.array(Apex)
-    BasePoint = np.array(BasePoint)
-    h = np.linalg.norm(Apex - BasePoint)
-    ang = np.arctan(h/float(Radius))
-    cone = gp_Cone(gp_Ax3(gp_Pnt(*BasePoint), gp_Dir(*(Apex-BasePoint))),
-                           ang, Radius)
-    return cone
+    and defined by its Apex - points in the direction of 'direc'
+    Paramters
+    ---------
+    direction - OCC.gp.gp_Gir
+        the direction of the cones axis i.e. normal to the base: 
+        defaults to x axis
+    Notes
+    -----
+    Look into BRepPrimAPI_MakeCone instead - shape doesnt come out right
+    """
+    try:
+        BasePoint = gp_Pnt(*BasePoint)
+    except:
+        pass
+    ax2 = gp_Ax2(BasePoint, gp_Dir(1, 0, 0))
+    cone = BRepPrimAPI_MakeCone(ax2, Radius, 0, height)
+    return cone.Shape()
+
+
+def TrimShapebyPlane(Shape, Plane, vec=gp_Vec(0, -10, 0)):
+    """Trims an OCC shape by plane. Default trims the 'left' of the plane
+    Parameters
+    ----------
+    Shape - TopoDS_Shape
+    Plane - expect TopoDS_Face
+    pnts - point defining which side of the halfspace contains its mass
+    """
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakePrism    
+    tool = BRepPrimAPI_MakePrism(Plane, vec).Shape()
+    trimmed_shape = boolean_cut(Shape, tool)
+    
+    return trimmed_shape, tool
+        
+
+def boolean_cut(shapeToCutFrom, cuttingShape):
+    """Boolean cut tool from PythonOCC-Utils"""
+    from OCC.BRepAlgoAPI import BRepAlgoAPI_Cut
+    try:
+        cut = BRepAlgoAPI_Cut(shapeToCutFrom, cuttingShape)
+        print 'can work?', cut.BuilderCanWork()
+        _error = {0: '- Ok',
+                  1: '- The Object is created but Nothing is Done',
+                  2: '- Null source shapes is not allowed',
+                  3: '- Check types of the arguments',
+                  4: '- Can not allocate memory for the DSFiller',
+                  5: '- The Builder can not work with such types of arguments',
+                  6: '- Unknown operation is not allowed',
+                  7: '- Can not allocate memory for the Builder',
+                  }
+        print 'error status:', _error[cut.ErrorStatus()]
+        cut.RefineEdges()
+        cut.FuseEdges()
+        shp = cut.Shape()
+        cut.Destroy()
+        return shp
+    except:
+        print 'FAILED TO BOOLEAN CUT'
+        return shapeToCutFrom  
+    

@@ -18,34 +18,35 @@ wing_example_transonic_airliner.py for how these functions are implemented
 @author: pchambers
 """
 if __name__ == '__main__':
+    # Initialise the display
+    from OCC.Display.SimpleGui import init_display
+    display, start_display, add_menu, add_function_to_menu = init_display()
+    
     from airconics.examples.tailplane_example_transonic_airliner import *
     from airconics import liftingsurface
     import airconics.AirCONICStools as act
 
-    # Import x axis to rotate fin around
     from OCC.gp import gp_Ax1, gp_Pnt, gp_Dir
-    # Initialise the display
-    from OCC.Display.SimpleGui import init_display
-    display, start_display, add_menu, add_function_to_menu = init_display()
 
     # Position of the apex of the fin
     P = [36.98-0.49-0.02, 0.0, 2.395-0.141]
 
-    SegmentNo = 100
+    SegmentNo = 35
     ChordFact = 1.01
     ScaleFact = 21.93
-
-    Fin = liftingsurface.LiftingSurface(P, mySweepAngleFunctionFin,
-                                        myDihedralFunctionFin,
-                                        myTwistFunctionFin,
-                                        myChordFunctionFin,
-                                        myAirfoilFunctionFin,
-                                        SegmentNo=SegmentNo,
-                                        ChordFactor=ChordFact,
-                                        ScaleFactor=ScaleFact)
-
+#
+#    print("Creating Fin...")
+#    Fin = liftingsurface.LiftingSurface(P, mySweepAngleFunctionFin,
+#                                        myDihedralFunctionFin,
+#                                        myTwistFunctionFin,
+#                                        myChordFunctionFin,
+#                                        myAirfoilFunctionFin,
+#                                        SegmentNo=SegmentNo,
+#                                        ChordFactor=ChordFact,
+#                                        ScaleFactor=ScaleFact)
+#    print("Fin done")
 #    Create the rotation axis centered at the apex point in the x direction
-    RotAxis = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+#    RotAxis = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
 
     # Having some problem with the fin loft: display some airfoils
     # to figure out what's going on:
@@ -54,16 +55,17 @@ if __name__ == '__main__':
 #        curve.Scale(gp_Pnt(0., 0., 0.), ScaleFact)
 #        display.DisplayShape(section.Curve, update=True)
 
-    Fin.Rotate(RotAxis, 90)
-    display.DisplayShape(Fin.Shape, update=True)
+#    Fin.Rotate(RotAxis, 90)
+#    display.DisplayShape(Fin.Shape, update=True)
 
-    # Position of the apex of the tailplane
+#     Position of the apex of the tailplane
     P = [43, 0.000, 1.633+0.02]
 
-    SegmentNo = 100
+    SegmentNo = 101
     ChordFactor = 1.01
     ScaleFactor = 17.3
 
+    print("Creating Tailplane")
     TP = liftingsurface.LiftingSurface(P, mySweepAngleFunctionTP,
                                        myDihedralFunctionTP,
                                        myTwistFunctionTP,
@@ -75,9 +77,10 @@ if __name__ == '__main__':
 
     display.DisplayShape(TP.Shape, update=True)
 
-    TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
-
-    # Note: TP2 is a TopoDS_Shape, not a wing and DisplayShape is called as:
-    display.DisplayShape(TP2, update=True)
-
+#    TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
+    print("Tailplane done")
+    
+#     Note: TP2 is a TopoDS_Shape, not a wing and DisplayShape is called as:
+#    display.DisplayShape(TP2, update=True)
+#
     start_display()

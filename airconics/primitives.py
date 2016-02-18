@@ -307,7 +307,8 @@ class Airfoil:
 #        Translation:
         self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
                                                         gp_Vec(*self.LE))
-                                                        )
+                                                       )
+        
         return None
 
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):
@@ -376,9 +377,8 @@ class Airfoil:
         self._TransformAirfoil()
         return None
         
-#        def Delete(self):
-#            """Use to remove shape"""
-#            # TODO: Delete function
-#            return None
+#        def _FiniteTE(self):
+#            """Fits a finite trailing edge"""
+#            
 
 

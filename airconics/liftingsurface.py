@@ -19,7 +19,7 @@ import AirCONICStools as act
 
 from OCC.gp import gp_Pnt, gp_Trsf, gp_Vec
 from OCC.BRepBuilderAPI import BRepBuilderAPI_Transform
-
+from OCC.GeomAbs import GeomAbs_G2
 
 class LiftingSurface:
 
@@ -34,7 +34,16 @@ class LiftingSurface:
                  OptimizeChordScale=0,
                  LooseSurf=1,
                  SegmentNo=11,
-                 TipRequired = True):
+                 TipRequired=False,
+                 max_degree=8,
+                 continuity=GeomAbs_G2
+                 ):
+        """
+        Parameters
+        ----------
+        continuity - integer
+            the order of continuity i.e. C^0, C^1, C^2...
+        """
 
         self.ApexPoint = gp_Pnt(*ApexPoint)
         self.SweepFunct = SweepFunct
@@ -51,7 +60,8 @@ class LiftingSurface:
         self.SegmentNo = SegmentNo
         self.TipRequired = TipRequired
         self.OptimizeChordScale = OptimizeChordScale
-
+        self._max_degree = max_degree
+        self._Cont = continuity
 #        self._CreateConstructionGeometry()
         self.GenerateLiftingSurface()
 
@@ -133,7 +143,7 @@ class LiftingSurface:
         # TODO: Implement chord projection and Curve start/end points 
         # to rescale smoothed curves and for secondary loft methods
 
-        LS = act.AddSurfaceLoft(Sections)    # Skip second (gives strange surface)
+        LS = act.AddSurfaceLoft(Sections, max_degree=self._max_degree, continuity=self._Cont)    # Skip second (gives strange surface)
 #        LS = act.Add_Network_Surface(Sections)
         
         # Trying out a different surface fit (LE was wavy)
@@ -240,13 +250,13 @@ class LiftingSurface:
 #        LSP_area = LSP_area*ScaleFactor**2.0
 #        RootChord = (self.ChordFunct(0)*ChordFactor)*ScaleFactor
 #        AR = ((2.0*ActualSemiSpan)**2.0)/(2*LSP_area)
+        self.RootChord = (self.ChordFunct(0)*ChordFactor)*ScaleFactor
 
         # Temporarily set other variables as None until above TODO's are done
         ActualSemiSpan = None
         LSP_area = None
-        RootChord = None
         AR = None
-        return LS, ActualSemiSpan, LSP_area, RootChord, AR, WingTip
+        return LS, ActualSemiSpan, LSP_area, AR, WingTip
 
     def GenerateLiftingSurface(self):
         """This is the main method of this class. It builds a lifting
@@ -276,7 +286,7 @@ class LiftingSurface:
 #                x0[1] = abs(x0[1])
 #                print("Optimum chord factor %5.3f, optimum scale factor %5.3f" % (x0[0], x0[1]))
 
-        LS, ActualSemiSpan, LSP_area,  RootChord, AR, WingTip = \
+        LS, ActualSemiSpan, LSP_area, AR, WingTip = \
                                                 self._BuildLS(x0[0], x0[1])
         
         # Position the wing at the apex:
