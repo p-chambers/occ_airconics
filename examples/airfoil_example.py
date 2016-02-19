@@ -32,12 +32,14 @@ if __name__ == '__main__':
     Rotation = 0
     Twist = 0
     AirfoilSeligName = 'dae11'
+    
+    
     # SmoothingPasses = 1   #TODO
     
     # Instantiate class to set up a generic airfoil with these basic parameters
     Af = primitives.Airfoil(LEPoint, ChordLength, Rotation, Twist,
                             SeligProfile=AirfoilSeligName)
-    
+   
     
     display.DisplayShape(Af.Curve, update=True)
     

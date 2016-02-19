@@ -9,7 +9,7 @@ import numpy as np
 
 
 def test_coslin():
-    abscissa = coslin(0.5)[0]
+    abscissa = coslin(0.5, 8, 8)[0]
     ans = np.array([0.0,
                     0.01253604390908819,
                     0.04951556604879043,

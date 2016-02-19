@@ -25,9 +25,9 @@ if __name__ == "__main__":
     Af4 = airconics.primitives.Airfoil([0., 6., 0.2], ChordLength=0.2, Naca4Profile='0012')
     display.DisplayShape(Af4.Curve, update=True, color='GREEN');
     
-#    surf = act.AddSurfaceLoft([Af2, Af3, Af4])
+    surf = act.AddSurfaceLoft([Af2, Af3, Af4])
     
     # Note that surf is a TOPO_DS Shape, and hence no surf.Shape is required for display
-#    display.DisplayShape(surf, update=True);
+    display.DisplayShape(surf, update=True);
     
     start_display()

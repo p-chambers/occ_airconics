@@ -133,21 +133,24 @@ def transonic_airliner(display=None,
 #        LooseSurf, SegmentNo, TipRequired = True)
 
     if Topology == 1:
-        # Add wing to body fairing
+        # Add wing to body fairing 
         WTBFXCentre = WingApex[0] + RootChord/2.0 + RootChord*0.1297 # 787: 23.8
         if FuselageHeight < 8.0:
+            #Note: I made changes to this in OCC Airconics to get a better fit
+            # - Paul
             WTBFZ = RootChord*0.009 #787: 0.2
-            WTBFheight = 0.1212*RootChord #787:2.7
+            WTBFheight = 1.8*0.1212*RootChord #787:2.7
             WTBFwidth = 1.08*FuselageWidth
         else:
+
             WTBFZ = WingApex[2] + 0.005*RootChord
-            WTBFheight = 0.09*RootChord
+            WTBFheight = 0.09*RootChord 
             WTBFwidth = 1.15*FuselageWidth
     
         WTBFlength = 1.167*RootChord #787:26
-        WTBFXStern = WTBFXCentre + WTBFlength/2.
         
-        WBF = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength/2., WTBFwidth/2., WTBFheight/2.)
+        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
+        WBF = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength, WTBFwidth, WTBFheight)
 #        display.DisplayShape(gp_Pnt(WTBFXCentre, 0, WTBFZ), update=True)
 #        display.DisplayShape(gp_Pnt(WTBFXStern, 0, WTBFZ), update=True)
 #        display.DisplayShape(gp_Pnt(WTBFXCentre, WTBFwidth/2., WTBFZ), update=True)
@@ -157,9 +160,7 @@ def transonic_airliner(display=None,
 #        # Trim wing inboard section
         CutCirc = act.make_circle3pt([0,WTBFwidth/4.,-45], [0,WTBFwidth/4.,45], [90,WTBFwidth/4.,0])
         CutCircDisk = act.PlanarSurf(CutCirc)
-#        display.DisplayShape(CutCircDisk, update=True)
-#        rs.ReverseSurface(CutDisk,1)
-        Wing.Shape, cyl = act.TrimShapebyPlane(Wing.Shape, CutCircDisk)
+        Wing.Shape = act.TrimShapebyPlane(Wing.Shape, CutCircDisk)
 #        display.DisplayShape(cyl, update=True)
 #        rs.TrimBrep(WingSurf, CutDisk)
 #    elif Topology == 2:
@@ -388,12 +389,12 @@ def transonic_airliner(display=None,
         
 #    display all entities:
     # Fuselage and wing-body fairing
-#    display.DisplayShape(Fus.OMLSurf, material=Graphic3d_NOM_ALUMINIUM)
-#    display.DisplayShape(WBF, material=Graphic3d_NOM_ALUMINIUM)
+    display.DisplayShape(Fus.OMLSurf, material=Graphic3d_NOM_ALUMINIUM)
+    display.DisplayShape(WBF, material=Graphic3d_NOM_ALUMINIUM)
 
     #The Wings:
     display.DisplayShape(Wing.Shape, material=Graphic3d_NOM_ALUMINIUM)
-#    display.DisplayShape(Wing2, material=Graphic3d_NOM_ALUMINIUM)
+    display.DisplayShape(Wing2, material=Graphic3d_NOM_ALUMINIUM)
     
     #The Tailplane:
     display.DisplayShape(TP.Shape, material=Graphic3d_NOM_ALUMINIUM)

@@ -11,7 +11,7 @@ from airconics import primitives, AirCONICStools as act
 import numpy as np
 from airconics.examples.wing_example_transonic_airliner import *
 from OCC.GC import GC_MakeCircle
-from OCC.gp import gp_Pnt, gp_Vec
+from OCC.gp import gp_Pnt, gp_Vec, gp_OY
 from OCC.Geom import Handle_Geom_Circle
 
 
@@ -46,12 +46,12 @@ class Engine:
         SectionNo = 100
         
         # Draw the nacelle with the centre of the intake highlight circle in 0,0,0
-        Highlight = GC_MakeCircle(gp_Pnt(0,0,HighlightRadius),
-                                  gp_Pnt(0,-HighlightRadius,0),
-                                  gp_Pnt(0,0,-HighlightRadius)).Value().GetObject()
-        HighlightCutterCircle = GC_MakeCircle(gp_Pnt(0,0,HighlightRadius*1.5),
-                                              gp_Pnt(0,-HighlightRadius*1.5,0),
-                                              gp_Pnt(0,0,-HighlightRadius*1.5)).Value().GetObject()
+        Highlight = act.make_circle3pt([0,0,HighlightRadius],
+                                  [0,-HighlightRadius,0],
+                                  [0,0,-HighlightRadius]).GetObject()
+        HighlightCutterCircle = act.make_circle3pt([0,0,HighlightRadius*1.5],
+                                              [0,-HighlightRadius*1.5,0],
+                                              [0,0,-HighlightRadius*1.5]).GetObject()
         # Fan disk for CFD boundary conditions
         FanCircle = Handle_Geom_Circle.DownCast(
             Highlight.Translated(gp_Vec(MeanNacelleLength*0.25, 0, 0)))
@@ -73,47 +73,50 @@ class Engine:
         TailCone = act.AddCone(TailConeBasePoint, TailConeRadius, TailConeHeight)
         self._TailCone = TailCone
 #        # Spinner cone
-#        SpinnerConeBasePoint = [MeanNacelleLength*0.26, 0,0]
-#        SpinnerConeApex    = [MeanNacelleLength*0.08, 0, 0]
-#        SpinnerConeRadius    =  MeanNacelleLength*0.09
-#        Spinner = rs.AddCone(SpinnerConeBasePoint, SpinnerConeApex, SpinnerConeRadius)
-#    
-#        
+        SpinnerConeBasePoint = np.array([MeanNacelleLength*0.26, 0,0])
+        SpinnerConeHeight    = MeanNacelleLength*(0.26-0.08)
+        SpinnerConeRadius    = MeanNacelleLength*0.09
+        Spinner = act.AddCone(SpinnerConeBasePoint,  SpinnerConeRadius, 
+                              SpinnerConeHeight, direction=gp_Dir(-1, 0, 0))
+        self._Spinner = Spinner
+
 #        # Tilt the intake
-#        RotVec = rs.VectorCreate((0,0,0),(0,1,0))
-#        Highlight = rs.RotateObject(Highlight, (0,0,0), ScarfAngle, axis = RotVec)
-#        
+        RotAx = gp_OY()
+        Highlight.Rotate(RotAx, np.radians(self.ScarfAngle))
 #        # Set up the disk for separating the intake lip later
-#        HighlightCutterCircle = rs.RotateObject(HighlightCutterCircle, (0,0,0), ScarfAngle, axis = RotVec)
-#        HighlightCutterDisk = rs.AddPlanarSrf(HighlightCutterCircle)
-#        rs.DeleteObject(HighlightCutterCircle)
-#        rs.MoveObject(HighlightCutterDisk, (HighlightDepth, 0,0))
+        HighlightCutterCircle.Rotate(RotAx, np.radians(self.ScarfAngle))
+        HighlightCutterDisk = act.PlanarSurf(HighlightCutterCircle)
+
+
+        HighlightCutterDisk = translate_topods_from_vector(HighlightCutterDisk,
+                                                           gp_Vec(HighlightDepth, 0,0))
 #        
 #        # Build the actual airfoil sections to define the nacelle
-#        HighlightPointVector = rs.DivideCurve(Highlight, SectionNo)
-#        
-#        Sections = []
-#        TailPoints = []
-#        Rotation = 0
-#        Twist = 0
-#        AirfoilSeligName = 'goe613'
-#        SmoothingPasses = 1
-#    
-#        for HighlightPoint in HighlightPointVector:
-#            ChordLength = MeanNacelleLength - HighlightPoint.X
-#            Af = primitives.Airfoil(HighlightPoint,ChordLength, Rotation, Twist, SeligPath=airconics_setup.SeligPath)
-#            AfCurve,Chrd = primitives.Airfoil.AddAirfoilFromSeligFile(Af, AirfoilSeligName, SmoothingPasses)
-#            rs.DeleteObject(Chrd)
-#            P = rs.CurveEndPoint(AfCurve)
-#            list.append(TailPoints, P)
-#            AfCurve = act.AddTEtoOpenAirfoil(AfCurve)
-#            list.append(Sections, AfCurve)
-#            Rotation = Rotation + 360.0/SectionNo
-#        
-#        list.append(TailPoints, TailPoints[0])
+        HighlightPointVector = act.Uniform_Points_on_Curve(Highlight, SectionNo)
+        
+        Sections = []
+        TailPoints = []
+        Rotation = 0
+        Twist = 0
+        AirfoilSeligName = 'goe613'
+        SmoothingPasses = 1
+        
+        Rotations = np.linspace(0, 360, SectionNo)
+        
+        for i, pt in enumerate(HighlightPointVector[0:2]):
+            Chord = MeanNacelleLength - pt.X()
+            print(pt.X(), pt.Y(), pt.Z(), Chord)
+            Af = primitives.Airfoil([pt.X(), pt.Y(), pt.Z()], Chord,
+                                     Rotations[i], Twist,
+                                     SeligProfile=AirfoilSeligName)
+            Sections.append(Af)
+            TailPoints.append(Af.Curve.GetObject().EndPoint())
+            
+        self._sections = Sections
 #        
 #        # Build the actual nacelle OML surface
-#        EndCircle = rs.AddInterpCurve(TailPoints)
+#        EndCircle = act.points_to_bspline(TailPoints)
+#        self._EndCircle = EndCircle
 #        Nacelle = rs.AddSweep2([Highlight, EndCircle], Sections, closed = True)
 #        # Separate the lip
 #        Cowling, HighlightSection = rs.SplitBrep(Nacelle, HighlightCutterDisk, True)
@@ -155,15 +158,7 @@ class Engine:
 #        act.AssignMaterial(PylonLeft,"White_composite_external")
 #        act.AssignMaterial(PylonRight,"White_composite_external")
 #    
-#        # Clean-up
-#        rs.DeleteObject(HighlightCutterDisk)
-#        rs.DeleteObjects(Sections)
-#        rs.DeleteObject(EndCircle)
-#        rs.DeleteObject(Highlight)
-#        rs.DeleteObjects([PylonTop, PylonAfCurve, PylonChord, PylonTE])
-#        
-#        
-#        rs.Redraw()
+#        # TODO: Clean-up
 #        
 #        TFEngine = [Cowling, HighlightSection, TailCone, FanDisk, Spinner, BypassDisk]
 #        TFPylon = [PylonLeft, PylonRight, PylonAfSrf]
@@ -217,4 +212,10 @@ if __name__ == "__main__":
     display.DisplayShape(EngineSection, update=True, color='Black')    
     display.DisplayShape(eng1._FDisk, update=True)
     display.DisplayShape(eng1._TailCone)
+    display.DisplayShape(eng1._Spinner)
+#    display.DisplayShape(eng1._EndCircle)
+    for section in eng1._sections:
+        display.DisplayShape(section.Curve, update=True, color='blue')
+    
+    
     start_display()

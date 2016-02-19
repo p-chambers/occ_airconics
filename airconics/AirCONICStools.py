@@ -25,7 +25,7 @@ from OCC.BRepFeat import BRepFeat_SplitShape
 from OCC.TopoDS import TopoDS_Shape
 from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln, gp_Ax3#, gp_Cone
 #from OCC.Precision import precision_Angular, precision_Confusion
-from OCC.GeomAbs import GeomAbs_G2
+from OCC.GeomAbs import GeomAbs_G2, GeomAbs_C3
 
 # FileIO libraries:
 from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
@@ -300,7 +300,6 @@ def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
         ("factors should have [Fx, Fy, Fz] scaling factors: Found length ",
          len(factors))
     from OCC.gp import gp_GTrsf, gp_Mat, gp_XYZ
-
     M = np.diag(factors).flatten()
     trns_M = gp_Mat(*M)
 
@@ -316,7 +315,7 @@ def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
     return brep_trns.Shape()
 
 
-def coslin(TransitionPoint, NCosPoints=8, NLinPoints=8):
+def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
     """Creates a series of abscissas with cosine spacing from 0 to a
     TransitionPoint and a linear spacing thereafter, up to 1. The
     TransitionPoint corresponds to pi. Distribution suitable for airfoils
@@ -402,9 +401,9 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
 
         if close_sections:
             crv = obj.GetObject()
-            if crv.IsClosed():
+            if crv.IsClosed() is False:
                 # Add Finite TE edge
-                TE = act.make_edge(crv.EndPoint(), crv.StartPoint())
+                TE = make_edge(crv.EndPoint(), crv.StartPoint())
                 edges.append(TE)
             
         generator.AddWire(BRepBuilderAPI_MakeWire(*edges).Wire())
@@ -462,6 +461,17 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
     else:
         return [translate_topods_from_vector(brep_or_iterable, vec, copy) for i in brep_or_iterable]
 
+
+def Uniform_Points_on_Curve(curve, NPoints):
+    """Returns a list of uniformly spaced points on a curve"""
+    from OCC.GCPnts import GCPnts_UniformAbscissa
+    from OCC.GeomAdaptor import GeomAdaptor_Curve
+    try:
+        adapt = GeomAdaptor_Curve(curve)
+    except:
+        adapt = GeomAdaptor_Curve(curve.GetHandle())
+    absc = GCPnts_UniformAbscissa(adapt, NPoints)
+    return [adapt.Value(absc.Parameter(i)) for i in xrange(1, NPoints+1)]
 
 def rotate(brep, axe, degree, copy=False):
     '''
@@ -599,7 +609,7 @@ def make_vertex(*args):
 def make_ellipsoid(centre_pt, dx, dy, dz):
     """Creates an ellipsoid from non-uniformly scaled unit sphere"""
     from OCC.BRepPrimAPI import BRepPrimAPI_MakeSphere
-    sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0,0,0), 1)
+    sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0,0,0), 0.5)
     ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz], vec=centre_pt)
     return ellipsoid
     
@@ -800,7 +810,7 @@ def CutSect(Shape, SpanStation):
     return Section, Chord   
 
 
-def AddCone(BasePoint, height, Radius, direction=gp_Dir(1, 0, 0)):
+def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
     """Generates a cone shape originating at BasePoint with base radius Radius,
     and defined by its Apex - points in the direction of 'direc'
     Paramters
@@ -816,24 +826,25 @@ def AddCone(BasePoint, height, Radius, direction=gp_Dir(1, 0, 0)):
         BasePoint = gp_Pnt(*BasePoint)
     except:
         pass
-    ax2 = gp_Ax2(BasePoint, gp_Dir(1, 0, 0))
+    ax2 = gp_Ax2(BasePoint, direction)
     cone = BRepPrimAPI_MakeCone(ax2, Radius, 0, height)
     return cone.Shape()
 
 
-def TrimShapebyPlane(Shape, Plane, vec=gp_Vec(0, -10, 0)):
-    """Trims an OCC shape by plane. Default trims the 'left' of the plane
+def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
+    """Trims an OCC shape by plane. Default trims the negative y side of the
+    plane
     Parameters
     ----------
     Shape - TopoDS_Shape
     Plane - expect TopoDS_Face
-    pnts - point defining which side of the halfspace contains its mass
+    pnt - point defining which side of the halfspace contains its mass
     """
-    from OCC.BRepPrimAPI import BRepPrimAPI_MakePrism    
-    tool = BRepPrimAPI_MakePrism(Plane, vec).Shape()
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakeHalfSpace   
+    tool = BRepPrimAPI_MakeHalfSpace(Plane, pnt).Solid()
     trimmed_shape = boolean_cut(Shape, tool)
     
-    return trimmed_shape, tool
+    return trimmed_shape
         
 
 def boolean_cut(shapeToCutFrom, cuttingShape):

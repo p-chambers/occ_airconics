@@ -362,7 +362,7 @@ class Fuselage:
                 return None
     
 #        # If all attempts at fitting a network surface failed, we attempt a Sweep2
-        if FuselageOMLSurf==None:
+        if self.FuselageOMLSurf==None:
             print "Failed to fit network surface to the external shape of the fuselage"
             print "Attempting alternative fitting method, quality likely to be low..."
     

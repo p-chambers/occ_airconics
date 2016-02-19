@@ -155,7 +155,7 @@ class Airfoil:
             vals = line.split()    # vals[0] = x coord, vals[1] = y coord
             x[i] = float(vals[0])
             z[i] = float(vals[1])
-        return x*self.ChordLength, z*self.ChordLength
+        return x, z
 
     def _NACA4cambercurve(self, MaxCamberLocTenthChord, MaxCamberPercChord):
         """ Generates the camber curve of a NACA 4-digit airfoil
@@ -272,11 +272,6 @@ class Airfoil:
 
         xu, zu, xl, zl, Theta = self._camberplusthickness(ChordCoord, zcam,
                                                           dzcamdx, t)
-#        Scale points:
-        xu *= self.ChordLength
-        zu *= self.ChordLength
-        xl *= self.ChordLength
-        zl *= self.ChordLength
         # Leading edge radius
         RLE = 1.1019*(MaxThicknessPercChord/100.0)**2.0
         
@@ -303,12 +298,14 @@ class Airfoil:
 #        Twist:
         if self.Twist:
             Curve.Rotate(gp_OY(), -np.radians(self.Twist))
+            
+#        Scaling:
+        Curve.Scale(gp_Pnt(0,0,0), self.ChordLength)
         
 #        Translation:
         self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
                                                         gp_Vec(*self.LE))
                                                        )
-        
         return None
 
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):
@@ -352,7 +349,7 @@ class Airfoil:
         x, z, xu, zu, xl, zl, RLE = self._NACA4digitPnts(MaxCamberPercChord,
                                                          MaxCamberLocTenthChord,
                                                          MaxThicknessPercChord)
-                                                         
+        self._surface_pts = np.vstack([x, z]).T                                                 
         self.Curve = self._fitAirfoiltoPoints(x, z)
 #        if 'Smoothing' in locals():
 #            self.SmoothingIterations = Smoothing
@@ -368,8 +365,6 @@ class Airfoil:
         
         self.Profile = {'CRM_Epsilon': str(CRM_Epsilon)}
         x, z = CRMfoil.CRMlinear(CRM_Epsilon)
-        x *= self.ChordLength
-        z *= self.ChordLength
         self.Curve = self._fitAirfoiltoPoints(x, z)
         # TODO: Smoothing..
 #        if 'Smoothing' in locals():
