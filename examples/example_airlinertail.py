@@ -31,22 +31,22 @@ if __name__ == '__main__':
     # Position of the apex of the fin
     P = [36.98-0.49-0.02, 0.0, 2.395-0.141]
 
-    SegmentNo = 35
+    SegmentNo = 101
     ChordFact = 1.01
     ScaleFact = 21.93
 #
 #    print("Creating Fin...")
-#    Fin = liftingsurface.LiftingSurface(P, mySweepAngleFunctionFin,
-#                                        myDihedralFunctionFin,
-#                                        myTwistFunctionFin,
-#                                        myChordFunctionFin,
-#                                        myAirfoilFunctionFin,
-#                                        SegmentNo=SegmentNo,
-#                                        ChordFactor=ChordFact,
-#                                        ScaleFactor=ScaleFact)
+    Fin = liftingsurface.LiftingSurface(P, mySweepAngleFunctionFin,
+                                        myDihedralFunctionFin,
+                                        myTwistFunctionFin,
+                                        myChordFunctionFin,
+                                        myAirfoilFunctionFin,
+                                        SegmentNo=SegmentNo,
+                                        ChordFactor=ChordFact,
+                                        ScaleFactor=ScaleFact)
 #    print("Fin done")
 #    Create the rotation axis centered at the apex point in the x direction
-#    RotAxis = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+    RotAxis = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
 
     # Having some problem with the fin loft: display some airfoils
     # to figure out what's going on:
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 #        curve.Scale(gp_Pnt(0., 0., 0.), ScaleFact)
 #        display.DisplayShape(section.Curve, update=True)
 
-#    Fin.Rotate(RotAxis, 90)
-#    display.DisplayShape(Fin.Shape, update=True)
+    Fin.Rotate(RotAxis, 90)
+    display.DisplayShape(Fin.Shape, update=True)
 
 #     Position of the apex of the tailplane
     P = [43, 0.000, 1.633+0.02]
@@ -77,10 +77,10 @@ if __name__ == '__main__':
 
     display.DisplayShape(TP.Shape, update=True)
 
-#    TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
+    TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
     print("Tailplane done")
     
 #     Note: TP2 is a TopoDS_Shape, not a wing and DisplayShape is called as:
-#    display.DisplayShape(TP2, update=True)
+    display.DisplayShape(TP2, update=True)
 #
     start_display()

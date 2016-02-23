@@ -91,14 +91,16 @@ if __name__ == "__main__":
     # First try a standard CRM airfoil:
     # Af_crm = airconics.primitives.Airfoil([0., 6., 1.], CRMProfile=True, CRM_Epsilon=0.8)
     # display.DisplayShape(Af_crm.Curve, update=True, color='GREEN');
-    
     Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunctionAirliner, 
         myDihedralFunctionAirliner, 
         myTwistFunctionAirliner, 
         myChordFunctionAirliner, 
-        myAirfoilFunctionAirliner, SegmentNo=NSeg)
+        myAirfoilFunctionAirliner, SegmentNo=NSeg, max_degree=8)
     
     display.DisplayShape(Wing.Shape, update=True)
+    
+    for section in Wing._Sections:
+        display.DisplayShape(section, update=True)
     
 #    To export the STEP file, uncomment the following line:
 #    act.export_STEPFile([Wing.Shape], 'wing.stp')

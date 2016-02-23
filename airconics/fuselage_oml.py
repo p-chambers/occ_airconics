@@ -318,7 +318,7 @@ class Fuselage:
 
                 PseudoDiameter = abs(IPoint4.Z()-IPoint2.Z())
                 if self.CylindricalMidSection and NoseEndX < XStation < TailStartX:
-##                # Ensure that the parallel section of the fuselage is cylindrical
+#                # Ensure that the parallel section of the fuselage is cylindrical
                     print "Enforcing circularity in the central section..."
                     if FirstTime:
                         PseudoRadius = PseudoDiameter / 2.

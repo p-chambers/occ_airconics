@@ -9,12 +9,54 @@ from pkg_resources import resource_string, resource_exists
 import numpy as np
 
 from OCC.Geom import Handle_Geom_BSplineCurve_DownCast
+from OCC.GC import GC_MakeSegment
 #from OCC.Geom2dAPI import Geom2dAPI_PointsToBSpline
 from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec, gp_OX, gp_OY
 #from OCC.FairCurve import FairCurve_MinimalVariation
 
 import CRMfoil
 import airconics.AirCONICStools as act
+
+
+from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
+from OCC.AIS import AIS_Shape
+import copy
+
+class AirconicsShape(object):
+    """Base class From which airconics assemblies and shapes will be made"""
+    def __init__(self):
+        """Defines an empty shape"""
+        self.Components = {}
+        
+    def TranslateComponents(self, vec):
+        """Just using this for now: will eventually fuse all shapes"""
+        for component in self.Components:
+            self.Components[component] = act.translate_topods_from_vector(self.Components[component], vec)
+           
+        
+    def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
+        """Displays all components of the engine to input context
+        Parameters
+        ----------
+        meterial - OCC.Graphic3d_NOM_* type
+            The material for display: note some renderers do not allow this"""
+        for component in self.Components:
+            ais = AIS_Shape(self.Components[component])
+            ais.SetMaterial(material)
+            try:
+                context.Context.Display(ais.GetHandle())
+            except:
+                context.DisplayShape(self.Components[component])
+    
+    def MirrorComponents(self, plane='xz'):
+        """Returns a mirrored version of this airconics shape"""
+        print("Note: MirrorComponents currently mirrors only the shape\n")
+        print("components, other attributes will not be mirrored\n")
+        mirrored = AirconicsShape()
+        for component in self.Components:
+            mirrored.Components[component] = act.mirror(
+                    self.Components[component], plane, copy=True)
+        return mirrored
 
 
 class Airfoil:
@@ -286,26 +328,37 @@ class Airfoil:
         # TODO: Smoothing
 #        for i in range(self.SmoothingIterations):
 #            rs.FairCurve(self.Curve)
+
+        # Can assume that the chord is from 0,0,0 to 1,0,0 before translation 
+        ChordLine = GC_MakeSegment(gp_Pnt(0,0,0),
+                                   gp_Pnt(1,0,0)).Value().GetObject()     
+        
         Curve = self.Curve.GetObject()
+
+#        Scaling:
+        Curve.Scale(gp_Pnt(0,0,0), self.ChordLength)
+        ChordLine.Scale(gp_Pnt(0,0,0), self.ChordLength)
 
 #        Rotations - Note that direction is opposite to Rhino
 #        Dihedral:
         if self.Rotation:
-            # self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Rotate(A1))
             Curve.Rotate(gp_OX(), np.radians(self.Rotation))
-#            act.rotate(Curve, gp_OX(), -self.Rotation)
+            ChordLine.Rotate(gp_OX(), np.radians(self.Rotation))
 
 #        Twist:
         if self.Twist:
             Curve.Rotate(gp_OY(), -np.radians(self.Twist))
-            
-#        Scaling:
-        Curve.Scale(gp_Pnt(0,0,0), self.ChordLength)
-        
+            ChordLine.Rotate(gp_OY(), -np.radians(self.Twist))
+
 #        Translation:
-        self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
-                                                        gp_Vec(*self.LE))
-                                                       )
+#        self.Curve = Handle_Geom_BSplineCurve_DownCast(Curve.Translated(
+#                                                        gp_Vec(*self.LE))
+#                                                       )
+        Curve.Translate(gp_Vec(*self.LE))
+        ChordLine.Translate(gp_Vec(*self.LE))
+        
+        self.ChordLine = ChordLine.GetHandle()
+
         return None
 
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):

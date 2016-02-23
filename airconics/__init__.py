@@ -12,3 +12,4 @@ from . import AirCONICStools
 from . import liftingsurface
 from . import examples
 from . import fuselage_oml
+from . import engine

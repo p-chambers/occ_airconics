@@ -149,7 +149,7 @@ def transonic_airliner(display=None,
     
         WTBFlength = 1.167*RootChord #787:26
         
-        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
+#        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
         WBF = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength, WTBFwidth, WTBFheight)
 #        display.DisplayShape(gp_Pnt(WTBFXCentre, 0, WTBFZ), update=True)
 #        display.DisplayShape(gp_Pnt(WTBFXStern, 0, WTBFZ), update=True)
@@ -162,7 +162,6 @@ def transonic_airliner(display=None,
         CutCircDisk = act.PlanarSurf(CutCirc)
         Wing.Shape = act.TrimShapebyPlane(Wing.Shape, CutCircDisk)
 #        display.DisplayShape(cyl, update=True)
-#        rs.TrimBrep(WingSurf, CutDisk)
 #    elif Topology == 2:
 #        # Overlapping wing tips
 #        CutCirc = rs.AddCircle3Pt((0,0,-45), (0,0,45), (90,0,0))
@@ -174,46 +173,28 @@ def transonic_airliner(display=None,
 #
 #
 #
-#    # TODO: ngine installation (nacelle and pylon)
-#
-#    if Propulsion == 1:
-#        # Twin, wing mounted
-#        SpanStation = SpanStation1
-#        NacelleLength = 1.95*EngineDia
-#        rs.EnableRedraw(False)
-#        EngineSection, Chord = act.CutSect(WingSurf, SpanStation)
-#        CEP = rs.CurveEndPoint(Chord)
-#        EngineStbd, PylonStbd =  engine.TurbofanNacelle(EngineSection, Chord,
-#        CentreLocation = [CEP.X-EngineCtrFwdOfLE*NacelleLength,CEP.Y,CEP.Z-EngineCtrBelowLE*NacelleLength],
-#        ScarfAngle = Scarf_deg, HighlightRadius = EngineDia/2.0,
-#        MeanNacelleLength = NacelleLength)
-#        rs.Redraw()
-#    elif Propulsion == 2:
-#        # Quad, wing-mounted
-#        NacelleLength = 1.95*EngineDia
-#
-#        rs.EnableRedraw(False)
-#        EngineSection, Chord = act.CutSect(WingSurf, SpanStation1)
-#        CEP = rs.CurveEndPoint(Chord)
-#
-#        EngineStbd1, PylonStbd1 =  engine.TurbofanNacelle(EngineSection, Chord,
-#        CentreLocation = [CEP.X-EngineCtrFwdOfLE*NacelleLength,CEP.Y,CEP.Z-EngineCtrBelowLE*NacelleLength],
-#        ScarfAngle = Scarf_deg, HighlightRadius = EngineDia/2.0,
-#        MeanNacelleLength = NacelleLength)
-#        
-#        rs.DeleteObjects([EngineSection, Chord])
-#
-#        EngineSection, Chord = act.CutSect(WingSurf, SpanStation2)
-#        CEP = rs.CurveEndPoint(Chord)
-#
-#        EngineStbd2, PylonStbd2 =  engine.TurbofanNacelle(EngineSection, Chord,
-#        CentreLocation = [CEP.X-EngineCtrFwdOfLE*NacelleLength,CEP.Y,CEP.Z-EngineCtrBelowLE*NacelleLength],
-#        ScarfAngle = Scarf_deg, HighlightRadius = EngineDia/2.0,
-#        MeanNacelleLength = NacelleLength)
-#        rs.Redraw()
-#
-#
-#
+#    # TODO: Engine installation (nacelle and pylon)
+    NacelleLength = 1.95*EngineDia
+    if Propulsion == 1:
+        SpanStations = [SpanStation1]
+    elif Propulsion == 2:
+        SpanStations = [SpanStation1, SpanStation2]
+   
+    engines = []
+    for i, SpanStation in enumerate(SpanStations):
+        EngineSection, Chord = act.CutSect(Wing.Shape, SpanStation)
+        CEP = Chord.EndPoint()
+        Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
+                    CEP.Y(), 
+                    CEP.Z()-EngineCtrBelowLE*NacelleLength]
+        eng =  engine.Engine(EngineSection, Chord,
+               CentreLocation=Centreloc,
+               ScarfAngle=Scarf_deg,
+               HighlightRadius=EngineDia/2.0,
+               MeanNacelleLength = NacelleLength)
+
+        engines.append(eng)
+
 #    # Script for generating and positioning the fin
 #    # Position of the apex of the fin
     P = [0.6524*FuselageLength,0.003,FuselageHeight*0.384]
@@ -241,7 +222,7 @@ def transonic_airliner(display=None,
     Fin.Rotate(RotAxis, 90)
 
     if Topology == 1:
-        # Tailplane
+#        Tailplane
         P = [0.7692*FuselageLength,0.000,FuselageHeight*0.29]
         SegmentNo = 100
         ChordFactor = 1.01
@@ -369,16 +350,23 @@ def transonic_airliner(display=None,
 #    # Mirror the geometry as required
     Wing2 = act.mirror(Wing.Shape, plane='xz', copy=True)
     try:
+        # this try section allows box wing i.e. no tailplane
         TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
     except:
         pass
-    if Propulsion == 1:
-        print("No Engine Created yet")
+    
+    engines2 = []
+    for eng in engines:
+        engines2.append(eng.MirrorComponents(plane='xz')) 
+        
+    
+#    if Propulsion == 1:
+#        print("No Engine Created yet")
 #        for ObjId in EngineStbd:
 #            act.MirrorObjectXZ(ObjId)
-#        act.MirrorObjectXZ(PylonStbd)
-    elif Propulsion == 2:
-        raise NotImplementedError
+##        act.MirrorObjectXZ(PylonStbd)
+#    elif Propulsion == 2:
+#        raise NotImplementedError
 #        for ObjId in EngineStbd1:
 #            act.MirrorObjectXZ(ObjId)
 #        act.MirrorObjectXZ(PylonStbd1)
@@ -402,6 +390,11 @@ def transonic_airliner(display=None,
     
     #The Fin:
     display.DisplayShape(Fin.Shape, material=Graphic3d_NOM_ALUMINIUM)
+    
+    #The Engines:
+    for eng in engines+engines2:
+        eng.Display(display)
+        
     return Wing, CutCircDisk
 
 

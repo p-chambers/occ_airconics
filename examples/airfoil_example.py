@@ -42,7 +42,7 @@ if __name__ == '__main__':
    
     
     display.DisplayShape(Af.Curve, update=True)
-    
+    display.DisplayShape(Af.ChordLine, update=True)
     start_display()
     
     # If using interactive mode i.e. ipython, Airfoil can be removed with:

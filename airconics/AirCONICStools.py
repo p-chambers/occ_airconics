@@ -13,27 +13,44 @@ from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS, GeomAPI_Interpol
 from OCC.BRepBndLib import brepbndlib_Add
 from OCC.TColgp import TColgp_Array1OfPnt, TColgp_HArray1OfPnt, TColgp_Array1OfVec
 from OCC.TColStd import TColStd_HArray1OfBoolean
-from OCC.BRepOffsetAPI import BRepOffsetAPI_ThruSections, BRepOffsetAPI_MakePipeShell
+from OCC.BRepOffsetAPI import  (BRepOffsetAPI_ThruSections,
+                                BRepOffsetAPI_MakePipeShell)
 from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
                                 BRepBuilderAPI_Transform,
-                                BRepBuilderAPI_MakeFace)
-from OCC.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone
-from OCC.BRepAlgoAPI import BRepAlgoAPI_Section
-from OCC.BRepFeat import BRepFeat_SplitShape
+                                BRepBuilderAPI_MakeFace,
+                                BRepBuilderAPI_GTransform)
+from OCC.BRepPrimAPI import (BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone,
+                             BRepPrimAPI_MakeHalfSpace,
+                             BRepPrimAPI_MakeSphere)
+
+from OCC.BRepAlgoAPI import BRepAlgoAPI_Section, BRepAlgoAPI_Cut
+#from OCC.BRepFeat import BRepFeat_SplitShape
 #from OCC.BRep import BRep_Tool_Surface
-from OCC.TopoDS import TopoDS_Shape
-from OCC.gp import gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln, gp_Ax3#, gp_Cone
+from OCC.gp import (gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln,
+                    gp_GTrsf, gp_Mat, gp_XYZ)
 #from OCC.Precision import precision_Angular, precision_Confusion
-from OCC.GeomAbs import GeomAbs_G2, GeomAbs_C3
+from OCC.GeomAbs import GeomAbs_G2, GeomAbs_C2
+from OCC.TopoDS import *
+from OCC.TopAbs import *
+from OCC.TopExp import TopExp_Explorer
+from OCC.GC import GC_MakeCircle, GC_MakeSegment
+from OCC.Approx import Approx_ChordLength
+from OCC.GCPnts import GCPnts_UniformAbscissa
+from OCC.GeomAdaptor import GeomAdaptor_Curve, GeomAdaptor_HCurve
+from OCC.GeomPlate import (GeomPlate_CurveConstraint,
+                           GeomPlate_BuildPlateSurface,
+                           GeomPlate_MakeApprox)
+from OCC.BRepAdaptor import BRepAdaptor_Curve
+
 
 # FileIO libraries:
-from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs, \
-                             STEPControl_Reader
+from OCC.STEPControl import (STEPControl_Writer,
+                             STEPControl_AsIs,
+                             STEPControl_Reader)
 from OCC.Interface import Interface_Static_SetCVal
-from OCC.IFSelect import IFSelect_RetDone  #, IFSelect_ItemsByEntity
-from OCC.TopoDS import TopoDS_Shape
-from OCC.GC import GC_MakeCircle
+from OCC.IFSelect import IFSelect_RetDone
+
 
 # Standard Python libraries
 import numpy as np
@@ -179,8 +196,8 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
     return pt_arr
 
 
-def points_to_bspline(pnts, deg=3, periodic=False, tangents=None, tangent_method=0,
-                      scale=False):
+def points_to_bspline(pnts, deg=3, periodic=False, tangents=None,
+                      scale=False, continuity=GeomAbs_C2):
     """
     Points to bspline: originally from pythonocc-utils, changed to allow numpy
     arrays as input
@@ -211,7 +228,7 @@ def points_to_bspline(pnts, deg=3, periodic=False, tangents=None, tangent_method
         # Fit the curve to the point array
         deg_min = deg
         deg_max = deg
-        crv = GeomAPI_PointsToBSpline(pnts, deg_min, deg_max).Curve()
+        crv = GeomAPI_PointsToBSpline(pnts, deg_min, deg_max, continuity).Curve()
     else:
         _type = TColgp_HArray1OfPnt
         pnts = point_array_to_TColgp_PntArrayType(pnts, _type)
@@ -245,17 +262,7 @@ def points_to_BezierCurve(pnts):
         (with dimensions (Npoints x 3)), python list with elements [xi, yi, zi]
         or list of OCC.gp.gp_Pnt objects
     """
-    if type(pnts) is np.ndarray:
-        pnts = point_array_to_TColgp_PntArrayType(pnts)
-    elif type(pnts) is list:
-        if type(pnts[0]) is gp_Pnt:
-            pass
-        else:
-            assert(len(pnts[0]) == 3),  ("""Points should have length 3 (x, y, z).
-                  Found {}""".format(len(pnts[0])))
-            pnts = [gp_Pnt(pt) for pt in pnts]
-        pnts = point_list_to_TColgp_Array1OfPnt(pnts)
-
+    pnts = point_array_to_TColgp_PntArrayType(pnts, TColgp_Array1OfPnt)
     # Fit the curve to the point array
     crv = Geom_BezierCurve(pnts)
     return crv
@@ -299,7 +306,6 @@ def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
     assert(len(factors) == 3),\
         ("factors should have [Fx, Fy, Fz] scaling factors: Found length ",
          len(factors))
-    from OCC.gp import gp_GTrsf, gp_Mat, gp_XYZ
     M = np.diag(factors).flatten()
     trns_M = gp_Mat(*M)
 
@@ -309,7 +315,6 @@ def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
         V = gp_XYZ(vec.X(), vec.Y(), vec.Z())
     trns = gp_GTrsf(trns_M, V)
 
-    from OCC.BRepBuilderAPI import BRepBuilderAPI_GTransform
     brep_trns = BRepBuilderAPI_GTransform(brep, trns, copy)
     brep_trns.Build()
     return brep_trns.Shape()
@@ -360,7 +365,8 @@ def export_STEPFile(shapes, filename):
 
 
 def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
-                   solid=True, first_vertex=None, max_degree=8, close_sections=True):
+                   solid=True, first_vertex=None, last_vertex = None,
+                   max_degree=8, close_sections=True):
     """Create a lift surface through curve objects
     Parameters
     ----------
@@ -379,9 +385,7 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
     generator = BRepOffsetAPI_ThruSections(*args)
     generator.SetMaxDegree(max_degree)
 #    from OCC.GeomAbs import GeomAbs_G1
-    from OCC.Approx import Approx_ChordLength
     generator.SetParType(Approx_ChordLength)
-#    generator.SetContinuity(GeomAbs_G1)
     if first_vertex:
         generator.AddVertex(first_vertex)
     for obj in objs:
@@ -409,6 +413,8 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
         generator.AddWire(BRepBuilderAPI_MakeWire(*edges).Wire())
 #        else:
 #            generator
+    if last_vertex:
+        generator.AddVertex(last_vertex)
 
     generator.CheckCompatibility(check_compatibility)
     generator.SetContinuity(continuity)
@@ -464,12 +470,11 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
 
 def Uniform_Points_on_Curve(curve, NPoints):
     """Returns a list of uniformly spaced points on a curve"""
-    from OCC.GCPnts import GCPnts_UniformAbscissa
-    from OCC.GeomAdaptor import GeomAdaptor_Curve
     try:
         adapt = GeomAdaptor_Curve(curve)
     except:
-        adapt = GeomAdaptor_Curve(curve.GetHandle())
+        # Allow the algorithm to deal with TopoDS_Edge and Wire shapes:
+        adapt = BRepAdaptor_Curve(curve)
     absc = GCPnts_UniformAbscissa(adapt, NPoints)
     return [adapt.Value(absc.Parameter(i)) for i in xrange(1, NPoints+1)]
 
@@ -588,13 +593,20 @@ def make_face(*args):
         return result
 
 
-def make_pipe_shell(spine, profiles):
+def make_pipe_shell(spine, profiles, support=None):
+    try:
+        spine = make_wire(make_edge(spine))
+    except:
+        pass
     pipe = BRepOffsetAPI_MakePipeShell(spine)
-    try: 
-        for profile in profiles:
+    for profile in profiles:
+        try:
             pipe.Add(profile)
-    except TypeError:
-        pipe.Add(profiles)
+        except:
+            wire = make_wire(make_edge(profile))
+            pipe.Add(wire)
+    if support:
+        pipe.SetMode(support)
     pipe.Build()
     with assert_isdone(pipe, 'failed building pipe'):
         return pipe.Shape()
@@ -608,7 +620,6 @@ def make_vertex(*args):
 
 def make_ellipsoid(centre_pt, dx, dy, dz):
     """Creates an ellipsoid from non-uniformly scaled unit sphere"""
-    from OCC.BRepPrimAPI import BRepPrimAPI_MakeSphere
     sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0,0,0), 0.5)
     ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz], vec=centre_pt)
     return ellipsoid
@@ -700,16 +711,7 @@ def points_from_intersection(plane, curve):
         else:
             return None
 
-# This section is experimental
-#from OCC.BRepFill import BRepFill_Filling
-#from OCC.GeomAbs import GeomAbs_C0
-from OCC.GeomPlate import (GeomPlate_CurveConstraint, GeomPlate_BuildPlateSurface,
-                           GeomPlate_MakeApprox)
-from OCC.GeomAdaptor import GeomAdaptor_Curve, GeomAdaptor_HCurve
 
-from OCC.BRepAdaptor import BRepAdaptor_HCurve
-from OCC.BRepFill import BRepFill_CurveConstraint
-from OCC.Geom import Handle_Geom_Surface
 def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     '''
     curvenet - list of Handle_GeomCurve
@@ -736,6 +738,7 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
 
     
     for curve in curvenet:
+        print(type(curve))
         adaptor = GeomAdaptor_Curve(curve)
         Hadapter = GeomAdaptor_HCurve(adaptor)
         constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
@@ -763,51 +766,48 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
         return face
     
 def CutSect(Shape, SpanStation):
-    # SpanStation is assumed to be along the y direction, in the range [0,1]
+    """ SpanStation is assumed to be along the y direction, in the range [0,1]
+    """
     
     (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Shape])
     
     YStation = Ymin + (Ymax-Ymin)*SpanStation
     OriginX = Xmin -1
     OriginZ = Zmin -1
-    
-
+        
     P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0))) 
-    CutPlaneSrf = make_face(P, OriginZ, Zmax+1, OriginX, Xmax+1)
-
-    
-#    CutPlane = rs.PlaneFromPoints((OriginX, YStation, OriginZ), (Xmax+1, YStation, OriginZ), (OriginX, YStation, Zmax + 1))
-#    CutPlaneSrf = rs.AddPlaneSurface(CutPlane, max([(Xmax-Xmin),(Ymax-Ymin),(Zmax-Zmin)])+1, max([(Xmax-Xmin),(Ymax-Ymin),(Zmax-Zmin)])+1 )
-
+    # Note: using 2*extents here as previous +1 trimmed plane too short
+    CutPlaneSrf = make_face(P, 0, 2*Zmax, 0, 2*Xmax)
 
 
     I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
+    I.ComputePCurveOn1(True)
+    I.Approximation(True)
     I.Build()
     Section = I.Shape()
 
     (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Section])
     
-#    
-#    # Find the apparent chord of the section (that is, the line connecting the fore
-#    # most and aftmost points on the curve
-#    DivPoints = rs.DivideCurve(Section, 200)
-#
-#    Xs = []
-#    Ys = []
-#    Zs = []
-#    for DP in DivPoints:
-#        list.append(Xs, DP[0])
-#        list.append(Ys, DP[1])
-#        list.append(Zs, DP[2])
-#        
-#    val, idx = min((val, idx) for (idx, val) in enumerate(Xs))
-#    LeadingPoint = [Xs[idx], Ys[idx], Zs[idx]]
-#    val, idx = max((val, idx) for (idx, val) in enumerate(Xs))
-#    TrailingPoint = [Xs[idx], Ys[idx], Zs[idx]]
-#    
-#    Chord = rs.AddLine(TrailingPoint, LeadingPoint)
-    Chord = None
-    return Section, Chord   
+#     Currently assume only one edge exists in the intersection:
+    exp = TopExp_Explorer(Section, TopAbs_EDGE)
+    edge = topods_Edge(exp.Current())    
+    
+#    Find the apparent chord of the section (that is, the line connecting the fore
+#    most and aftmost points on the curve
+    DivPoints = Uniform_Points_on_Curve(edge, 200)
+
+    Xs = [pt.X() for pt in DivPoints] 
+        
+    val, idx = min((val, idx) for (idx, val) in enumerate(Xs))
+    LeadingPoint = gp_Pnt(Xs[idx], DivPoints[idx].Y(),
+                          DivPoints[idx].Z())
+    
+    val, idx = max((val, idx) for (idx, val) in enumerate(Xs))
+    TrailingPoint = gp_Pnt(Xs[idx], DivPoints[idx].Y(),
+                           DivPoints[idx].Z())
+    
+    Chord = GC_MakeSegment(TrailingPoint, LeadingPoint).Value().GetObject()
+    return Section, Chord
 
 
 def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
@@ -840,7 +840,6 @@ def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
     Plane - expect TopoDS_Face
     pnt - point defining which side of the halfspace contains its mass
     """
-    from OCC.BRepPrimAPI import BRepPrimAPI_MakeHalfSpace   
     tool = BRepPrimAPI_MakeHalfSpace(Plane, pnt).Solid()
     trimmed_shape = boolean_cut(Shape, tool)
     
@@ -849,7 +848,6 @@ def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
 
 def boolean_cut(shapeToCutFrom, cuttingShape):
     """Boolean cut tool from PythonOCC-Utils"""
-    from OCC.BRepAlgoAPI import BRepAlgoAPI_Cut
     try:
         cut = BRepAlgoAPI_Cut(shapeToCutFrom, cuttingShape)
         print 'can work?', cut.BuilderCanWork()
