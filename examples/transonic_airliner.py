@@ -121,8 +121,7 @@ def transonic_airliner(display=None,
                                             myAirfoilFunctionAirliner,
                                             SegmentNo=NSeg,
                                             ScaleFactor=WingScaleFactor,
-                                            ChordFactor=WingChordFactor,
-                                            max_degree=3)
+                                            ChordFactor=WingChordFactor)
         RootChord = Wing.RootChord
     elif Topology == 2:
         raise NotImplementedError("Box Wing functionality is not yet ported to OCC_AirCONICS")

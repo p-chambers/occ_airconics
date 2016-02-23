@@ -19,7 +19,7 @@ import AirCONICStools as act
 
 from OCC.gp import gp_Pnt, gp_Trsf, gp_Vec
 from OCC.BRepBuilderAPI import BRepBuilderAPI_Transform
-from OCC.GeomAbs import GeomAbs_G2
+from OCC.GeomAbs import GeomAbs_C2
 
 class LiftingSurface:
 
@@ -36,7 +36,7 @@ class LiftingSurface:
                  SegmentNo=11,
                  TipRequired=False,
                  max_degree=8,
-                 continuity=GeomAbs_G2
+                 continuity=GeomAbs_C2
                  ):
         """
         Parameters

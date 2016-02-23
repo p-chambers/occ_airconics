@@ -364,7 +364,7 @@ def export_STEPFile(shapes, filename):
 #    return status
 
 
-def AddSurfaceLoft(objs, continuity=GeomAbs_G2, check_compatibility=True,
+def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
                    solid=True, first_vertex=None, last_vertex = None,
                    max_degree=8, close_sections=True):
     """Create a lift surface through curve objects
@@ -861,8 +861,7 @@ def boolean_cut(shapeToCutFrom, cuttingShape):
                   7: '- Can not allocate memory for the Builder',
                   }
         print 'error status:', _error[cut.ErrorStatus()]
-        cut.RefineEdges()
-        cut.FuseEdges()
+#        cut.RefineEdges()
         shp = cut.Shape()
         cut.Destroy()
         return shp
