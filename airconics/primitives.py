@@ -4,23 +4,23 @@ Created on Fri Dec  4 13:31:35 2015
 
 @author: pchambers
 """
-import os
-from pkg_resources import resource_string, resource_exists
-import numpy as np
-
 from OCC.Geom import Handle_Geom_BSplineCurve_DownCast
 from OCC.GC import GC_MakeSegment
 #from OCC.Geom2dAPI import Geom2dAPI_PointsToBSpline
 from OCC.gp import gp_Pnt, gp_Pnt2d, gp_Pln, gp_Dir, gp_Vec, gp_OX, gp_OY
 #from OCC.FairCurve import FairCurve_MinimalVariation
+from OCC.StlAPI import StlAPI_Writer  
+from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
+from OCC.AIS import AIS_Shape
+
 
 import CRMfoil
 import airconics.AirCONICStools as act
-
-
-from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
-from OCC.AIS import AIS_Shape
 import copy
+import os
+from pkg_resources import resource_string, resource_exists
+import numpy as np
+
 
 class AirconicsShape(object):
     """Base class From which airconics assemblies and shapes will be made"""
@@ -57,6 +57,36 @@ class AirconicsShape(object):
             mirrored.Components[component] = act.mirror(
                     self.Components[component], plane, copy=True)
         return mirrored
+        
+    def WriteComponents(self, filename):
+        """Writes the Components in this Airconics shape to filename using
+        file format specified in extension of filename.  
+        Currently stl only (TODO: step, iges)
+        
+        Parameters
+        ----------
+        filename - string
+            
+        Returns
+        -------
+        status - list of int
+            error status of the file output of EACH component
+            
+        Notes
+        -----
+        - File format is extracted from filename.
+        - stl file write will prepend filename onto the Component name to be 
+        written to file (cannot write multiple files )
+        """
+        path, ext = os.path.splitext(filename)
+        stl_writer = StlAPI_Writer()
+        stl_ascii_format = False
+        status = []
+        for comp in self.Components.keys():
+            f = path + '_' + comp + ext
+            shape = self.Components[comp]
+            status.append(stl_writer.Write(shape, f, stl_ascii_format))
+        return status
 
 
 class Airfoil:

@@ -11,12 +11,12 @@ import os
 
 setup(
     name='airconics',
-    version="0.21",
+    version="0.0.1",
     description='Scripted Aircraft Geometry Module based on Python-OCC',
     packages=find_packages(),
     include_package_data=True,
     # package_data={'': ['*.dat']},
     install_requires=["numpy"],
-    author='Andras Sobester, Paul Chambers',
-    author_email='A.Sobester@soton.ac.uk, P.R.Chambers@soton.ac.uk'
+    author='Paul Chambers, Andras Sobester',
+    author_email='P.R.Chambers@soton.ac.uk, A.Sobester@soton.ac.uk'
 )

@@ -45,12 +45,19 @@ from OCC.BRepAdaptor import BRepAdaptor_Curve
 
 
 # FileIO libraries:
-from OCC.STEPControl import (STEPControl_Writer,
-                             STEPControl_AsIs,
-                             STEPControl_Reader)
+from OCC.STEPCAFControl import STEPCAFControl_Writer
+from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs
 from OCC.Interface import Interface_Static_SetCVal
 from OCC.IFSelect import IFSelect_RetDone
-
+from OCC.TDF import TDF_LabelSequence
+from OCC.TCollection import TCollection_ExtendedString
+from OCC.TDocStd import Handle_TDocStd_Document
+from OCC.XCAFApp import XCAFApp_Application
+from OCC.XCAFDoc import (XCAFDoc_DocumentTool_ShapeTool,
+                         XCAFDoc_DocumentTool_ColorTool,
+                         XCAFDoc_DocumentTool_LayerTool,
+                         XCAFDoc_DocumentTool_MaterialTool)
+from OCC.TDataStd import TDataStd_Name
 
 # Standard Python libraries
 import numpy as np
@@ -342,7 +349,7 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
 def export_STEPFile(shapes, filename):
     # initialize the STEP exporter
     step_writer = STEPControl_Writer()
-    Interface_Static_SetCVal("write.step.schema", "AP203")
+#    Interface_Static_SetCVal("write.step.schema", "AP214") # Use default?
 
     # transfer shapes
     for shape in shapes:
@@ -350,6 +357,57 @@ def export_STEPFile(shapes, filename):
     
     status = step_writer.Write(filename)
     
+    assert(status == IFSelect_RetDone)
+    return status
+
+def export_STLFile(AC_Shapes, filename):
+    """Writes a component stl file for each shape in input AirCONICS shapes"""
+    try:
+        for shape in AC_shapes:
+            status = shape.WriteComponents(filename)
+    except:
+        # Assume error was raised as AC_Shapes contains only one shape
+        status = shape.WriteComponents(filename)[0]        
+    return status
+    
+
+#def export_IGESFile(AC_Shapes, filename):
+    
+
+
+def export_STEPFile_Airconics(AirconicsShapes, filename):
+    """ Writes a Step file with names defined in the airconics shapes"""
+
+    # create an handle to a document    
+    h_doc = Handle_TDocStd_Document()
+    
+    # Create the application
+    app = XCAFApp_Application.GetApplication().GetObject()
+    app.NewDocument(TCollection_ExtendedString("MDTV-CAF"), h_doc)  
+    
+    # Get root assembly
+    doc = h_doc.GetObject()
+    shape_tool = XCAFDoc_DocumentTool_ShapeTool(doc.Main()).GetObject()
+    l_colors = XCAFDoc_DocumentTool_ColorTool(doc.Main())
+    l_layers = XCAFDoc_DocumentTool_LayerTool(doc.Main())
+    l_materials = XCAFDoc_DocumentTool_MaterialTool(doc.Main())    
+    
+    step_writer = STEPCAFControl_Writer()
+    step_writer.SetColorMode(True)
+    step_writer.SetLayerMode(True)
+    step_writer.SetNameMode(True)
+#    step_writer.SetMaterialMode(True)
+
+    for ACshape in AirconicsShapes:
+        for comp in ACshape.Components:
+            print("Writing {} to {}".format(comp, filename))
+            lbl = shape_tool.AddShape(ACshape.Components[comp])
+            name = TCollection_ExtendedString(comp)
+#            tdn = TDataStd_Name()
+#            tdn.Set(lbl, name)
+            step_writer.Transfer(lbl, STEPControl_AsIs)
+        
+    status = step_writer.Write(filename)
     assert(status == IFSelect_RetDone)
     return status
 

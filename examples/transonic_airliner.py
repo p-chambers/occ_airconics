@@ -354,9 +354,9 @@ def transonic_airliner(display=None,
     except:
         pass
     
-    engines2 = []
+    engines_left = []
     for eng in engines:
-        engines2.append(eng.MirrorComponents(plane='xz')) 
+        engines_left.append(eng.MirrorComponents(plane='xz')) 
         
     
 #    if Propulsion == 1:
@@ -390,11 +390,31 @@ def transonic_airliner(display=None,
     #The Fin:
     display.DisplayShape(Fin.Shape, material=Graphic3d_NOM_ALUMINIUM)
     
-    #The Engines:
-    for eng in engines+engines2:
+    #The Engines: 
+    for eng in engines + engines_left:
         eng.Display(display)
-        
-    return Wing, CutCircDisk
+       
+       
+#    Build the return assembly (could change this later based on input 'tree':
+    airliner = primitives.AirconicsShape()
+    airliner.Components['Wing_right'] = Wing.Shape
+    airliner.Components['Wing_left'] = Wing2
+    airliner.Components['Fuselage'] = Fus.OMLSurf
+    airliner.Components['WingBodyFairing'] = WBF
+    airliner.Components['Fin'] = Fin.Shape
+    airliner.Components['Tailplane_right'] = TP.Shape
+    airliner.Components['Tailplane_left'] = TP2
+    # Loop over the engines and write all components:
+    for i, eng in enumerate(engines):
+        for component in eng.Components:
+            name = component + '_right' + str(i+1)
+            airliner.Components[name] = eng.Components[component]
+    for i, eng in enumerate(engines_left):
+        for component in eng.Components:
+            name = component + '_left' + str(i+1)
+            airliner.Components[name] = eng.Components[component]    
+    
+    return airliner, engines_left
 
 
 if __name__ == "__main__":
@@ -404,7 +424,7 @@ if __name__ == "__main__":
 #    A few examples, instances of this parametric aircraft geometry:
 
 #    '787-8'
-    Wing, cut = transonic_airliner(display)
+    Airliner, engines_left = transonic_airliner(display)
 
 #    '787-9'
 #    transonic_airliner(FuselageScaling = [61.9, 55.902, 55.902])
@@ -418,4 +438,19 @@ if __name__ == "__main__":
 #    no serious design intent here, merely a hint of some of the possibilities
 #    in this model.
 #    transonic_airliner(WingScaleFactor = 66, WingChordFactor = 0.5, Topology =2)
+    
+    # Write step file:
+    for comp in Airliner.Components:
+        filename = '/home/pchambers/Documents/Vbox_share/Geometries/Step/' +\
+                    comp + '.stp'
+        act.export_STEPFile([Airliner.Components[comp]], filename)
+#    shapes = Airliner.Components
+#    act.export_STEPFile_Airconics(engines_left, '/home/pchambers/Documents/Vbox_share/engine.stp')
+#    spinner = engines_left[0].Components['Spinner']
+#    act.export_STEPFile([spinner], '/home/pchambers/Documents/Vbox_share/cone.stp')
+    
+    # Step had issues, try stl:
+#    Airliner.WriteComponents('/home/pchambers/Documents/Vbox_share/Airliner.stl')
+    
     start_display()
+    
