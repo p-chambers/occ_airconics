@@ -18,5 +18,5 @@ setup(
     # package_data={'': ['*.dat']},
     install_requires=["numpy"],
     author='Paul Chambers, Andras Sobester',
-    author_email='P.R.Chambers@soton.ac.uk, A.Sobester@soton.ac.uk'
+    author_email='P.R.Chambers@soton.ac.uk, A.Sobester@soton.ac.uk',
 )

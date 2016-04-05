@@ -127,7 +127,7 @@ def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
     bbox.SetGap(tol)
 
     for shape in ObjectIds:
-        brepbndlib_Add(shape, bbox)
+        brepbndlib_Add(shape, bbox, True)
 
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
     if as_vec is False:
@@ -835,7 +835,7 @@ def CutSect(Shape, SpanStation):
         
     P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0))) 
     # Note: using 2*extents here as previous +1 trimmed plane too short
-    CutPlaneSrf = make_face(P, 0, 2*Zmax, 0, 2*Xmax)
+    CutPlaneSrf = make_face(P, 0, Zmax+2, 0, Xmax+2)
 
 
     I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)

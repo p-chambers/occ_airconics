@@ -29,7 +29,7 @@ class AirconicsShape(object):
         self.Components = {}
         
     def TranslateComponents(self, vec):
-        """Just using this for now: will eventually fuse all shapes"""
+        """Apply translation by vec to each component in self"""
         for component in self.Components:
             self.Components[component] = act.translate_topods_from_vector(self.Components[component], vec)
            
@@ -415,17 +415,32 @@ class Airfoil:
         """Adds a NACA 4 digit airfoil to the current document
         Parameters
         ----------
-        
+        Naca4Profile - string
+            Naca 4 profile identifier. Should be length 4 string, however
+            also accepts negative camber i.e. '-5310' gives a flipped
+            camber airfoil (primarily used for box wing)
         Returns
         -------
+        
+        
         """
         if type(Naca4Profile) is not str:
             raise TypeError("NACA 4 Profile must be a string")
+        assert(len(Naca4Profile) != 0), \
+            "Invalid Naca4, empty string found: should be a 4 digit string"
+        if Naca4Profile[0] == '-':
+            flip_camber = True
+            Naca4Profile = Naca4Profile.lstrip('-')
+        else:
+            flip_camber = False
+
         assert(len(Naca4Profile)==4), \
             "Invalid Naca4 '{}': should be 4 digit string".format(Naca4Profile)
 
         self.Profile = {'Naca4Profile': Naca4Profile}
         MaxCamberPercChord     = int(Naca4Profile[0])
+        if flip_camber:
+            MaxCamberPercChord *= -1
         MaxCamberLocTenthChord = int(Naca4Profile[1])
         MaxThicknessPercChord  = int(Naca4Profile[2:])
         

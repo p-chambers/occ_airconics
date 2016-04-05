@@ -28,6 +28,7 @@ from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
 from OCC.gp import gp_Ax1, gp_Pnt, gp_Dir
 
 from airconics.examples.wing_example_transonic_airliner import *
+import airconics.examples.boxwing as bw
 from airconics.examples.tailplane_example_transonic_airliner import *
 from airconics import liftingsurface, engine, fuselage_oml
 import airconics.AirCONICStools as act
@@ -43,8 +44,8 @@ def transonic_airliner(display=None,
                        WingScaleFactor=44.56,
                        WingChordFactor=1.0,
                        Topology=1,
-                       SpanStation1=0.31,
-                       SpanStation2=0.625,
+                       SpanStation1=0.35,
+                       SpanStation2=0.675,
                        EngineCtrBelowLE=0.3558,
                        EngineCtrFwdOfLE=0.9837,
                        Scarf_deg=3):
@@ -87,8 +88,7 @@ def transonic_airliner(display=None,
     try:
         Fus = fuselage_oml.Fuselage(NoseLengthRatio, TailLengthRatio, 
                                     Scaling = FuselageScaling, 
-                                    NoseCoordinates = [0,0,0], 
-                                    CylindricalMidSection = False)
+                                    NoseCoordinates = [0,0,0])
     except:
         print "Fuselage fitting failed - stopping."
         return None
@@ -114,24 +114,31 @@ def transonic_airliner(display=None,
     # describe the spanwise variations of sweep, dihedral, etc.
     if Topology == 1:
         NSeg = 10
-        Wing = liftingsurface.LiftingSurface(WingApex, mySweepAngleFunctionAirliner, 
-                                            myDihedralFunctionAirliner, 
-                                            myTwistFunctionAirliner, 
-                                            myChordFunctionAirliner, 
-                                            myAirfoilFunctionAirliner,
-                                            SegmentNo=NSeg,
-                                            ScaleFactor=WingScaleFactor,
-                                            ChordFactor=WingChordFactor)
+        Wing = liftingsurface.LiftingSurface(WingApex,
+                                             mySweepAngleFunctionAirliner, 
+                                             myDihedralFunctionAirliner, 
+                                             myTwistFunctionAirliner, 
+                                             myChordFunctionAirliner, 
+                                             myAirfoilFunctionAirliner,
+                                             SegmentNo=NSeg,
+                                             ScaleFactor=WingScaleFactor,
+                                             ChordFactor=WingChordFactor)
         RootChord = Wing.RootChord
     elif Topology == 2:
-        raise NotImplementedError("Box Wing functionality is not yet ported to OCC_AirCONICS")
-#        SegmentNo = 101
-#        Wing = liftingsurface.LiftingSurface(WingApex, ta.mySweepAngleFunctionAirliner,
-#        bw.myDihedralFunctionBoxWing, ta.myTwistFunctionAirliner,
-#        ta.myChordFunctionAirliner, ta.myAirfoilFunctionAirliner, 
-#        LooseSurf, SegmentNo, TipRequired = True)
+        NSeg = 101
+        Wing = liftingsurface.LiftingSurface(WingApex,
+                                             mySweepAngleFunctionAirliner,
+                                             bw.myDihedralFunctionBoxWing,
+                                             myTwistFunctionAirliner,
+                                             myChordFunctionAirliner,
+                                             myAirfoilFunctionAirliner, 
+                                             SegmentNo=NSeg,
+                                             ScaleFactor=WingScaleFactor,
+                                             ChordFactor=WingChordFactor)
+        RootChord = Wing.RootChord
 
     if Topology == 1:
+    
         # Add wing to body fairing 
         WTBFXCentre = WingApex[0] + RootChord/2.0 + RootChord*0.1297 # 787: 23.8
         if FuselageHeight < 8.0:
@@ -141,38 +148,26 @@ def transonic_airliner(display=None,
             WTBFheight = 1.8*0.1212*RootChord #787:2.7
             WTBFwidth = 1.08*FuselageWidth
         else:
-
+    
             WTBFZ = WingApex[2] + 0.005*RootChord
             WTBFheight = 0.09*RootChord 
             WTBFwidth = 1.15*FuselageWidth
     
         WTBFlength = 1.167*RootChord #787:26
-        
-#        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
         WBF = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength, WTBFwidth, WTBFheight)
-#        display.DisplayShape(gp_Pnt(WTBFXCentre, 0, WTBFZ), update=True)
-#        display.DisplayShape(gp_Pnt(WTBFXStern, 0, WTBFZ), update=True)
-#        display.DisplayShape(gp_Pnt(WTBFXCentre, WTBFwidth/2., WTBFZ), update=True)
-#        display.DisplayShape(gp_Pnt(WTBFXCentre, 0, WTBFZ+WTBFheight/2.), update=True)
 
-    
-#        # Trim wing inboard section
+#        Trim wing inboard section
         CutCirc = act.make_circle3pt([0,WTBFwidth/4.,-45], [0,WTBFwidth/4.,45], [90,WTBFwidth/4.,0])
         CutCircDisk = act.PlanarSurf(CutCirc)
         Wing.Shape = act.TrimShapebyPlane(Wing.Shape, CutCircDisk)
-#        display.DisplayShape(cyl, update=True)
-#    elif Topology == 2:
-#        # Overlapping wing tips
-#        CutCirc = rs.AddCircle3Pt((0,0,-45), (0,0,45), (90,0,0))
-#        CutCircDisk = rs.AddPlanarSrf(CutCirc)
-#        CutDisk = CutCircDisk[0]
-#        rs.ReverseSurface(CutDisk,1)
-#        rs.TrimBrep(WingSurf, CutDisk)
-#
-#
-#
-#
-#    # TODO: Engine installation (nacelle and pylon)
+    elif Topology == 2:
+#        Overlapping wing tips
+        CutCirc = act.make_circle3pt((0,0,-45), (0,0,45), (90,0,0))
+        CutCircDisk = act.PlanarSurf(CutCirc)
+        Wing.Shape = act.TrimShapebyPlane(Wing.Shape, CutCircDisk)
+
+
+#   Engine installation (nacelle and pylon)
     NacelleLength = 1.95*EngineDia
     if Propulsion == 1:
         SpanStations = [SpanStation1]
@@ -377,16 +372,20 @@ def transonic_airliner(display=None,
 #    display all entities:
     # Fuselage and wing-body fairing
     display.DisplayShape(Fus.OMLSurf, material=Graphic3d_NOM_ALUMINIUM)
-    display.DisplayShape(WBF, material=Graphic3d_NOM_ALUMINIUM)
-
+    
     #The Wings:
     display.DisplayShape(Wing.Shape, material=Graphic3d_NOM_ALUMINIUM)
     display.DisplayShape(Wing2, material=Graphic3d_NOM_ALUMINIUM)
     
     #The Tailplane:
-    display.DisplayShape(TP.Shape, material=Graphic3d_NOM_ALUMINIUM)
-    display.DisplayShape(TP2, material=Graphic3d_NOM_ALUMINIUM)
-    
+    try:
+#        boxwing except (no TP or WBF)
+        display.DisplayShape(WBF, material=Graphic3d_NOM_ALUMINIUM)
+        display.DisplayShape(TP.Shape, material=Graphic3d_NOM_ALUMINIUM)
+        display.DisplayShape(TP2, material=Graphic3d_NOM_ALUMINIUM)
+    except:
+        pass
+     
     #The Fin:
     display.DisplayShape(Fin.Shape, material=Graphic3d_NOM_ALUMINIUM)
     
@@ -400,10 +399,16 @@ def transonic_airliner(display=None,
     airliner.Components['Wing_right'] = Wing.Shape
     airliner.Components['Wing_left'] = Wing2
     airliner.Components['Fuselage'] = Fus.OMLSurf
-    airliner.Components['WingBodyFairing'] = WBF
     airliner.Components['Fin'] = Fin.Shape
-    airliner.Components['Tailplane_right'] = TP.Shape
-    airliner.Components['Tailplane_left'] = TP2
+    
+    try:
+#        boxwing except (no TP or WBF)
+        airliner.Components['WingBodyFairing'] = WBF
+        airliner.Components['Tailplane_right'] = TP.Shape
+        airliner.Components['Tailplane_left'] = TP2
+    except:
+        pass
+    
     # Loop over the engines and write all components:
     for i, eng in enumerate(engines):
         for component in eng.Components:
@@ -424,7 +429,7 @@ if __name__ == "__main__":
 #    A few examples, instances of this parametric aircraft geometry:
 
 #    '787-8'
-    Airliner, engines_left = transonic_airliner(display)
+#    Airliner, engines_left = transonic_airliner(display)
 
 #    '787-9'
 #    transonic_airliner(FuselageScaling = [61.9, 55.902, 55.902])
@@ -437,20 +442,27 @@ if __name__ == "__main__":
 #    topological variety - it is a box wing version of the 787-8. There is 
 #    no serious design intent here, merely a hint of some of the possibilities
 #    in this model.
-#    transonic_airliner(WingScaleFactor = 66, WingChordFactor = 0.5, Topology =2)
-    
+    transonic_airliner(display=display, WingScaleFactor = 66,
+                       WingChordFactor = 0.5, Topology =2)
+
+
+
     # Write step file:
-    for comp in Airliner.Components:
-        filename = '/home/pchambers/Documents/Vbox_share/Geometries/Step/' +\
-                    comp + '.stp'
-        act.export_STEPFile([Airliner.Components[comp]], filename)
-#    shapes = Airliner.Components
-#    act.export_STEPFile_Airconics(engines_left, '/home/pchambers/Documents/Vbox_share/engine.stp')
+#    for comp in Airliner.Components:
+#        filename = '/home/pchambers/Documents/Vbox_share/Geometries/Step/' +\
+#                    comp + '.stp'
+#        act.export_STEPFile([Airliner.Components[comp]], filename)
+#    shapes = Airliner.Components.values()
+#    act.export_STEPFile_Airconics([Airliner], '/home/pchambers/Documents/Vbox_share/Geometries/Airliner_airconicsexport.stp')
 #    spinner = engines_left[0].Components['Spinner']
-#    act.export_STEPFile([spinner], '/home/pchambers/Documents/Vbox_share/cone.stp')
+#    act.export_STEPFile(shapes, '/home/pchambers/Documents/Vbox_share/Geometries/Step/Airliner_exportstep.stp')
     
     # Step had issues, try stl:
 #    Airliner.WriteComponents('/home/pchambers/Documents/Vbox_share/Airliner.stl')
+    
+#    from OCC.Graphic3d import (Graphic3d_EF_PDF,
+#                           Graphic3d_EF_PostScript)
+#    display.View.View().GetObject().Export('./Airliner.pdf', Graphic3d_EF_PDF)
     
     start_display()
     

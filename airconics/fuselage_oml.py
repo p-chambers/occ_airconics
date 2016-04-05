@@ -23,7 +23,7 @@ from OCC.gp import gp_Pnt, gp_Vec, gp_Pln, gp_Dir, gp_Ax2, gp_Trsf
 from OCC.Geom import Geom_Circle, Handle_Geom_BSplineCurve, Geom_Plane
 from OCC.BRep import BRep_Tool_Surface
 from OCC.TopoDS import topods
-from OCC.GeomAbs import GeomAbs_C0
+from OCC.GeomAbs import GeomAbs_C1
 
 class Fuselage:
     
@@ -249,7 +249,7 @@ class Fuselage:
         """Builds the Fuselage outer mould line"""
     
 
-        NetworkSrfSettings = np.array([[35, 20, 15, 5, 20],
+        NetworkSrfSettings = np.array([[35, 20, 15, 15, 20],
                                        [35, 30, 15, 5, 20],
                                        [35, 20, 15, 2, 20],
                                        [30, 30, 15, 2, 20],
@@ -350,9 +350,9 @@ class Fuselage:
             self._Lguides = guides
             self._Csections = sections
             self._NoseVertex = act.make_vertex(self.BowPoint)
-            
+            from OCC.GeomAbs import *
             try:
-                FuselageOMLSurf = act.AddSurfaceLoft(C, first_vertex=self._NoseVertex)
+                FuselageOMLSurf = act.AddSurfaceLoft(C, first_vertex=self._NoseVertex, continuity=GeomAbs_C2)
                 self.OMLSurf = FuselageOMLSurf
             except:
                 self.OMLSurf = None

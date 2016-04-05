@@ -8,3 +8,4 @@ doc/_build/
 *.stp
 *.p
 cache/
+/airconics/optimize/
