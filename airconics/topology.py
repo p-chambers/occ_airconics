@@ -37,12 +37,20 @@ class TreeNode(object):
         part - Airconics type Fuselage, LiftingSurface or Engine
             The type to convert 
         
+        name - string
+            The name of the part (e.g. 'Wing' or 'Fin')
+        
+        affinity - int
+            the number of descendant                
+        
         Attributes
         ----------
         affty - int
             Affinity (number of descendants) of this node
+            
         name - string
             Name of the part
+            
         func - string
             Indicates the type of node i.e.
         """
@@ -51,9 +59,13 @@ class TreeNode(object):
         if type(part) not in FUNCTIONS.values():
             raise TypeError("Not a recognised part type: {}. Should be {}"
                 .format(type(part), FUNCTIONS.values()))
-        else:        
+        else:
             func_str = FUNCTIONS_INV[type(part)]
         self.func = FUNCTIONS_INV[type(part)]
+        
+        def __str__(self):
+            output = (self.name, self.func, self.affty)
+            return output
 
 class Topology(AirconicsCollection):
     def __init__(self, parts={}):
@@ -67,18 +79,17 @@ class Topology(AirconicsCollection):
                 {name: (Part, affinity)}
             i.e. the string 'name' values are presented as a tuple or list of:
                 Part - TopoDS_Shape
+                    The shape
                 affinity - int
                     the affinity (number of descendant nodes) attached to part
-            
-            A warning is raised if afinities are not provided
+            A warning is raised if afinities are not provided, in which case
+            affinity is assumed to be zero
         
         Attributes
         ----------
-        tree - list
-            The reverse
-        
-        __rev_parts - list
-            The named parts in reverse polish notation
+        _Tree - list
+            the list of LISP-like instructions (in the order they were called
+            with AddPart)
 
         Notes
         -----
@@ -88,9 +99,11 @@ class Topology(AirconicsCollection):
             # (Wing is an airconics Lifting Surface instace):
             aircraft = Topology(parts={'Wing': (Wing['Surface'], 2)})
         
-        Although not enforced, parts could be added to this class recursively
-        following the reverse polish representation of the aircraft's flattened
-        topological tree suggested by Sobester [1]
+        Although not enforced, parts should be added to this class recursively
+        (from the top node first) to represent the aircraft's flattened
+        topological tree suggested by Sobester [1]. It is the users
+        responsibility to ensure the input nodes are a valid lisp tree for a
+        correct graph to result (no checks are currently performed)
         
         
         See Also: AirconicsCollection
@@ -235,7 +248,7 @@ class Topology(AirconicsCollection):
         
     def AddPart(self, part, name, affinity=0):
         """Overloads the AddPart method of AirconicsCollection base class
-        to append the
+        to append the affinity of the input topology node
         
         Parameters
         ----------
@@ -246,7 +259,7 @@ class Topology(AirconicsCollection):
         part - LiftingSurface, Engine or Fuselage class instance
             the part to be added to the tree
         
-        Affinity - int
+        affinity - int
             The number of terminals attached to this part; this will be
             randomized at a later stage
         

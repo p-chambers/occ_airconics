@@ -3,15 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to airconics's documentation!
-=====================================
+Welcome to the occ_airconics documentation!
+===========================================
+
+
 
 Contents:
 
 .. toctree::
    :maxdepth: 4
 
-   airconics
+   reference
 
 
 Indices and tables

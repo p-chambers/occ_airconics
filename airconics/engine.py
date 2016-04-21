@@ -17,40 +17,53 @@ from OCC.GC import GC_MakeSegment
 
 
 class Engine(AirconicsShape):
+    """A class for generating aircraft engine and pylon geometries.
+    
+    Currently only yields a turbofan engine with nacelle similar to that of an
+    RR Trent 1000 / GEnx. Shapes produced include the nacelle, spinner cone,
+    tail cone, Fan disk, Bypass disk, and pylon symmetry plane. The nacelle
+    is produced by inclining an inlet disk by its scarf angle about the span-
+    wise (y) axis and uniformly spacing airfoil 'ribs' before lofting a surface
+    through them. The pylon is currently the symetry plane of a fully pylon 
+    only
+
+    Parameters
+    ----------            
+    Chord : OCC.Geom.Geom_TrimmedCurve
+        The chord line at which the engine will be fitted. The result of
+        OCC.GC.GC_MakeSegment       
+    
+    CentreLocation : list, length 3 (default=[0,0,0])
+        Location of the centre of the inlet highlight disk
+        
+    ScarfAngle : scalar, deg (default=3)
+        angle of inclination of engine intake (rotated around y axis)
+    
+    HighlightRadius : scalar (default=1.45)
+        Intake highlight radius
+    
+    MeanNacelleLength : scalar (default=5.67)
+        Mean length of the nacelle, to be used as the airfoil rib chordlength
+    
+    Attributes
+    ----------
+    _AirconicsShape__Components : dictionary of shapes
+            
+    Notes
+    -----
+    Also calls the initialiser of parent class AirconicsShape which stores all
+    keywords as attributes 
+    
+    See also
+    --------
+    airconics.base.AirconicsShape, airconics.primitives.Airfoil
+    """
     def __init__(self,
                  Chord,
                  CentreLocation=[0, 0, 0],
                  ScarfAngle=3,
                  HighlightRadius=1.45,
                  MeanNacelleLength=5.67):
-        """Initialises the engine and pylon shapes. Also calls the initialiser
-        of parent class AirconicsShape which stores all keywords as attributes
-
-        Parameters
-        ----------            
-        Chord - OCC.Geom.Geom_TrimmedCurve
-            The chord line at which the engine will be fitted.
-            NB: result of OCC.GC.GC_MakeSegment       
-        
-        CentreLocation - list, length 3 (default=0)
-            
-        ScarfAngle - scalar, deg (default=3)
-            angle of inclination of engine intake (rotated around y axis)
-        
-        HighlightRadius - scalar (default=1.45)
-        
-        MeanNacelleLength - scalar (default=5.67)
-        
-        Attributes
-        ----------
-        _AirconicsShape__Components - dictionary of shapes
-            
-        All inputs passed to super.__init__ are stored as attributes
-        
-        Notes
-        -----
-        See also: airconics.base.AirconicsShape
-        """
 
 #        Add all kwargs as attributes
         super(Engine, self).__init__(components={},
@@ -64,6 +77,7 @@ class Engine(AirconicsShape):
 
     def Build_Engine(self):
         """Currently only calls BuildTurbofanNacelle.
+
         Notes
         -----
         May add options for other engine types

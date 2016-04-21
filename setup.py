@@ -11,7 +11,7 @@ import os
 
 setup(
     name='airconics',
-    version="0.1",
+    version="0.1.0",
     description='Scripted Aircraft Geometry Module based on Python-OCC',
     packages=find_packages(),
     include_package_data=True,

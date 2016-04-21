@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+Airfoil primitive class definitions
+
 Created on Fri Dec  4 13:31:35 2015
 
 @author: pchambers
@@ -14,8 +16,58 @@ import numpy as np
 
 
 class Airfoil(object):
-    """ Lifting surface section primitive class """
+    """Class for defining a range of spline-fitted airfoil curves
 
+        Parameters
+        ----------
+        LeadingEdgePoint : array of float (,3)
+            (x, y, z) origin of the airfoil LE
+
+        ChordLength : scalar
+            Length of the airfoil chord
+
+        Rotation : scalar
+            Angle (deg) at which the base airfoil is inclined (angle of attack,
+            rotation around y axis)
+
+        Twist : scalar
+            Angle (deg)  at which the base airfoil is twisted
+            (dihedral, rotation around x axis)
+
+        SeligProfile : string
+            Name of the Selig airfoil: see
+            http://m-selig.ae.illinois.edu/ads/coord_database.html
+
+        NACA4Profile : string
+            Name of the airfoil in NACA 4 format
+
+        NACA5Profile : string
+            Name of the airfoil in NACA 5 format.
+            TODO: NACA5 profile not yet implemented
+
+        CRM_Profile : bool
+            If true, airfoil profile will be interpolated from Common Research
+            Model (CRM). Must also declare 'CRMEpsilon' variable.
+
+        CRM_Epsilon : float
+            Spanwise fraction between 0 and 1 to interpolate profile from CRM
+
+        EnforceSharpTE : bool
+            Enforces sharp trailing edge (NACA airfoils only)
+
+        Notes
+        -----
+        NACA5 profiles are not yet supported in OCC_AirCONICS
+        
+        Preference is that users allow the class constructor to handle
+            building the Airfoil i.e. pass all physical definitions as class
+            arguments
+            
+        Although the physical attributes can changed i.e. rotation, twist,
+            ChordLength, LeadingEdgePoint etc., it is the users responsibility
+            to rebuild the Airfoil with the 'Add***Airfoil' afterwards
+        
+        """
     def __init__(self,
                  LeadingEdgePoint=[0., 0., 0.],
                  ChordLength=1,
@@ -27,48 +79,7 @@ class Airfoil(object):
                  CRMProfile=None,
                  CRM_Epsilon=0.,
                  EnforceSharpTE=False):
-        """Class for defining a range of spline-fitted airfoil curves
-
-        Parameters
-        ----------
-        LeadingEdgePoint - array of float (,3)
-            (x, y, z) origin of the airfoil LE
-        ChordLength - scalar
-            Length of the airfoil chord
-        Rotation - scalar
-            Angle (deg) at which the base airfoil is inclined (angle of attack,
-            rotation around y axis)
-        Twist - scalar
-            Angle (deg)  at which the base airfoil is twisted
-            (dihedral, rotation around x axis)
-        SeligProfile - string
-            Name of the Selig airfoil: see
-            http://m-selig.ae.illinois.edu/ads/coord_database.html
-        NACA4Profile - string
-            Name of the airfoil in NACA 4 format
-        NACA5Profile - string
-            Name of the airfoil in NACA 5 format.
-            TODO: NACA5 profile not yet implemented
-        CRM_Profile - bool
-            If true, airfoil profile will be interpolated from Common Research
-            Model (CRM). Must also declare 'CRMEpsilon' variable.
-        CRM_Epsilon - float
-            Spanwise fraction between 0 and 1 to interpolate profile from CRM
-        EnforceSharpTE - bool
-            Enforces sharp trailing edge (NACA airfoils only)
-        Notes
-        -----
-        - NACA5 profiles are not yet supported in OCC_AirCONICS
         
-        - Preference is that users allow the class constructor to handle
-            building the Airfoil i.e. pass all physical definitions as class
-            arguments
-            
-        - Although the physical attributes can changed i.e. rotation, twist,
-            ChordLength, LeadingEdgePoint etc., it is the users responsibility
-            to rebuild the Airfoil with the 'Add***Airfoil' afterwards
-        
-        """
         if CRM_Epsilon:
             CRMProfile = True
         Profiles = [SeligProfile, Naca4Profile, Naca5Profile, CRMProfile]
@@ -105,16 +116,19 @@ class Airfoil(object):
 
     def _fitAirfoiltoPoints(self, x, z):
         """ Fits an OCC curve to airfoil x, z points
+
         Parameters
         ----------
-        x - array
+        x : array
             airfoil curve x points
-        z - array
+
+        z : array
             airfoil curve z points
+            
         Returns
         -------
-        spline_2d - 
-        
+        spline_2d : OCC.Geom.Geom_BSplineCurve
+            the generated spline
         """
         N = len(x)
         y = [0. for i in xrange(N)]
@@ -131,9 +145,11 @@ class Airfoil(object):
         Assumes input selig files are specified in the Selig format, i.e., 
         header line, followed by x column, z column, from upper trailing edge 
         to lower trailing edge.
+
         Parameters
         ----------
-        FileNameWithPath - string
+        SeligProfile : string
+            The file basename containing the selig profile data
             
         Returns
         -------
@@ -161,11 +177,12 @@ class Airfoil(object):
 
     def _NACA4cambercurve(self, MaxCamberLocTenthChord, MaxCamberPercChord):
         """ Generates the camber curve of a NACA 4-digit airfoil
+
         Paramters
         ---------
-        MaxCamberLocTenthChord - int
+        MaxCamberLocTenthChord : int
         
-        MaxCamberPercChord - int
+        MaxCamberPercChord : int
         
         Returns
         -------
@@ -262,6 +279,7 @@ class Airfoil(object):
     def _NACA4digitPnts(self, MaxCamberPercChord, MaxCamberLocTenthChord,
                         MaxThicknessPercChord):
         """Generates a set of points that define a NACA 4-digit airfoil
+        
         Parameters
         ----------
         MaxCamberPercChord - int
@@ -335,11 +353,13 @@ class Airfoil(object):
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):
         """Adds an airfoil generated by fitting a NURBS curve to a set
         of points whose coordinates are given in a Selig formatted file
+        
         Parameters
         ----------
-        SeligProfile - string
+        SeligProfile : string
             base selig airfoil name e.g. 'b707a'.
-        Smoothing - int (default=1)
+
+        Smoothing : int (default=1)
             TODO: Airfoil curve smoothing
 
         Returns
@@ -362,9 +382,10 @@ class Airfoil(object):
 
     def AddNACA4(self, Naca4Profile, Smoothing=1):
         """Adds a NACA 4 digit airfoil to the current document
+
         Parameters
         ----------
-        Naca4Profile - string
+        Naca4Profile : string
             Naca 4 profile identifier. Should be length 4 string, however
             also accepts negative camber i.e. '-5310' gives a flipped
             camber airfoil (primarily used for box wing)
@@ -412,10 +433,11 @@ class Airfoil(object):
 
         Parameters
         ----------
-        CRM_Epsilon - scalar
+        CRM_Epsilon : scalar
             Spanwise coordinate at which to sample the CRM airfoil database
             (range between 0 and 1)
-        Smoothing - int
+
+        Smoothing : int
             TODO: Airfoil curve smoothing
 
         Returns

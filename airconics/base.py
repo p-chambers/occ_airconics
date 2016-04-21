@@ -49,32 +49,38 @@ class AirconicsBase(MutableMapping, object):
 
 
 class AirconicsShape(AirconicsBase):
-    """Base class from which airconics parts will be made. This is a base
-    class only and should not be used directly by users.
+    """Base class from which airconics parts will be made.
+
+    This is intended as a base class, but can be used as a simple amorphic
+    collection of shape components.
+
+    :Example:
+        >>> shape = Airconics()
+        >>> shape['wing'] = wing  # OR
+        >>> shape.AddComponent(wing, 'WingSurface')
 
     Parameters
     ----------
-    components - dictionary of components to be added as attributes
+    components : dictionary of components to be added as attributes
         To add attributes directly. Values must be OCC.TopoDS.TopoDS_Shape
 
-    **kwargs - All other keyword arguments will be added as an attribute
+    **kwargs : All other keyword arguments will be added as an attribute
         to the resulting class calling super(subclass, self).__init__
 
     Attributes
     ----------
-    __Components - Dictionary of name(string):component(TopoDS_Shape) pairs
+    __Components : Dictionary of name(string):component(TopoDS_Shape) pairs
         This should not be interacted with directly. Use assignment or
         self.AddComponents (see Notes for more detail)
 
     Notes
     -----
-    example:
-        shape = DerivedShapeClass()
-        shape['wing'] = wing  # OR
-        shape.AddComponent(wing, 'WingSurface')
+    Derived classes should call the AirconicsCollection init with
+        super(DerivedClass, self).__init__(self, *args, **kwargs)
 
-    * Derived classes should call the AirconicsCollection init with eg:
-        super(DerivedClass, self).__init__(self, *args, **kwargs)"""
+
+
+    """
 
     def __init__(self, components={}, *args, **kwargs):
         # Set the components dictionary (default empty)
@@ -113,10 +119,12 @@ class AirconicsShape(AirconicsBase):
 
     def AddComponent(self, component, name=None):
         """Adds a component to self
+        
         Parameters
         ----------
-        name - string
-        component - TopoDS_Shape
+        name : string
+        
+        component : TopoDS_Shape
         """
         if name is None:
             # set a default name:
@@ -125,9 +133,10 @@ class AirconicsShape(AirconicsBase):
 
     def RemoveComponent(self, name):
         """Removes a named component from self
+        
         Parameters
         ----------
-        name - string
+        name : string
         """
         self.__delitem__(name)
 
@@ -139,9 +148,10 @@ class AirconicsShape(AirconicsBase):
 
     def TranslateComponents(self, vec):
         """Apply translation by vec to each component in self
+
         Parameters
         ----------
-        vec - OCC.gp.gp_vec
+        vec : OCC.gp.gp_vec
             vector through which components will be translated
         """
         for name, component in self.items():
@@ -150,11 +160,13 @@ class AirconicsShape(AirconicsBase):
     def RotateComponents(self, ax, deg):
         """Rotation of each component in self.__Components around ax by
         angle deg
+
         Parameters
         ----------
-        ax - OCC.gp.gp_Ax1
+        ax : OCC.gp.gp_Ax1
             The axis of rotation
-        deg - scalar
+
+        deg : scalar
             Rotation in degrees
         """
         for name, component in self.items():
@@ -163,11 +175,13 @@ class AirconicsShape(AirconicsBase):
     def TransformComponents_Nonuniformal(self, scaling, vec):
         """General scaling and translation of components in self
         (applies act.transform_nonuniformal)
+        
         Parameters
         ----------
-        scaling - list or array, length 3
+        scaling : list or array, length 3
             [x, y, z] scaling factors
-       vec - List of x,y,z or gp_Vec
+
+        vec : List of x,y,z or gp_Vec
            the translation vector (default is [0,0,0])
         """
         for name, component in self.items():
@@ -175,10 +189,15 @@ class AirconicsShape(AirconicsBase):
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
         """Displays all components of this instance to input context
+
         Parameters
         ----------
-        meterial - OCC.Graphic3d_NOM_* type
-            The material for display: note some renderers do not allow this"""
+        context : OCC.Display.OCCViewer.Viewer3d or WebRenderer
+            The display context - should have a Display or DisplayShape method            
+        
+        meterial : OCC.Graphic3d_NOM_* type
+            The material for display: note some renderers do not allow this
+        """
         for name, component in self.items():
             ais = AIS_Shape(component)
             ais.SetMaterial(material)
@@ -189,10 +208,17 @@ class AirconicsShape(AirconicsBase):
 
     def MirrorComponents(self, plane='xz'):
         """Returns a mirrored version of this airconics shape
+
+        Parameters
+        ----------
+        plane : string (default='xz')
+            The plane in which to mirror components
+
         Returns
         -------
-        mirrored - AirconicsShape
+        mirrored : AirconicsShape
             the mirrored shape
+
         Notes
         -----
         Due to problem with swig and deepcopy, the mirrored object is the
@@ -219,16 +245,18 @@ class AirconicsShape(AirconicsBase):
 
         Parameters
         ----------
-        filename - string
+        filename : string
+        
         Returns
         -------
-        status - list of int
+        status : list of int
             error status of the file output of EACH component
     
         Notes
         -----
-        - File format is extracted from filename.
-        - stl file write will prepend filename onto the Component name to be
+        File format is extracted from filename.
+        
+        stl file write will prepend filename onto the Component name to be
         written to file (cannot write multiple files )
         """
         path, ext = os.path.splitext(filename)
@@ -291,21 +319,23 @@ class AirconicsCollection(AirconicsBase):
 
         Paramters
         ---------
-        filename - string
+        filename : string
             the BASE.ext name of the file e.g. 'airliner.stp'.
             Note the part name will be prepended to the base name of each
             output file
 
         Returns
         -------
-        status - list
+        status : list
             The flattened list of error codes returned by writing each part
 
         Notes
         -----
         * Calls the .Write method belonging to each Part
 
-        See Also: AirconicsBase
+        See Also
+        --------
+        AirconicsBase
         """
         path, ext = os.path.splitext(filename)
         for name, part in self.items():
@@ -314,19 +344,23 @@ class AirconicsCollection(AirconicsBase):
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
         """Displays all Parts of the engine to input context
+        
         Parameters
         ----------
-        meterial - OCC.Graphic3d_NOM_* type
-            The material for display: note some renderers do not allow this"""
+        meterial : OCC.Graphic3d_NOM_* type
+            The material for display: note some renderers do not allow this
+        """
         for name, component in self.items():
             component.Display(context, material)
 
     def AddPart(self, part, name=None):
         """Adds a component to self
+
         Parameters
         ----------
-        name - string
-        component - TopoDS_Shape
+        part : TopoDS_Shape
+
+        name : string
         """
         if name is None:
             # set a default name:
