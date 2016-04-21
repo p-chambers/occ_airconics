@@ -23,6 +23,11 @@ FUNCTIONS = {'E': Fuselage,         # E = Enclosure
 #  a class instance to a string 
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
 
+#The shapes of nodes in the exported graph from Topo class:
+SHAPES = {'E': 'ellipse',
+          'L': 'box',
+          'P': 'hexagon'}
+
 class TreeNode(object):
     def __init__(self, part, name, affinity):
         """Basic type to define node elements in the topology tree. To be used
@@ -147,7 +152,7 @@ class Topology(AirconicsCollection):
         the Aircrafts flattened tree topology resembling a LISP tree.
         Notes
         -----
-        Reverse Polish notation is used. Recursion is avoided by 
+        This follows a similar format to GPLearn program representation
         
         See also: self.__init__ notes
         """
@@ -155,19 +160,19 @@ class Topology(AirconicsCollection):
         output = ''
         
         for i, node in enumerate(self._Tree):
-            terminals.append(node.affty)
 #            If node has a non zero affinity, there is some nested printing
 #            required, otherwise node is a terminal:
             if node.affty > 0:
+                terminals.append(node.affty)
                 output += node.func + '('
             else:
                 output += node.func
                 terminals[-1] -= 1
                 while terminals[-1] == 0:
                     terminals.pop()
-                    terminals[-1] -= 1
+                    terminals[-1] -= 1   # This stops the while loop on last it
                     output += ')'
-                if i != len(self._Tree) - 1:
+                if i != len(self) - 1:
                     output += ', '
         return output
 
@@ -179,12 +184,54 @@ class Topology(AirconicsCollection):
 #        for node in self._Tree:
 #            func, affty = node
 #            if affty > 0:
-#                depth += 1
+#                n_level += 1
 #        return depth
         
-    def Generate_Dotdata():
-        """ """
-        raise NotImplementedError
+    def export_graphviz(self):
+        """Returns a string, Graphviz script for visualizing the program.
+        Returns
+        -------
+        oupput : string
+            The Graphviz script to plot the tree representation of the program.
+            
+        Notes
+        -----
+        This function is originally from GPLearns _Program class, but has been
+        modified. 
+        
+        May add a dependency on GPLearn later and overload the appropriate
+        class methods.
+        """
+        terminals = []
+        output = "digraph program {\nnode [style=filled]"
+        for i, node in enumerate(self._Tree):
+            fill = "#136ed4"
+            if node.affty > 0:
+                terminals.append([node.affty, i])
+                output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
+                           % (i, node.name, fill, SHAPES[node.func]))
+            else:
+                output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
+                           % (i, node.name, fill, SHAPES[node.func]))
+                if i == 0:
+                    # A degenerative program of only one node
+                    return output + "}"
+                terminals[-1][0] -= 1
+                terminals[-1].append(i)
+                while terminals[-1][0] == 0:
+                    output += '%d -> %d ;\n' % (terminals[-1][1],
+                                                terminals[-1][-1])
+                    terminals[-1].pop()
+                    if len(terminals[-1]) == 2:
+                        parent = terminals[-1][-1]
+                        terminals.pop()
+                        if len(terminals) == 0:
+                            return output + "}"
+                        terminals[-1].append(parent)
+                        terminals[-1][0] -= 1
+
+        # We should never get here
+        return None
         
     def AddPart(self, part, name, affinity=0):
         """Overloads the AddPart method of AirconicsCollection base class
