@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # Initialise the display
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
-    
+
     from airconics.examples.tailplane_example_transonic_airliner import *
     from airconics import liftingsurface
     import airconics.AirCONICStools as act
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 #        curve.Scale(gp_Pnt(0., 0., 0.), ScaleFact)
 #        display.DisplayShape(section.Curve, update=True)
 
-    Fin.Rotate(RotAxis, 90)
-    display.DisplayShape(Fin.Shape, update=True)
+    Fin.RotateComponents(RotAxis, 90)
+    Fin.Display(display)
 
 #     Position of the apex of the tailplane
     P = [43, 0.000, 1.633+0.02]
@@ -75,12 +75,12 @@ if __name__ == '__main__':
                                        ChordFactor=ChordFact,
                                        ScaleFactor=ScaleFact)
 
-    display.DisplayShape(TP.Shape, update=True)
+    TP.Display(display)
 
-    TP2 = act.mirror(TP.Shape, plane='xz', copy=True)
+    TP2 = TP.MirrorComponents(plane='xz')
     print("Tailplane done")
-    
+
 #     Note: TP2 is a TopoDS_Shape, not a wing and DisplayShape is called as:
-    display.DisplayShape(TP2, update=True)
+    TP2.Display(display)
 #
     start_display()

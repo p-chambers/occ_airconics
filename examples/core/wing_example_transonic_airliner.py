@@ -13,7 +13,7 @@ repeated here for clarity
 import numpy as np
 from airconics import primitives
 from airconics import liftingsurface
-import PyQt4
+from airconics import AirCONICStools as act
 
 # ==============================================================================
 # Transonic passanger airliner wing geometry example
@@ -78,31 +78,29 @@ if __name__ == "__main__":
     # Initialise the display
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
+    
     # Position of the apex of the wing
     P = (0,0,0)
     
     # Class definition
     NSeg = 10
-    
-    # Instantiate the class
     ChordFactor = 1
     ScaleFactor = 50
     
-    # First try a standard CRM airfoil:
-    # Af_crm = airconics.primitives.Airfoil([0., 6., 1.], CRMProfile=True, CRM_Epsilon=0.8)
-    # display.DisplayShape(Af_crm.Curve, update=True, color='GREEN');
+    # Instantiate the class
     Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunctionAirliner, 
         myDihedralFunctionAirliner, 
         myTwistFunctionAirliner, 
         myChordFunctionAirliner, 
         myAirfoilFunctionAirliner, SegmentNo=NSeg)
     
-    display.DisplayShape(Wing.Shape, update=True)
+    Wing.Display(display)
     
     for section in Wing._Sections:
         display.DisplayShape(section, update=True)
     
 #    To export the STEP file, uncomment the following line:
-#    act.export_STEPFile([Wing.Shape], 'wing.stp')
+#    Wing.Write('Wing.stp')
+#    act.export_STEPFile([Wing['Surface']], 'wing.stp')
     
     start_display()

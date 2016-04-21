@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+Various geometry operations of geometric pythonocc primitives for OCC_AirCONICS
+
 Created on Fri Dec  4 11:58:52 2015
 
 @author: pchambers
@@ -7,11 +9,12 @@ Created on Fri Dec  4 11:58:52 2015
 # Geometry Manipulation libraries:
 import OCC.Bnd
 from OCC.AIS import AIS_WireFrame, AIS_Shape
-#from OCC.ShapeConstruct import shapeconstruct
 from OCC.Geom import Geom_BezierCurve
-from OCC.GeomAPI import GeomAPI_PointsToBSpline, GeomAPI_IntCS, GeomAPI_Interpolate
+from OCC.GeomAPI import (GeomAPI_PointsToBSpline, GeomAPI_IntCS,
+                         GeomAPI_Interpolate)
 from OCC.BRepBndLib import brepbndlib_Add
-from OCC.TColgp import TColgp_Array1OfPnt, TColgp_HArray1OfPnt, TColgp_Array1OfVec
+from OCC.TColgp import (TColgp_Array1OfPnt, TColgp_HArray1OfPnt,
+                        TColgp_Array1OfVec)
 from OCC.TColStd import TColStd_HArray1OfBoolean
 from OCC.BRepOffsetAPI import  (BRepOffsetAPI_ThruSections,
                                 BRepOffsetAPI_MakePipeShell)
@@ -19,18 +22,15 @@ from OCC.BRepBuilderAPI import (BRepBuilderAPI_MakeWire,
                                 BRepBuilderAPI_MakeEdge,
                                 BRepBuilderAPI_Transform,
                                 BRepBuilderAPI_MakeFace,
-                                BRepBuilderAPI_GTransform)
+                                BRepBuilderAPI_GTransform,
+                                BRepBuilderAPI_MakeVertex)
 from OCC.BRepPrimAPI import (BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCone,
                              BRepPrimAPI_MakeHalfSpace,
                              BRepPrimAPI_MakeSphere)
-
 from OCC.BRepAlgoAPI import BRepAlgoAPI_Section, BRepAlgoAPI_Cut
-#from OCC.BRepFeat import BRepFeat_SplitShape
-#from OCC.BRep import BRep_Tool_Surface
 from OCC.gp import (gp_Trsf, gp_Ax2, gp_Pnt, gp_Dir, gp_Vec, gp_Pln,
                     gp_GTrsf, gp_Mat, gp_XYZ)
-#from OCC.Precision import precision_Angular, precision_Confusion
-from OCC.GeomAbs import GeomAbs_G2, GeomAbs_C2
+from OCC.GeomAbs import GeomAbs_C2
 from OCC.TopoDS import *
 from OCC.TopAbs import *
 from OCC.TopExp import TopExp_Explorer
@@ -57,7 +57,6 @@ from OCC.XCAFDoc import (XCAFDoc_DocumentTool_ShapeTool,
                          XCAFDoc_DocumentTool_ColorTool,
                          XCAFDoc_DocumentTool_LayerTool,
                          XCAFDoc_DocumentTool_MaterialTool)
-from OCC.TDataStd import TDataStd_Name
 
 # Standard Python libraries
 import numpy as np
@@ -99,9 +98,9 @@ class assert_isdone(object):
 #            shapeconstruct
 #    else:
 #        print("Curve is already closed")
-#        
-#    assert(handle.IsClosed()), "Failed to Add Trailing Edge"        
-#        
+#
+#    assert(handle.IsClosed()), "Failed to Add Trailing Edge"
+#
 #    return None
 
 
@@ -139,27 +138,12 @@ def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
 def BBox_FromExtents(xmin, ymin, zmin, xmax, ymax, zmax):
     """Generates the Wire Edges defining the Bounding Box defined in the input
     arguments: Can be used to display the bounding box"""
-    s = BRepPrimAPI_MakeBox(gp_Pnt(xmin, ymin, zmin), gp_Pnt(xmax, ymax, zmax)).Shape()
+    s = BRepPrimAPI_MakeBox(gp_Pnt(xmin, ymin, zmin),
+                            gp_Pnt(xmax, ymax, zmax)).Shape()
     ais_bbox = AIS_Shape(s)
     ais_bbox.SetDisplayMode(AIS_WireFrame)
     return ais_bbox.GetHandle()
 
-
-#def _Tcol_dim_1(li, _type):
-#    """
-#    Function factory for 1-dimensional TCol* types: pythonocc-utils
-#    """
-#    pts = _type(0, len(li)-1)
-#    for n, i in enumerate(li):
-#        pts.SetValue(n, i)
-#    return pts
-
-
-#def point_list_to_TColgp_PntArrayType(li, _type=TColgp_Array1OfPnt):
-#    pts = _type(0, len(li)-1)
-#    for n, i in enumerate(li):
-#        pts.SetValue(n, i)
-#    return pts
 
 def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
     """Function to return curve from numpy array
@@ -172,7 +156,7 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
             - TColgp_Array1OfPnt
             - TColgp_HArray1OfPnt
         See Notes for more information
-        
+
     Returns
     -------
     pt_arr - TCOLgp_Array1OfPnt
@@ -212,22 +196,31 @@ def points_to_bspline(pnts, deg=3, periodic=False, tangents=None,
     ---------
     pnts - list or numpy array
         array of x, y, z points
+
     deg - integer
         degree of the fitted bspline
+
     periodic - Bool
         If true, OCC.GeomAPI_Interpolate will be used instead of the
-        GeomAPI_PointsToBspline. Curve tangent vectors can then be 
+        GeomAPI_PointsToBspline. Curve tangent vectors can then be
         enforced at the interpolation pnts
+
     tangents - array
-        list of [x,y,z] tangent vectors to be specificied at points: 
+        list of [x,y,z] tangent vectors to be specificied at points:
         if only 2 tangents are specified, these will be enforced at the
         start and end points, otherwise tangents should have the same length
         as pnts and will be enforced at each point.
+
     Scale - Bool
         Will scale the tangents (gives a smoother Periodic curve if False)
+
+    Returns
+    -------
+    crv - OCC.Geom.BSplineCurve
+    
     Notes
     -----
-    If periodic is true, 
+
     """
     if not periodic and (tangents is None):
         _type = TColgp_Array1OfPnt
@@ -261,13 +254,17 @@ def points_to_bspline(pnts, deg=3, periodic=False, tangents=None,
 def points_to_BezierCurve(pnts):
     """
     Creates a Bezier curve from an array of points.
-    
+
     Parameters
     ----------
     pnts - array or list
         x, y, z for an array of points. Allowable inputs are numpy arrays
         (with dimensions (Npoints x 3)), python list with elements [xi, yi, zi]
         or list of OCC.gp.gp_Pnt objects
+
+    Returns
+    -------
+    crv - OCC.Geom.Geom_BezierCurve
     """
     pnts = point_array_to_TColgp_PntArrayType(pnts, TColgp_Array1OfPnt)
     # Fit the curve to the point array
@@ -294,8 +291,9 @@ def scale_uniformal(brep, pnt, factor, copy=False):
     brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
     brep_trns.Build()
     return brep_trns.Shape()
-    
-def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
+
+
+def transform_nonuniformal(brep, factors, vec=[0, 0, 0], copy=False):
     """Nonuniformly scale brep with respect to pnt by the x y z scaling factors
     provided in 'factors', and translate by vector 'vec'
     Parameters
@@ -304,7 +302,7 @@ def transform_nonuniformal(brep, factors, vec=[0,0,0], copy=False):
         Scaling factors with respect to origin (0,0,0)
     vec - List of x,y,z or gp_Vec
         the translation vector (default is [0,0,0])
-    
+
     Notes
     -----
     * Only tested on 3d shapes
@@ -332,6 +330,7 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
     TransitionPoint and a linear spacing thereafter, up to 1. The
     TransitionPoint corresponds to pi. Distribution suitable for airfoils
     defined by points. TransitionPoint must be in the range [0,1].
+
     Parameters
     ----------
 
@@ -354,44 +353,47 @@ def export_STEPFile(shapes, filename):
     # transfer shapes
     for shape in shapes:
         step_writer.Transfer(shape, STEPControl_AsIs)
-    
+
     status = step_writer.Write(filename)
-    
+
     assert(status == IFSelect_RetDone)
     return status
+
 
 def export_STLFile(AC_Shapes, filename):
     """Writes a component stl file for each shape in input AirCONICS shapes"""
     try:
-        for shape in AC_shapes:
+        for shape in AC_Shapes:
             status = shape.WriteComponents(filename)
     except:
         # Assume error was raised as AC_Shapes contains only one shape
-        status = shape.WriteComponents(filename)[0]        
+        status = shape.WriteComponents(filename)[0]
     return status
-    
-
-#def export_IGESFile(AC_Shapes, filename):
-    
 
 
 def export_STEPFile_Airconics(AirconicsShapes, filename):
-    """ Writes a Step file with names defined in the airconics shapes"""
+    """ Writes a Step file with names defined in the AirconicsShapes. This
+    function is not fully tested and should not yet be used.
 
-    # create an handle to a document    
+    Notes
+    -----
+    Work in progress
+    """
+
+    # create an handle to a document
     h_doc = Handle_TDocStd_Document()
-    
+
     # Create the application
     app = XCAFApp_Application.GetApplication().GetObject()
-    app.NewDocument(TCollection_ExtendedString("MDTV-CAF"), h_doc)  
-    
+    app.NewDocument(TCollection_ExtendedString("MDTV-CAF"), h_doc)
+
     # Get root assembly
     doc = h_doc.GetObject()
     shape_tool = XCAFDoc_DocumentTool_ShapeTool(doc.Main()).GetObject()
-    l_colors = XCAFDoc_DocumentTool_ColorTool(doc.Main())
-    l_layers = XCAFDoc_DocumentTool_LayerTool(doc.Main())
-    l_materials = XCAFDoc_DocumentTool_MaterialTool(doc.Main())    
-    
+#    l_colors = XCAFDoc_DocumentTool_ColorTool(doc.Main())
+#    l_layers = XCAFDoc_DocumentTool_LayerTool(doc.Main())
+#    l_materials = XCAFDoc_DocumentTool_MaterialTool(doc.Main())
+
     step_writer = STEPCAFControl_Writer()
     step_writer.SetColorMode(True)
     step_writer.SetLayerMode(True)
@@ -406,7 +408,7 @@ def export_STEPFile_Airconics(AirconicsShapes, filename):
 #            tdn = TDataStd_Name()
 #            tdn.Set(lbl, name)
             step_writer.Transfer(lbl, STEPControl_AsIs)
-        
+
     status = step_writer.Write(filename)
     assert(status == IFSelect_RetDone)
     return status
@@ -415,15 +417,15 @@ def export_STEPFile_Airconics(AirconicsShapes, filename):
 #def import_STEPFile(shapes, filename):
 #    # TODO: initialize the STEP importer
 #    step_writer = STEPControl_Reader()
-#    
+#
 #    status = step_reader.ReadFile(filename)
-#    
+#
 #    assert(status == IFSelect_RetDone)
 #    return status
 
 
 def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
-                   solid=True, first_vertex=None, last_vertex = None,
+                   solid=True, first_vertex=None, last_vertex=None,
                    max_degree=8, close_sections=True):
     """Create a lift surface through curve objects
     Parameters
@@ -438,7 +440,8 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
     """
     assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
     # Note: This is to give a smooth loft.
-    ruled = False; pres3d=1e-6
+    ruled = False
+    pres3d = 1e-6
     args = [solid, ruled, pres3d]    # args (in order) for ThruSections
     generator = BRepOffsetAPI_ThruSections(*args)
     generator.SetMaxDegree(max_degree)
@@ -452,12 +455,11 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
             # as its 'Curve' attribute
             obj = obj.Curve
 #            edge = [make_edge(obj)]
-        except: 
+        except:
             # Assume the object is already a geombspline handle
             pass
-#        
-#            try: 
-#                # If working with an airconics object, the OCC curve is stored 
+#            try:
+#                # If working with an airconics object, the OCC curve is stored
 #                # in obj.Curve:
         edges = [make_edge(obj)]
 
@@ -467,7 +469,7 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
                 # Add Finite TE edge
                 TE = make_edge(crv.EndPoint(), crv.StartPoint())
                 edges.append(TE)
-            
+
         generator.AddWire(BRepBuilderAPI_MakeWire(*edges).Wire())
 #        else:
 #            generator
@@ -488,10 +490,10 @@ def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
     f(epsilon) which will give the interpolated value.
     Parameters
     ----------
-    EpsArray - array of float
-        Distribution of spanwise coordinates at which the Values are known
     Values - array of float
         Values of e.g. chordlength, sweep at each spanwise location in EpsArray
+    EpsArray - array of float
+        Distribution of spanwise coordinates at which the Values are known
     uniform - bool
         If True, assumes that Values corresponds to uniformly distribution
         epsilon locations along the lifting surface span
@@ -510,6 +512,7 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
     Function Originally from pythonocc-utils, modified to work on objects
 
     translate a brep over a vector
+    
     Paramters
     ---------
     brep - the Topo_DS to translate
@@ -527,7 +530,12 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
 
 
 def Uniform_Points_on_Curve(curve, NPoints):
-    """Returns a list of uniformly spaced points on a curve"""
+    """Returns a list of uniformly spaced points on a curve
+    Parameters
+    ----------
+    crv - OCC.Geom curve type
+    NPoints - int
+        number of sampling points along the curve"""
     try:
         adapt = GeomAdaptor_Curve(curve)
     except:
@@ -556,36 +564,46 @@ def mirror(brep, plane='xz', axe2=None, copy=False):
     Mirror object
     Params
     ------
-    
+    brep - OCC.TopoDS.TopoDS_Shape
+        The shape to mirror
+    plane - string (default = 'xz')
+        The name of the plane in which to mirror objects. Acceptable inputs are
+        any of 'xy', 'yx' , 'zy', 'yz', 'yz', 'zy'. Overwritten if axe2 is
+        defined.
+    axe2 - OCC.gp.gp_Ax2
+        The axes through which to mirror (overwrites input 'plane')
+    copy - bool
+        
     Returns
     -------
+    BRepBuilderAPI_Transform.Shape - the reflected shape
     
     Notes
     -----
-    I added a functionality here to specify a plane using a string so that
-    users could avoid interacting with core occ objects"""
+    Pchambers: Added a functionality here to specify a plane using a string so
+    that users could avoid interacting with core occ objects"""
     if axe2:
         plane = None
     else:
-        Orig = gp_Pnt(0., 0., 0.)
-        xdir = gp_Dir(1, 0, 0)
-        ydir = gp_Dir(0, 1, 0)
-        zdir = gp_Dir(0, 0, 1)
-        
-        if plane == 'xz':
+        Orig = gp_Pnt(0., 0., 0.)        
+        if plane in ['xz', 'zx']:
+            ydir = gp_Dir(0, 1, 0)
             axe2 = gp_Ax2(Orig, ydir)
-        elif plane == 'yz':
+        elif plane in ['yz', 'zy']:
+            xdir = gp_Dir(1, 0, 0)
             axe2 = gp_Ax2(Orig, xdir)
-        elif plane == 'xy':
+        elif plane in ['xy', 'yx']:
+            zdir = gp_Dir(0, 0, 1)
             axe2 = gp_Ax2(Orig, zdir)
         else:
-            raise(AssertionError, "Unknown mirror plane string,", plane)
+            raise(ValueError, "Unknown mirror plane string,", plane)
     trns = gp_Trsf()
     trns.SetMirror(axe2)
     brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
     return brep_trns.Shape()
 
 
+# TODO: Curve fairing functions
 #def batten_curve(pt1, pt2, height, slope, angle1, angle2):
 #    fc = FairCurve_MinimalVariation(pt1, pt2, height, slope)
 #    fc.SetConstraintOrder1(2)
@@ -630,7 +648,6 @@ def make_wire(*args):
     # if we get an iterable, than add all edges to wire builder
     if isinstance(args[0], list) or isinstance(args[0], tuple):
         wire = BRepBuilderAPI_MakeWire()
-        #from OCC.TopTools import TopTools_ListOfShape
         for i in args[0]:
                 wire.Add(i)
         wire.Build()
@@ -669,19 +686,21 @@ def make_pipe_shell(spine, profiles, support=None):
     with assert_isdone(pipe, 'failed building pipe'):
         return pipe.Shape()
 
-from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
+
 def make_vertex(*args):
     vert = BRepBuilderAPI_MakeVertex(*args)
     result = vert.Vertex()
     return result
-    
+
 
 def make_ellipsoid(centre_pt, dx, dy, dz):
     """Creates an ellipsoid from non-uniformly scaled unit sphere"""
-    sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0,0,0), 0.5)
-    ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz], vec=centre_pt)
+    sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0, 0, 0), 0.5)
+    ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz],
+                                       vec=centre_pt)
     return ellipsoid
-    
+
+
 def make_circle3pt(pt1, pt2, pt3):
     """Makes a circle allowing python lists as input points"""
     try:
@@ -691,7 +710,7 @@ def make_circle3pt(pt1, pt2, pt3):
     except:
         pass
     return GC_MakeCircle(pt1, pt2, pt3).Value()
-    
+
 
 def PlanarSurf(geomcurve):
     """Adds a planar surface to curve
@@ -716,7 +735,7 @@ def PlanarSurf(geomcurve):
 def project_curve_to_surface(curve, surface, dir):
     '''
     Returns a curve as projected onto the surface shape
-    
+
     Parameters
     ----------
     curve - Geom_curve
@@ -770,6 +789,7 @@ def points_from_intersection(plane, curve):
             return None
 
 
+# TODO: Network surface function needs fixing
 def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     '''
     curvenet - list of Handle_GeomCurve
@@ -779,7 +799,7 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     '''
 #    fill = BRepFill_Filling(deg)
 #    for curve in curvenet:
-#        try: 
+#        try:
 #            fill.Add(make_edge(curve), continuity)
 #        except TypeError:
 #            # If curve is given as object rather than handle
@@ -794,7 +814,6 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
         builder.LoadInitSurface()
         "Initial Surface loaded"
 
-    
     for curve in curvenet:
         print(type(curve))
         adaptor = GeomAdaptor_Curve(curve)
@@ -805,12 +824,12 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
 #        edge = make_edge(curve)
 #        C = BRepAdaptor_HCurve()
 #        C.ChangeCurve().Initialize(edge)
-#        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()        
+#        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()
 #        builder.Add(Cont)
-#    
+#
 #    Try adding from wires instead.. attempt 3:
-#         exp =        
-        
+#         exp =
+
     builder.Perform()
     with assert_isdone(builder, 'Failed to create Plate Surface'):
         # Approximate the surface into a bspline surface
@@ -819,24 +838,39 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
         Umin, Umax, Vmin, Vmax = surf.GetObject().Bounds()
         print(Umin, Umax, Vmin, Vmax)
         print("about to make face:")
-        face = make_face(approx, 0.1)#, Umin, Umax, Vmin, Vmax, 0.1)
+        face = make_face(approx, 0.1)   # Umin, Umax, Vmin, Vmax, 0.1)
         print("Face made")
         return face
-    
+
+
 def CutSect(Shape, SpanStation):
-    """ SpanStation is assumed to be along the y direction, in the range [0,1]
+    """ 
+    Parameters
+    ----------
+    Shape - TopoDS_Shape
+        The Shape to find planar cut section (parallel to xz plane)
+    
+    SpanStation - scalar in range (0, 1)
+        y-direction location at which to cut Shape
+
+    Returns
+    -------
+    Section - result of OCC.BRepAlgoAPI.BRepAlgoAPI_Section (TopoDS_Shape)
+        The cut section of shape given a cut plane parallel to xz at input
+        Spanstation. 
+    
+    Chord - result of OCC.GC.GC_MakeSegment.Value (Geom_TrimmedCurve)
+        The Chord line between x direction extremeties 
     """
-    
-    (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Shape])
-    
+    (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Shape])
+
     YStation = Ymin + (Ymax-Ymin)*SpanStation
-    OriginX = Xmin -1
-    OriginZ = Zmin -1
-        
-    P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0))) 
+    OriginX = Xmin - 1
+    OriginZ = Zmin - 1
+
+    P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0)))
     # Note: using 2*extents here as previous +1 trimmed plane too short
     CutPlaneSrf = make_face(P, 0, Zmax+2, 0, Xmax+2)
-
 
     I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
     I.ComputePCurveOn1(True)
@@ -844,26 +878,26 @@ def CutSect(Shape, SpanStation):
     I.Build()
     Section = I.Shape()
 
-    (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = ObjectsExtents([Section])
-    
+    (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Section])
+
 #     Currently assume only one edge exists in the intersection:
     exp = TopExp_Explorer(Section, TopAbs_EDGE)
-    edge = topods_Edge(exp.Current())    
-    
-#    Find the apparent chord of the section (that is, the line connecting the fore
-#    most and aftmost points on the curve
+    edge = topods_Edge(exp.Current())
+
+#    Find the apparent chord of the section (that is, the line connecting the
+#    fore most and aftmost points on the curve
     DivPoints = Uniform_Points_on_Curve(edge, 200)
 
-    Xs = [pt.X() for pt in DivPoints] 
-        
-    val, idx = min((val, idx) for (idx, val) in enumerate(Xs))
-    LeadingPoint = gp_Pnt(Xs[idx], DivPoints[idx].Y(),
-                          DivPoints[idx].Z())
-    
-    val, idx = max((val, idx) for (idx, val) in enumerate(Xs))
-    TrailingPoint = gp_Pnt(Xs[idx], DivPoints[idx].Y(),
-                           DivPoints[idx].Z())
-    
+    Xs = np.array([pt.X() for pt in DivPoints])
+
+    min_idx = np.argmin(Xs)
+    LeadingPoint = gp_Pnt(Xs[min_idx], DivPoints[min_idx].Y(),
+                          DivPoints[min_idx].Z())
+
+    max_idx = np.argmax(Xs)
+    TrailingPoint = gp_Pnt(Xs[max_idx], DivPoints[max_idx].Y(),
+                           DivPoints[max_idx].Z())
+
     Chord = GC_MakeSegment(TrailingPoint, LeadingPoint).Value().GetObject()
     return Section, Chord
 
@@ -873,8 +907,8 @@ def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
     and defined by its Apex - points in the direction of 'direc'
     Paramters
     ---------
-    direction - OCC.gp.gp_Gir
-        the direction of the cones axis i.e. normal to the base: 
+    direction - OCC.gp.gp_Dir
+        the direction of the cones axis i.e. normal to the base:
         defaults to x axis
     Notes
     -----
@@ -900,9 +934,9 @@ def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
     """
     tool = BRepPrimAPI_MakeHalfSpace(Plane, pnt).Solid()
     trimmed_shape = boolean_cut(Shape, tool)
-    
+
     return trimmed_shape
-        
+
 
 def boolean_cut(shapeToCutFrom, cuttingShape):
     """Boolean cut tool from PythonOCC-Utils"""
@@ -925,5 +959,4 @@ def boolean_cut(shapeToCutFrom, cuttingShape):
         return shp
     except:
         print 'FAILED TO BOOLEAN CUT'
-        return shapeToCutFrom  
-    
+        return shapeToCutFrom

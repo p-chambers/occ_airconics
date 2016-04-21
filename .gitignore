@@ -4,7 +4,7 @@
 doc/_build/
 /dist/
 *.pyc
-/examples/.ipynb_checkpoints/
+/examples/notebooks/.ipynb_checkpoints/
 *.stp
 *.p
 cache/
