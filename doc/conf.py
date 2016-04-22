@@ -362,4 +362,4 @@ epub_exclude_files = ['search.html']
 # If false, no index is generated.
 #epub_use_index = True
 
-sys.path.append(os.path.abspath('/home/pchambers/git/OCC_AirCONICS/airconics'))
+sys.path.append(os.path.abspath('..'))
