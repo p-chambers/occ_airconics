@@ -1,5 +1,3 @@
-.. _reference:
-
 occ_airconics API reference
 ===========================
 

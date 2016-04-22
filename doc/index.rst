@@ -13,6 +13,7 @@ Contents:
 .. toctree::
    :maxdepth: 4
 
+   installation
    reference
 
 
