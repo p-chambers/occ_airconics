@@ -10,13 +10,12 @@ airconics.base module
     :members:
     :undoc-members:
     :show-inheritance:
-    :inherited-members:
 
 
 Primitives
 ----------
 
-.. autoclass:: airconics.primitives
+.. autoclass:: airconics.primitives.Airfoil
     :members:
     :undoc-members:
     :show-inheritance:
@@ -25,10 +24,9 @@ Primitives
 LiftingSurface
 --------------
 
-.. autoclass:: airconics.liftingsurface
+.. autoclass:: airconics.liftingsurface.LiftingSurface
     :members:
     :undoc-members:
-    :inherited-members:
     :show-inheritance:
 
 
@@ -39,7 +37,6 @@ Fuselage
 .. autoclass:: airconics.fuselage_oml.Fuselage
     :members:
     :undoc-members:
-    :inherited-members:
     :show-inheritance:
 
 
@@ -49,16 +46,14 @@ Engine
 .. autoclass:: airconics.engine.Engine
     :members:
     :undoc-members:
-    :inherited-members:
     :show-inheritance:
 
 Topology
 --------
 
-.. automodule:: airconics.topology.Topology
+.. autoclass:: airconics.topology.Topology
     :members:
     :undoc-members:
-    :inherited-members:
     :show-inheritance:
 
 
@@ -69,3 +64,22 @@ AirCONICStools
     :members:
     :undoc-members:
     :show-inheritance:
+
+
+`examples` Subpackage
+---------------------
+
+Modules in this subpackage are to be used for reconstructing example 
+Airconics shapes, e.g. the transonic airliner lifting surface functions.
+
+.. automodule:: airconics.examples.wing_example_transonic_airliner
+	:members:
+	:undoc-members:
+
+.. automodule:: airconics.examples.tailplane_example_transonic_airliner
+	:members:
+	:undoc-members:
+
+.. automodule:: airconics.examples.boxwing
+	:members:
+	:undoc-members:

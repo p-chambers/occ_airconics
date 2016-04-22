@@ -121,10 +121,10 @@ class AirconicsShape(AirconicsBase):
         """Adds a component to self
         
         Parameters
-        ----------
-        name : string
-        
+        ----------        
         component : TopoDS_Shape
+
+        name : string
         """
         if name is None:
             # set a default name:
@@ -195,7 +195,7 @@ class AirconicsShape(AirconicsBase):
         context : OCC.Display.OCCViewer.Viewer3d or WebRenderer
             The display context - should have a Display or DisplayShape method            
         
-        meterial : OCC.Graphic3d_NOM_* type
+        meterial : OCC.Graphic3d_NOM_* type (default=ALUMINIUM)
             The material for display: note some renderers do not allow this
         """
         for name, component in self.items():
@@ -246,6 +246,9 @@ class AirconicsShape(AirconicsBase):
         Parameters
         ----------
         filename : string
+            the BASE.ext name of the file e.g. 'airliner.stp'.
+            Note the Component name will be prepended to the base name of each
+            output file
         
         Returns
         -------
@@ -273,6 +276,13 @@ class AirconicsShape(AirconicsBase):
 class AirconicsCollection(AirconicsBase):
     """Base class from which collections of parts defined by other Airconics
     classes will be stored. Allowable inputs are
+    
+    Parameters
+    ----------
+    parts - dictionary
+        (name: part) pairs, where name is a string for accessing the part,
+        and 'part' is an AirconicsShape derived class e.g. Fuselage,
+        LiftingSurface or Engine instance
 
     Notes
     -----
@@ -317,7 +327,7 @@ class AirconicsCollection(AirconicsBase):
         """Writes the Parts contained in this instance to file specified by
         filename. Currently one file is produced for each Part.
 
-        Paramters
+        Parameters
         ---------
         filename : string
             the BASE.ext name of the file e.g. 'airliner.stp'.
@@ -344,9 +354,12 @@ class AirconicsCollection(AirconicsBase):
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
         """Displays all Parts of the engine to input context
-        
+
         Parameters
         ----------
+        context : OCC.Display.OCCViewer.Viewer3d or WebRenderer
+            The display context - should have a Display or DisplayShape method            
+        
         meterial : OCC.Graphic3d_NOM_* type
             The material for display: note some renderers do not allow this
         """

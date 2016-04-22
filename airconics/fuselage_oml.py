@@ -27,6 +27,38 @@ from OCC.TopoDS import topods
 
 
 class Fuselage(AirconicsShape):
+    """AirCONICS Fuselage class: builds a parameterised instance of
+    an aircraft fuselage
+
+    Parameters
+    ----------
+    NoseLengthRatio : Scalar
+        The fraction of nose to fuselage length (default 0.182)
+
+    TailLengthRatio : Scalar
+        The fraction of tail to fuselage length (default 0.293)
+
+    Scaling : array, length 3
+        (x, y, z) scaling factor
+
+    NoseCoordinates : array of float
+        Location of nose apex
+
+    CylindricalMidSection : bool
+        If True, fuselage will have a cylindrical midsection
+
+    SimplificationReqd : bool
+        TODO
+
+    MaxFittingAtempts : integer
+        Maximum number of times to attempt to fit surface to guide curves
+
+    Notes
+    -----
+    Geometry building is done on initialisation of a Fuselage instance.
+    It is therefore not expected that users will do this through the
+    BuildFuselageOML function
+    """
     def __init__(self, NoseLengthRatio=0.182,
                  TailLengthRatio=0.293,
                  Scaling=[55.902, 55.902, 55.902],
@@ -34,38 +66,6 @@ class Fuselage(AirconicsShape):
                  CylindricalMidSection=False,
                  SimplificationReqd=False,
                  Maxi_attempt=5):
-        """AirCONICS Fuselage class: builds a parameterised instance of
-        an aircraft fuselage
-
-        Parameters
-        ----------
-        NoseLengthRatio - Scalar
-            The fraction of nose to fuselage length (default 0.182)
-
-        TailLengthRatio - Scalar
-            The fraction of tail to fuselage length (default 0.293)
-
-        Scaling - array, length 3
-            (x, y, z) scaling factor
-
-        NoseCoordinates - array of float
-            Location of nose apex
-
-        CylindricalMidSection - bool
-            If True, fuselage will have a cylindrical midsection
-
-        SimplificationReqd - bool
-            TODO
-
-        MaxFittingAtempts - integer
-            Maximum number of times to attempt to fit surface to guide curves
-
-        Notes
-        -----
-        - Geometry building is done on initialisation of a Fuselage instance.
-        It is therefore not expected that users will do this through the
-        BuildFuselageOML function
-        """
         super(Fuselage, self).__init__(NoseLengthRatio=NoseLengthRatio,
                                        TailLengthRatio=TailLengthRatio,
                                        Scaling=Scaling,

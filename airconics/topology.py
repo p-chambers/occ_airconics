@@ -202,6 +202,7 @@ class Topology(AirconicsCollection):
         
     def export_graphviz(self):
         """Returns a string, Graphviz script for visualizing the program.
+
         Returns
         -------
         oupput : string
@@ -210,7 +211,12 @@ class Topology(AirconicsCollection):
         Notes
         -----
         This function is originally from GPLearns _Program class, but has been
-        modified. 
+        modified. Can be visualised with pydot,
+        
+        :Example:
+            >>> topo = Topology()     # Add some parts with topo.addPart
+            >>> graph = pydot.graph_from_dot_data(topo.export_graphviz())
+            >>> Image(graph.create_png())
         
         May add a dependency on GPLearn later and overload the appropriate
         class methods.
@@ -252,12 +258,12 @@ class Topology(AirconicsCollection):
         
         Parameters
         ----------
+        part - LiftingSurface, Engine or Fuselage class instance
+            the part to be added to the tree
+        
         name - string
             name of the part (will be used to look up this part in
             self.aircraft)
-            
-        part - LiftingSurface, Engine or Fuselage class instance
-            the part to be added to the tree
         
         affinity - int
             The number of terminals attached to this part; this will be

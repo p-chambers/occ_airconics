@@ -22,7 +22,82 @@ from OCC.GeomAbs import GeomAbs_C2
 
 
 class LiftingSurface(AirconicsShape):
+    """Airconics class for defining lifting surface shapes
 
+    Parameters
+    ----------
+    ApexPoint - array, length 3
+        Foremost point of the wing (x direction)
+
+    SweepFunct - function
+        function defining the leading edge sweep vs epsilon spanwise 
+        variable coordinate between 0 and 1 (curvilinear attached
+        coordinates)
+        
+    DihedralFunct - function
+        function defining the leading edge dihedral vs epsilon spanwise 
+        variable coordinate between 0 and 1 (curvilinear attached)  
+
+    TwistFunc - function
+        function defining the sectional twist vs epsilon spanwise 
+        variable coordinate between 0 and 1 (curvilinear attached)
+
+    ChordFunct - function
+        function defining the leading edge chord vs epsilon spanwise 
+        variable coordinate between 0 and 1 (curvilinear attached)    
+
+    AirfoilFunct - function
+        function defining the sectional Airfoil (see primitives.Airfoil)
+        vs epsilon spanwise variable coordinate between 0 and 1
+        (curvilinear attached)
+
+    ChordFactor - int (default = 1)
+        Scaling factor applied in chordwise direction
+
+    ScaleFactor - int (default = 1)
+        Scaling factor applied in all directions (uniform)
+
+    OptimizeChordScale - int or bool (default = 0)
+        TODO: Not yet used.
+        
+    LooseSurf - (default = 1)
+        TODO: 
+        
+    SegmentNo - int (default = 11)
+        Number of segments to sample the wing defined by input functions
+    
+    TipRequired - bool (default = False)
+        TODO: Not yet used
+        adds the wing tip face to components if true
+    
+    max_degree - (default = 8)
+        maximum degree of the fitted NURBS surface
+
+    continuity - OCC.GeomAbs.GeomAbs_XX Type
+        the order of continuity i.e. C^0, C^1, C^2... would be 
+        GeomAbs_C0, GeomAbs_C1, GeomAbs_C2 ...
+        
+    Attributes
+    ----------
+    self['Surface'] : TopoDS_Shape
+        The generated lifting surface
+
+    Notes
+    -----
+    * It is expected that users will create shapes mostly on initialisation
+      of a LiftingSurface instance. GenerateLiftingSurface is therefore not
+      expected to be called directly.
+    
+    * Output surface is stored in self['Surface']
+
+    * See airconics.examples.wing_example_transonic_airliner for 
+      example input functions
+    
+    See also
+    --------
+    airconics.primitives.Airfoil
+    
+    """
     def __init__(self, ApexPoint,
                  SweepFunct,
                  DihedralFunct,
@@ -38,80 +113,6 @@ class LiftingSurface(AirconicsShape):
                  max_degree=8,
                  continuity=GeomAbs_C2
                  ):
-        """Airconics class for defining lifting surface shapes
-
-        Parameters
-        ----------
-        ApexPoint - array, length 3
-            Foremost point of the wing (x direction)
-
-        SweepFunct - function
-            function defining the leading edge sweep vs epsilon spanwise 
-            variable coordinate between 0 and 1 (curvilinear attached
-            coordinates)
-            
-        DihedralFunct - function
-            function defining the leading edge dihedral vs epsilon spanwise 
-            variable coordinate between 0 and 1 (curvilinear attached)  
-
-        TwistFunc - function
-            function defining the sectional twist vs epsilon spanwise 
-            variable coordinate between 0 and 1 (curvilinear attached)
-
-        ChordFunct - function
-            function defining the leading edge chord vs epsilon spanwise 
-            variable coordinate between 0 and 1 (curvilinear attached)    
-
-        AirfoilFunct - function
-            function defining the sectional Airfoil (see primitives.Airfoil)
-            vs epsilon spanwise variable coordinate between 0 and 1
-            (curvilinear attached)
-
-        ChordFactor - int (default = 1)
-            Scaling factor applied in chordwise direction
-
-        ScaleFactor - int (default = 1)
-            Scaling factor applied in all directions (uniform)
-
-        OptimizeChordScale - int or bool (default = 0)
-            TODO: Not yet used.
-            
-        LooseSurf - (default = 1)
-            TODO: 
-            
-        SegmentNo - int (default = 11)
-            Number of segments to sample the wing defined by input functions
-        
-        TipRequired - bool (default = False)
-            TODO: Not yet used
-            adds the wing tip face to components if true
-        
-        max_degree - (default = 8)
-            maximum degree of the fitted NURBS surface
-
-        continuity - OCC.GeomAbs.GeomAbs_XX Type
-            the order of continuity i.e. C^0, C^1, C^2... would be 
-            GeomAbs_C0, GeomAbs_C1, GeomAbs_C2 ...
-            
-        Attributes
-        ----------
-        self['Surface'] - TopoDS_Shape
-            The generated lifting surface
-
-        Notes
-        -----
-        - It is expected that users will create shapes mostly on initialisation
-        of a LiftingSurface instance. GenerateLiftingSurface is therefore not
-        expected to be called directly 
-        
-        - Output surface is stored in self['Surface']
-        
-        See also: airconics.primitives.Airfoil
-        
-        See airconics.examples.wing_example_transonic_airliner for 
-        example input functions
-
-        """
 #        Initialise the components using base class:
         super(LiftingSurface, self).__init__(components={},
                                          ApexPoint=gp_Pnt(*ApexPoint),
@@ -191,19 +192,19 @@ class LiftingSurface(AirconicsShape):
 
         Returns
         -------
-        LS - TopoDS_Shape
+        LS : TopoDS_Shape
             The generated Lifting surface
 
-        ActualSemiSpan -
+        ActualSemiSpan : scalar
             TODO: currently not calculated, None is returned
 
-        LSP_area -
+        LSP_area : scalar
             TODO: currently not calculated, None is returned
 
-        AR - scalar
+        AR : scalar
             TODO: currently not calculated, None is returned
 
-        WingTip -
+        WingTip : TopoDS face or shape
             TODO: currently not calculated, None is returned
         """
         LEPoints = self._GenerateLeadingEdge()
@@ -330,18 +331,43 @@ class LiftingSurface(AirconicsShape):
         return LS, ActualSemiSpan, LSP_area, AR, WingTip
 
     def GenerateLiftingSurface(self, ChordFactor, ScaleFactor):
-        """Builds a lifting
-        surface (wing, tailplane, etc.) with the Chord and Scale factors 
-        defined in self.ChordFactor and self.ScaleFactor, or an
-        optimized ChordFactor and ScaleFactor, with the
-        local search started from the two given values.
+        """Builds a lifting surface (wing, tailplane, etc.) with the Chord and
+        Scale factors defined in inputs
+        
+        If OptimizeChordScale was specified on construction of this 
+        LiftingSurface class, an optimized ChordFactor and ScaleFactor is found
+        instead, with the local search started from the two given values.
         
         Parameters
         ----------
-        ChordFactor - 
+        ChordFactor : scalar
+            The scaling factor to apply in the chordwise direction
         
-        ScaleFactor - 
+        ScaleFactor : scalar
+            the scaling factor to apply uniformly in all directions
         
+        Returns
+        -------
+        None
+        
+        Notes
+        -----
+        Called on initialisation of a lifting surface class. Adds a
+        ('Surface': Shape) key value pair to self.
+        
+        :Example:
+            >>> Wing = liftingsurface.LiftingSurface(P,
+                                                mySweepAngleFunction, 
+                                                myDihedralFunction, 
+                                                myTwistFunction, 
+                                                myChordFunction, 
+                                                myAirfoilFunction)
+            
+            >>> Surface = Wing['Surface']
+        
+        See Also
+        --------
+        airconics.examples.wing_example_transonic_airliner
         """
         x0 = [ChordFactor, ScaleFactor]
 

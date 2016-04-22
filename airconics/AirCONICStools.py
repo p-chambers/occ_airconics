@@ -104,28 +104,40 @@ class assert_isdone(object):
 #    return None
 
 
-def ObjectsExtents(ObjectIds, tol=1e-6, as_vec=False):
+def ObjectsExtents(breps, tol=1e-6, as_vec=False):
     """Compute the extents in the X, Y and Z direction (in the current
     coordinate system) of the objects listed in the argument.
 
     Parameters
     ----------
-    ObjectIds -
+    breps : list of TopoDS_Shape
+        The shapes to be added for bounding box calculation
+    
+    tol : float (default=1e-6)
+        Tolerance for bounding box calculation
+    
+    as_vec : bool (default=False)
+        If true, returns minimum and maximum points as tuple of gp_Vec
 
     Returns
     -------
-    if `as_vec` is True, return a tuple of gp_Vec instances
-         for the lower and another for the upper X,Y,Z values representing the
-         bounding box
+    xmin, ymin, zmin, xmax, ymax, zmax : scalar
+        the min and max points of bbox (returned if as_vec=False)
+    
+    ( gp_Vec(xmin, ymin, zmin), gp_Vec(xmax, ymax, zmax) ) : tuple of gp_Vec
+        the min and max points of bbox (returned in as_vec=True)
 
-    if `as_vec` is False, return a tuple of lower and then upper X,Y,Z values
-         representing the bounding box
+    Notes
+    -----
+    Due to the underlying OCC.Bnd.Bnd_Box functions, the bounding box is 
+    calculated via triangulation of the shapes to avoid inclusion of the 
+    control points of NURBS curves in bounding box calculation
     """
 
     bbox = OCC.Bnd.Bnd_Box()
     bbox.SetGap(tol)
 
-    for shape in ObjectIds:
+    for shape in breps:
         brepbndlib_Add(shape, bbox, True)
 
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
@@ -147,19 +159,21 @@ def BBox_FromExtents(xmin, ymin, zmin, xmax, ymax, zmax):
 
 def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
     """Function to return curve from numpy array
+
     Parameters
     ----------
-    array - array (Npts x 3) or list
+    array : array (Npts x 3) or list
         Array of xyz points for which to fit a bspline
-    _type - type of TColgp array
-        Tested inputs are:
+
+    _type : type of TColgp array
+        Tested inputs are,
             - TColgp_Array1OfPnt
             - TColgp_HArray1OfPnt
         See Notes for more information
 
     Returns
     -------
-    pt_arr - TCOLgp_Array1OfPnt
+    pt_arr : TCOLgp_Array1OfPnt
         OCC type array of points
     Notes
     -----
@@ -192,31 +206,35 @@ def points_to_bspline(pnts, deg=3, periodic=False, tangents=None,
     """
     Points to bspline: originally from pythonocc-utils, changed to allow numpy
     arrays as input
+
     Paramters
     ---------
-    pnts - list or numpy array
+    pnts : list or numpy array
         array of x, y, z points
 
-    deg - integer
+    deg : integer
         degree of the fitted bspline
 
-    periodic - Bool
+    periodic : Bool (default=False)
         If true, OCC.GeomAPI_Interpolate will be used instead of the
         GeomAPI_PointsToBspline. Curve tangent vectors can then be
         enforced at the interpolation pnts
 
-    tangents - array
+    tangents : array (default=None)
         list of [x,y,z] tangent vectors to be specificied at points:
         if only 2 tangents are specified, these will be enforced at the
         start and end points, otherwise tangents should have the same length
         as pnts and will be enforced at each point.
 
-    Scale - Bool
+    Scale : Bool (default=False)
         Will scale the tangents (gives a smoother Periodic curve if False)
 
+    continuity : OCC.GeomAbs.GeomAbs_XX type (default C2)
+        The order of continuity (C^0, C^1, C^2, G^0, ....)    
+    
     Returns
     -------
-    crv - OCC.Geom.BSplineCurve
+    crv : OCC.Geom.BSplineCurve
     
     Notes
     -----
@@ -257,14 +275,14 @@ def points_to_BezierCurve(pnts):
 
     Parameters
     ----------
-    pnts - array or list
+    pnts : array or list
         x, y, z for an array of points. Allowable inputs are numpy arrays
         (with dimensions (Npoints x 3)), python list with elements [xi, yi, zi]
         or list of OCC.gp.gp_Pnt objects
 
     Returns
     -------
-    crv - OCC.Geom.Geom_BezierCurve
+    crv : OCC.Geom.Geom_BezierCurve
     """
     pnts = point_array_to_TColgp_PntArrayType(pnts, TColgp_Array1OfPnt)
     # Fit the curve to the point array
@@ -275,15 +293,19 @@ def points_to_BezierCurve(pnts):
 def scale_uniformal(brep, pnt, factor, copy=False):
     '''
     translate a brep over a vector : from pythonocc-utils
+
     Paramters
     ---------
-    brep - TopoDS_Shape
+    brep : TopoDS_Shape
         the TopoDS_Shape to scale
-    pnt - gp_Pnt
+
+    pnt : gp_Pnt
         Origin of scaling
-    factor - scalar
+
+    factor : scalar
         Scaling factor
-    copy - bool
+
+    copy : bool
         copies to brep if True
     '''
     trns = gp_Trsf()
@@ -296,11 +318,13 @@ def scale_uniformal(brep, pnt, factor, copy=False):
 def transform_nonuniformal(brep, factors, vec=[0, 0, 0], copy=False):
     """Nonuniformly scale brep with respect to pnt by the x y z scaling factors
     provided in 'factors', and translate by vector 'vec'
+
     Parameters
     ----------
-    factors - List of factors [Fx, Fy, Fz]
+    factors : List of factors [Fx, Fy, Fz]
         Scaling factors with respect to origin (0,0,0)
-    vec - List of x,y,z or gp_Vec
+
+    vec : List of x,y,z or gp_Vec
         the translation vector (default is [0,0,0])
 
     Notes
@@ -333,9 +357,22 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
 
     Parameters
     ----------
+    TransitionPoint : scalar
+        Point to transition from cosine to linear distribution in range (0, 1)
+    
+    NCosPoints : int
+        Number of points to space by cosine law between 0 and TransitionPoint
+    
+    NLinPoints : int
+        Number of points to space by linear law between TransitionPoint and 1
 
     Returns
     -------
+    Abscissa : numpy array
+        The generated abscissa
+    
+    NCosPoints : int
+        Number of cosine points used (same as input)
     """
     angles = np.linspace(0, np.pi/2., NCosPoints)
     cos_pts = TransitionPoint * (1.-np.cos(angles))
@@ -346,6 +383,16 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
 
 
 def export_STEPFile(shapes, filename):
+    """Exports a .stp file containing the input shapes
+    
+    Parameters
+    ----------
+    shapes : list of TopoDS_Shape
+        Shapes to write to file
+    
+    filename : string
+        The output filename
+    """
     # initialize the STEP exporter
     step_writer = STEPControl_Writer()
 #    Interface_Static_SetCVal("write.step.schema", "AP214") # Use default?
@@ -428,15 +475,47 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
                    solid=True, first_vertex=None, last_vertex=None,
                    max_degree=8, close_sections=True):
     """Create a lift surface through curve objects
+
     Parameters
     ----------
-    objs - list of python classes
+    objs : list of python classes
         Each obj is expected to have an obj.Curve attribute :
         see airconics.primitives.airfoil class
-    vertices - list of TopoDS_Vertex
-        A list of the vertices to add to the 'ThruSections' algorithm
+    
+    continuity : OCC.GeomAbs.GeomAbs_XX type (default C2)
+        The order of continuity (C^0, C^1, C^2, G^0, ....)
+    
+    check_compatibility : bool (default=True)
+        Adds a surface compatibility check to the builder
+
+    solid : bool (default=True)
+        Creates a solid object from the loft if True
+    
+    first_vertex : TopoDS_Vertex (optional, default=None)
+        The starting vertex of the surface to add to the 'ThruSections'
+        algorithm
+
+    last_vertex : TopoDS_Vertex (optional, default=None)
+        The end vertex of the surface to add to the 'ThruSections'
+        algorithm    
+
+    max_degree : int (default=8)
+        The order of the fitted NURBS surface
+
+    close_sections : bool (default=True):
+        Connects the start and end point of the loft rib curves if true. This
+        has the same effect as adding an airfoil trailing edge.
+
     Returns
     -------
+    shape : TopoDS_Shape
+        The generated loft surface
+    
+    Notes
+    -----
+    Uses OCC.BRepOffsetAPI.BRepOffsetAPI_ThruSections. This function is
+    ORDER DEPENDANT, i.e. add elements in the order through which they should
+    be lofted
     """
     assert(len(objs) >= 2), 'Loft Failed: Less than two input curves'
     # Note: This is to give a smooth loft.
@@ -484,19 +563,29 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
 
 
 def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
-    """Given an array of spanwise coordinates epsilon along a curvilinear
+    """Generates a lookup interpolation function.
+    
+    Given an array of spanwise coordinates epsilon along a curvilinear
     leading-edge attached coordinate system, and a set of values describing
     e.g. Chord, Sweep at each station, generate and return a function
     f(epsilon) which will give the interpolated value.
+
     Parameters
     ----------
-    Values - array of float
+    Values : array of float
         Values of e.g. chordlength, sweep at each spanwise location in EpsArray
-    EpsArray - array of float
+
+    EpsArray : array of float
         Distribution of spanwise coordinates at which the Values are known
-    uniform - bool
+
+    uniform : bool
         If True, assumes that Values corresponds to uniformly distribution
         epsilon locations along the lifting surface span
+    
+    Returns
+    -------
+    f : function
+        the function which returns the interpolated epsilon 
     """
     if uniform:
         EpsArray = np.linspace(0, 1, len(Values))
@@ -511,13 +600,15 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
     '''
     Function Originally from pythonocc-utils, modified to work on objects
 
-    translate a brep over a vector
+    translates a brep over a vector
     
-    Paramters
-    ---------
-    brep - the Topo_DS to translate
-    vec-  the vector defining the translation
-    copy - copies to brep if True
+    Parameters
+    ----------
+    brep : the Topo_DS to translate
+    
+    vec : the vector defining the translation
+    
+    copy : copies to brep if True
     '''
     trns = gp_Trsf()
     trns.SetTranslation(vec)
@@ -531,10 +622,12 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
 
 def Uniform_Points_on_Curve(curve, NPoints):
     """Returns a list of uniformly spaced points on a curve
+
     Parameters
     ----------
-    crv - OCC.Geom curve type
-    NPoints - int
+    crv : OCC.Geom curve type
+
+    NPoints : int
         number of sampling points along the curve"""
     try:
         adapt = GeomAdaptor_Curve(curve)
@@ -545,13 +638,25 @@ def Uniform_Points_on_Curve(curve, NPoints):
     return [adapt.Value(absc.Parameter(i)) for i in xrange(1, NPoints+1)]
 
 def rotate(brep, axe, degree, copy=False):
-    '''
+    """Rotates the brep
+    
     Originally from pythonocc-utils : might add dependency on this?
 
-    brep - shape to rotate
-    axe - axis of rotation
-    degree - Number of degrees to rotate through
-    '''
+    Parameters
+    ----------
+    brep : shape to rotate
+    
+    axe : axis of rotation
+    
+    degree : Number of degrees to rotate through
+    
+    copy : bool (default=False)
+    
+    Returns
+    -------
+    BRepBuilderAPI_Transform.Shape : Shape handle
+        The handle to the rotated shape
+    """
     trns = gp_Trsf()
     trns.SetRotation(axe, np.radians(degree))
     brep_trns = BRepBuilderAPI_Transform(brep, trns, copy)
@@ -561,22 +666,27 @@ def rotate(brep, axe, degree, copy=False):
 
 def mirror(brep, plane='xz', axe2=None, copy=False):
     """Originally from pythonocc-utils : might add dependency on this?
-    Mirror object
-    Params
-    ------
-    brep - OCC.TopoDS.TopoDS_Shape
+    Mirrors object
+
+    Parameters
+    ----------
+    brep : OCC.TopoDS.TopoDS_Shape
         The shape to mirror
-    plane - string (default = 'xz')
+
+    plane : string (default = 'xz')
         The name of the plane in which to mirror objects. Acceptable inputs are
         any of 'xy', 'yx' , 'zy', 'yz', 'yz', 'zy'. Overwritten if axe2 is
         defined.
-    axe2 - OCC.gp.gp_Ax2
+
+    axe2 : OCC.gp.gp_Ax2
         The axes through which to mirror (overwrites input 'plane')
-    copy - bool
+
+    copy : bool
         
     Returns
     -------
-    BRepBuilderAPI_Transform.Shape - the reflected shape
+    BRepBuilderAPI_Transform.Shape : TopoDS_Shape
+        The reflected shape
     
     Notes
     -----
@@ -714,13 +824,15 @@ def make_circle3pt(pt1, pt2, pt3):
 
 def PlanarSurf(geomcurve):
     """Adds a planar surface to curve
+
     Parameters
     ----------
-    geomcurve - OCC.Geom type curve
+    geomcurve : OCC.Geom type curve
         The edge of the profile
+
     Returns
     -------
-    surf - TopoDS_face
+    surf : TopoDS_face
         the planar surface
     """
     try:
@@ -738,13 +850,16 @@ def project_curve_to_surface(curve, surface, dir):
 
     Parameters
     ----------
-    curve - Geom_curve
-    surface - TopoDS_Shape
-    dir - gp_Dir
+    curve : Geom_curve
+
+    surface : TopoDS_Shape
+
+    dir : gp_Dir
         the direction of projection
+
     Returns
     -------
-    res_curve - geom_curve (bspline only?)
+    res_curve : geom_curve (bspline only?)
     '''
     wire = make_wire(make_edge(curve.GetHandle()))
     from OCC.BRepProj import BRepProj_Projection
@@ -758,18 +873,22 @@ def project_curve_to_surface(curve, surface, dir):
 def points_from_intersection(plane, curve):
     '''
     Find intersection points between plane and curve.
+
     Parameters
     ----------
-    plane - Geom_Plane
+    plane : Geom_Plane
         The Plane
-    curve - Geom_*Curve
+
+    curve : Geom_*Curve
         The Curve
+
     Returns
     -------
-    P - Point or list of points
+    P : Point or list of points
         A single intersection point (OCC.gp.gp_Pnt) if one intersection is
         found, or list of points if more than one is found.
             - If No Intersection points were found, returns None
+
     Notes
     -----
     The plane is first converted to a surface As the GeomAPI_IntCS class
@@ -792,10 +911,14 @@ def points_from_intersection(plane, curve):
 # TODO: Network surface function needs fixing
 def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     '''
-    curvenet - list of Handle_GeomCurve
+    This function is not tested and should not be used with certainty
+
+    Parameters
+    ----------
+    curvenet : list of Handle_GeomCurve
+
     Notes
     -----
-    This function is not tested and should not be used with certainty
     '''
 #    fill = BRepFill_Filling(deg)
 #    for curve in curvenet:
@@ -847,19 +970,19 @@ def CutSect(Shape, SpanStation):
     """ 
     Parameters
     ----------
-    Shape - TopoDS_Shape
+    Shape : TopoDS_Shape
         The Shape to find planar cut section (parallel to xz plane)
     
-    SpanStation - scalar in range (0, 1)
+    SpanStation : scalar in range (0, 1)
         y-direction location at which to cut Shape
 
     Returns
     -------
-    Section - result of OCC.BRepAlgoAPI.BRepAlgoAPI_Section (TopoDS_Shape)
+    Section : result of OCC.BRepAlgoAPI.BRepAlgoAPI_Section (TopoDS_Shape)
         The cut section of shape given a cut plane parallel to xz at input
         Spanstation. 
     
-    Chord - result of OCC.GC.GC_MakeSegment.Value (Geom_TrimmedCurve)
+    Chord : result of OCC.GC.GC_MakeSegment.Value (Geom_TrimmedCurve)
         The Chord line between x direction extremeties 
     """
     (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Shape])
@@ -903,16 +1026,28 @@ def CutSect(Shape, SpanStation):
 
 
 def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
-    """Generates a cone shape originating at BasePoint with base radius Radius,
-    and defined by its Apex - points in the direction of 'direc'
-    Paramters
-    ---------
-    direction - OCC.gp.gp_Dir
+    """Generates a cone shape originating at BasePoint with base Radius
+    and height (points in the direction of input 'direction)
+
+    Parameters
+    ----------
+    BasePoint : OCC.gp.gp_Pnt or array length 3
+        The centre base point
+    
+    Radius : scalar
+        Cone base radius
+    
+    height : scalar
+        Cone height
+
+    direction : OCC.gp.gp_Dir  (default: positive x direction)
         the direction of the cones axis i.e. normal to the base:
         defaults to x axis
-    Notes
-    -----
-    Look into BRepPrimAPI_MakeCone instead - shape doesnt come out right
+    
+    Returns
+    -------
+    shape : TopoDS_Shape
+        The generated Cone
     """
     try:
         BasePoint = gp_Pnt(*BasePoint)
@@ -926,11 +1061,14 @@ def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
 def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
     """Trims an OCC shape by plane. Default trims the negative y side of the
     plane
+
     Parameters
     ----------
-    Shape - TopoDS_Shape
-    Plane - expect TopoDS_Face
-    pnt - point defining which side of the halfspace contains its mass
+    Shape : TopoDS_Shape
+    
+    Plane : expect TopoDS_Face
+    
+    pnt : point defining which side of the halfspace contains its mass
     """
     tool = BRepPrimAPI_MakeHalfSpace(Plane, pnt).Solid()
     trimmed_shape = boolean_cut(Shape, tool)

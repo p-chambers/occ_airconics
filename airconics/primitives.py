@@ -54,18 +54,23 @@ class Airfoil(object):
 
         EnforceSharpTE : bool
             Enforces sharp trailing edge (NACA airfoils only)
+            
+        Attributes
+        ----------
+        Curve - OCC.Geom.Handle_Geom_BsplineCurve 
+            The generated airfoil spline
 
         Notes
         -----
-        NACA5 profiles are not yet supported in OCC_AirCONICS
+        * NACA5 profiles are not yet supported in OCC_AirCONICS.
         
-        Preference is that users allow the class constructor to handle
-            building the Airfoil i.e. pass all physical definitions as class
-            arguments
-            
-        Although the physical attributes can changed i.e. rotation, twist,
-            ChordLength, LeadingEdgePoint etc., it is the users responsibility
-            to rebuild the Airfoil with the 'Add***Airfoil' afterwards
+        * Preference is that users allow the class constructor to handle
+          building the Airfoil i.e. pass all physical definitions as class
+          arguments.
+        
+        * Although the physical attributes can changed i.e. rotation, twist,
+          ChordLength, LeadingEdgePoint etc., it is the users responsibility
+          to rebuild the Airfoil with the 'Add***Airfoil' afterwards
         
         """
     def __init__(self,
