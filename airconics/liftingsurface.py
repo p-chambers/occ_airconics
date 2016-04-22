@@ -362,7 +362,6 @@ class LiftingSurface(AirconicsShape):
                                                 myTwistFunction, 
                                                 myChordFunction, 
                                                 myAirfoilFunction)
-            
             >>> Surface = Wing['Surface']
         
         See Also
