@@ -9,4 +9,4 @@ doc/_build/
 *.p
 cache/
 /airconics/optimize/
-*.html
+/doc/interact/*.py

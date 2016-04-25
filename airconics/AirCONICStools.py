@@ -910,8 +910,9 @@ def points_from_intersection(plane, curve):
 
 # TODO: Network surface function needs fixing
 def Add_Network_Surface(curvenet, deg=3, initsurf=None):
-    '''
-    This function is not tested and should not be used with certainty
+    '''Adds a surface from curve network using the OCC plate surface algorithm
+    
+    This function is in development and currently raises an error 
 
     Parameters
     ----------
@@ -920,6 +921,7 @@ def Add_Network_Surface(curvenet, deg=3, initsurf=None):
     Notes
     -----
     '''
+    raise NotImplementedError('This function is not yet safe for general use')
 #    fill = BRepFill_Filling(deg)
 #    for curve in curvenet:
 #        try:

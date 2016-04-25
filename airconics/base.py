@@ -229,7 +229,7 @@ class AirconicsShape(AirconicsBase):
         be required or meaningful after mirroring, however this behaviour
         may change in future versions
         """
-        print("Note: MirrorComponents currently mirrors only the shape\n")
+        print("Note: MirrorComponents currently mirrors only the shape")
         print("components, other attributes will not be mirrored\n")
         mirrored = AirconicsShape()
         for name, component in self.items():

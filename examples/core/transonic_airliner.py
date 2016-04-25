@@ -380,27 +380,27 @@ def transonic_airliner(display=None,
 
 #    display all entities:
     # Fuselage and wing-body fairing
-    Fus.Display(display)
-
-#    The Wings:
-    Wing.Display(display)
-    Wing2.Display(display)
-
-#    The Tailplane:
-    try:
-#        boxwing except (no TP or WBF)
-        WBF.Display(display)
-        TP.Display(display)
-        TP2.Display(display)
-    except:
-        pass
-
-    # The Fin:
-    Fin.Display(display)
-
-    # The Engines:
-    for eng in engines + engines_left:
-        eng.Display(display)
+#    Fus.Display(display)
+#
+##    The Wings:
+#    Wing.Display(display)
+#    Wing2.Display(display)
+#
+##    The Tailplane:
+#    try:
+##        boxwing except (no TP or WBF)
+#        WBF.Display(display)
+#        TP.Display(display)
+#        TP2.Display(display)
+#    except:
+#        pass
+#
+#    # The Fin:
+#    Fin.Display(display)
+#
+#    # The Engines:
+#    for eng in engines + engines_left:
+#        eng.Display(display)
 
 #    Build the return assembly (could change this later based on input 'tree':
     airliner = AirconicsCollection(parts={'Wing_right': Wing,
