@@ -519,16 +519,16 @@ def export_STEPFile(shapes, filename):
     assert(status == IFSelect_RetDone)
     return status
 
-
-def export_STLFile(AC_Shapes, filename):
-    """Writes a component stl file for each shape in input AirCONICS shapes"""
-    try:
-        for shape in AC_Shapes:
-            status = shape.WriteComponents(filename)
-    except:
-        # Assume error was raised as AC_Shapes contains only one shape
-        status = shape.WriteComponents(filename)[0]
-    return status
+#
+#def export_STLFile(AC_Shapes, filename):
+#    """Writes a component stl file for each shape in input AirCONICS shapes"""
+#    try:
+#        for shape in AC_Shapes:
+#            status = shape.WriteComponents(filename)
+#    except:
+#        # Assume error was raised as AC_Shapes contains only one shape
+#        status = shape.WriteComponents(filename)[0]
+#    return status
 
 
 def export_STEPFile_Airconics(AirconicsShapes, filename):

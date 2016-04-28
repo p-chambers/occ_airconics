@@ -241,38 +241,27 @@ def transonic_airliner(display=None,
                                            ScaleFactor=ScaleFactor)
 
 
-# OCC_AirCONICS Note: Nothing below here implemented in OCC_AirCONICS - See
-# Rhino version for this functionality (largely for display only)
-#
-#    rs.DeleteObjects([EngineSection, Chord])
-#    try:
-#        rs.DeleteObjects([CutCirc])
-#    except:
-#        pass
-#
-#    try:
-#        rs.DeleteObjects([CutCircDisk])
-#    except:
-#        pass
-#
+# TODO: Implement windows
+#-----------------------------------------------------------------------
+#    Note: some of the code below here may be legacy from Rhino
 #    # Windows
 #    
-#    # Cockpit windows:
-#    rs.EnableRedraw(False)
+#    # Cockpit windows:    
+    CockpitWindowTop = 0.305*FuselageHeight
+    
+#    print("Making Fuselage Windows...")
+    
+#    solids = Fus.CockpitWindowContours(Height=CockpitWindowTop, Depth=6)
+#
+##     Cut the windows out:
+#    for solid in solids:
+#        Fus['OML'] = act.SplitShape(Fus['OML'], solid)
 #    
-#    CockpitWindowTop = 0.305*FuselageHeight
 #    
-#    CWC1s, CWC2s, CWC3s, CWC4s = fuselage_oml.CockpitWindowContours(Height = CockpitWindowTop, Depth = 6)
-#
-#    FuselageOMLSurf, Win1 = rs.SplitBrep(FuselageOMLSurf, CWC1s, delete_input=True)
-#    FuselageOMLSurf, Win2 = rs.SplitBrep(FuselageOMLSurf, CWC2s, delete_input=True)
-#    FuselageOMLSurf, Win3 = rs.SplitBrep(FuselageOMLSurf, CWC3s, delete_input=True)
-#    FuselageOMLSurf, Win4 = rs.SplitBrep(FuselageOMLSurf, CWC4s, delete_input=True)
-#
-#    rs.DeleteObjects([CWC1s, CWC2s, CWC3s, CWC4s])
-#
+#    print("Cockpit Windows Done.")
+
 #    (Xmin,Ymin,Zmin,Xmax,Ymax,Zmax) = act.ObjectsExtents([Win1, Win2, Win3, Win4])
-#    CockpitBulkheadX = Xmax
+    CockpitBulkheadX = NoseLengthRatio*FuselageLength*0.9
 #
 #    CockpitWallPlane = rs.PlaneFromPoints([CockpitBulkheadX, -15,-15],
 #    [CockpitBulkheadX,15,-15],
@@ -280,35 +269,49 @@ def transonic_airliner(display=None,
 #    
 #    CockpitWall = rs.AddPlaneSurface(CockpitWallPlane, 30, 30)
 #    
-#    
 #    if 'WTBF' in locals():
 #        rs.TrimBrep(WTBF, CockpitWall)
 #
 #    rs.DeleteObject(CockpitWall)
 #
-#
 #    # Window lines
-#    WIN = [1]
-#    NOWIN = [0]
+    WIN = [1]
+    NOWIN = [0]
+
+#     A typical window pattern (including emergency exit windows)
+    WinVec = WIN + 2*NOWIN + 9*WIN + 3*NOWIN + WIN + NOWIN + 24*WIN + 2*NOWIN + WIN + NOWIN + 14*WIN + 2*NOWIN + WIN + 20*WIN + 2*NOWIN + WIN + NOWIN + 20*WIN
+    wires = []
+    if FuselageHeight < 8.0:
+#         Single deck
+        WindowLineHeight = 0.3555*FuselageHeight
+        WinX = 0.1157*FuselageLength
+        WindowPitch = 0.609
+        WinInd = -1
+        i = 0
+        while WinX < 0.75*FuselageLength:
+            WinInd = WinInd + 1
+            if WinVec[WinInd] == 1 and WinX > CockpitBulkheadX:
+                i=i+1
+                print("Generating cabin window {}".format(i))
+                WinCenter = [WinX, WindowLineHeight]
+                W_wire = Fus.WindowContour(WinCenter)
+                wires.append(W_wire)
+#                display.DisplayShape(W_wire, color='black')
+#                win_port, win_stbd = Fus.MakeWindow(*WinCenter)
+#                print(type(win_port), type(win_stbd))
+#                
+#                display.DisplayShape(win_port, color='Black')
+#                display.DisplayShape(win_stbd, color='Black')
 #
-#    # A typical window pattern (including emergency exit windows)
-#    WinVec = WIN + 2*NOWIN + 9*WIN + 3*NOWIN + WIN + NOWIN + 24*WIN + 2*NOWIN + WIN + NOWIN + 14*WIN + 2*NOWIN + WIN + 20*WIN + 2*NOWIN + WIN + NOWIN + 20*WIN
-#
-#    if FuselageHeight < 8.0:
-#        # Single deck
-#        WindowLineHeight = 0.3555*FuselageHeight
-#        WinX = 0.1157*FuselageLength
-#        WindowPitch = 0.609
-#        WinInd = -1
-#        while WinX < 0.75*FuselageLength:
-#            WinInd = WinInd + 1
-#            if WinVec[WinInd] == 1 and WinX > CockpitBulkheadX:
-#                WinStbd, WinPort, FuselageOMLSurf = fuselage_oml.MakeWindow(FuselageOMLSurf, WinX, WindowLineHeight)
+#                Note: Need to fix makewindow to return windows WinStbd,
+#                # WinPort, 
+#                Fus.MakeWindow(WinX, WindowLineHeight)
 #                act.AssignMaterial(WinStbd,"Plexiglass")
 #                act.AssignMaterial(WinPort,"Plexiglass")
-#            WinX = WinX + WindowPitch
+            WinX = WinX + WindowPitch
+
+#    TODO: Fuselage big enough to accommodate two decks 
 #    else:
-#        # Fuselage big enough to accommodate two decks 
 #        # Lower deck
 #        WindowLineHeight = 0.17*FuselageHeight #0.166
 #        WinX = 0.1*FuselageLength #0.112
@@ -333,24 +336,11 @@ def transonic_airliner(display=None,
 #                act.AssignMaterial(WinPort,"Plexiglass")
 #            WinX = WinX + WindowPitch
 #
-#
-#
-#
-#
-#    act.AssignMaterial(FuselageOMLSurf,"White_composite_external")
-#    act.AssignMaterial(WingSurf,"White_composite_external")
-#    try:
-#        act.AssignMaterial(TPSurf,"ShinyBARedMetal")
-#    except:
-#        pass
-#    act.AssignMaterial(FinSurf,"ShinyBARedMetal")
-#    act.AssignMaterial(Win1,"Plexiglass")
-#    act.AssignMaterial(Win2,"Plexiglass")
-#    act.AssignMaterial(Win3,"Plexiglass")
-#    act.AssignMaterial(Win4,"Plexiglass")
-#
-#
-#    # Mirror the geometry as required
+#    print("Cabin windows done")
+#-----------------------------------------------------------------------
+
+
+#     Mirror the geometry as required
     Wing2 = Wing.MirrorComponents(plane='xz')
     try:
         # this try section allows box wing i.e. no tailplane
@@ -362,67 +352,21 @@ def transonic_airliner(display=None,
     for eng in engines:
         engines_left.append(eng.MirrorComponents(plane='xz'))
 
-
-#    if Propulsion == 1:
-#        print("No Engine Created yet")
-#        for ObjId in EngineStbd:
-#            act.MirrorObjectXZ(ObjId)
-#        act.MirrorObjectXZ(PylonStbd)
-#    elif Propulsion == 2:
-#        raise NotImplementedError
-#        for ObjId in EngineStbd1:
-#            act.MirrorObjectXZ(ObjId)
-#        act.MirrorObjectXZ(PylonStbd1)
-#        for ObjId in EngineStbd2:
-#            act.MirrorObjectXZ(ObjId)
-#        act.MirrorObjectXZ(PylonStbd2)
-#
-
-#    display all entities:
-    # Fuselage and wing-body fairing
-#    Fus.Display(display)
-#
-##    The Wings:
-#    Wing.Display(display)
-#    Wing2.Display(display)
-#
-##    The Tailplane:
-#    try:
-##        boxwing except (no TP or WBF)
-#        WBF.Display(display)
-#        TP.Display(display)
-#        TP2.Display(display)
-#    except:
-#        pass
-#
-#    # The Fin:
-#    Fin.Display(display)
-#
-#    # The Engines:
-#    for eng in engines + engines_left:
-#        eng.Display(display)
-
-#    Build the return assembly (could change this later based on input 'tree':
+#    Build the return assembly (note the three methods of assignment: using
+#     the parts keyword, using assignment i.e. airliner[name] = value, and
+#     using the airliner.AddPart method):
     airliner = AirconicsCollection(parts={'Wing_right': Wing,
                                           'Wing_left': Wing2,
                                           'Fuselage': Fus,
-                                          'Fin': Fin,
-                                          'Tailplane_right': TP,
-                                          'Tailplane_left': TP2,
-                                          'WBF': WBF})
+                                          'Fin': Fin})
 
-#    airliner['Wing_right'] = Wing['Surface']
-#    airliner['Wing_left'] = Wing2['Surface']
-#    airliner['Fuselage'] = Fus['OML']
-#    airliner['Fin'] = Fin['Surface']
-#
-#    try:
-#        boxwing except (no TP or WBF)
-#        airliner['WingBodyFairing'] = WBF['WBF']
-#        airliner['Tailplane_right'] = TP['Surface']
-#        airliner['Tailplane_left'] = TP2['Surface']
-#    except:
-#        pass
+    try:
+#        boxwing exception (no TP or WBF)
+        airliner['WingBodyFairing'] = WBF
+        airliner['Tailplane_right'] = TP
+        airliner['Tailplane_left'] = TP2
+    except:
+        pass
 
     # Loop over the engines and write all components:
     for i, eng in enumerate(engines):
@@ -432,14 +376,48 @@ def transonic_airliner(display=None,
         name = 'engine_left' + str(i+1)
         airliner.AddPart(eng, name)
 
-    airliner.Display(display)
+
+#    To display the entire aircraft in the default colour and material:
+#    airliner.Display(display)
+
+#    Set individual component colours and materials:
+    from OCC.Quantity import (Quantity_NOC_RED4, Quantity_NOC_WHITE, 
+                              Quantity_NOC_BLUE4, Quantity_NOC_GRAY)
+    from OCC.Graphic3d import Graphic3d_NOM_SHINY_PLASTIC
+    red = Quantity_NOC_RED4
+    white =  Quantity_NOC_WHITE
+    blue = Quantity_NOC_BLUE4
+    grey = Quantity_NOC_GRAY
+    painted = Graphic3d_NOM_SHINY_PLASTIC   # Gives a painted (ish) appearance
+    airliner['Fin'].Display(display, color=red, material=painted)
+    
+    try:
+#        Boxwing exceptions:
+        airliner['Tailplane_left'].Display(display, color=red, material=painted)
+        airliner['Tailplane_right'].Display(display, color=red, material=painted)
+        airliner['WBF'].Display(display, color=white,  material=painted)
+    except:
+        pass
+
+    airliner['Wing_left'].Display(display, color=white,  material=painted)
+    airliner['Wing_right'].Display(display, color=white,  material=painted)
+    airliner['Fuselage'].Display(display, color=white,  material=painted)    
+    
+    for eng in engines + engines_left:
+        display.DisplayShape(eng['Spinner'], color='black')
+        display.DisplayShape(eng['Nacelle'], color=blue, material=painted)
+        display.DisplayShape(eng['BypassDisk'], color=grey, material=painted)
+        display.DisplayShape(eng['FanDisk'], color=grey, material=painted)
+        display.DisplayShape(eng['TailCone'], color=grey, material=painted)
+        display.DisplayShape(eng['Pylon_symplane'], color=white, material=painted)
+    
 
     return airliner
 
 
 if __name__ == "__main__":
-    from OCC.Display.SimpleGui import init_display
-    display, start_display, add_menu, add_function_to_menu = init_display()
+#    from OCC.Display.SimpleGui import init_display
+#    display, start_display, add_menu, add_function_to_menu = init_display()
 
 #    A few examples, instances of this parametric aircraft geometry:
 
@@ -463,20 +441,18 @@ if __name__ == "__main__":
 
 
     # Write step file:
-#    for comp in Airliner.Components:
-#        filename = '/home/pchambers/Documents/Vbox_share/Geometries/Step/' +\
-#                    comp + '.stp'
-#        act.export_STEPFile([Airliner.Components[comp]], filename)
-#    shapes = Airliner.Components.values()
-#    act.export_STEPFile_Airconics([Airliner], '/home/pchambers/Documents/Vbox_share/Geometries/Airliner_airconicsexport.stp')
-#    spinner = engines_left[0].Components['Spinner']
-#    act.export_STEPFile(shapes, '/home/pchambers/Documents/Vbox_share/Geometries/Step/Airliner_exportstep.stp')
+    import os
+    path = '.'
+    filename = os.path.join(path, 'Airliner.stp')
+    Airliner.Write(filename, single_export=True)    # This function checks filename extension
 
-    # Step had issues, try stl:
-#    Airliner.WriteComponents('/home/pchambers/Documents/Vbox_share/Airliner.stl')
+#     or stl export:    
+    filename = os.path.join(path, 'Airliner.stl')
+    Airliner.Write(filename, single_export=True)
 
+    # To output the rendering as pdf:
 #    from OCC.Graphic3d import (Graphic3d_EF_PDF,
 #                           Graphic3d_EF_PostScript)
 #    display.View.View().GetObject().Export('./Airliner.pdf', Graphic3d_EF_PDF)
 
-    start_display()
+#    start_display()

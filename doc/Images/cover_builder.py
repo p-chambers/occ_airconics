@@ -406,9 +406,7 @@ if __name__ == "__main__":
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
 
-
-#    A few examples, instances of this parametric aircraft geometry:
-    display.View.SetRaytracingMode()
+    display.View.SetRaytracingMode()   # this might be called by default
 
 #    '787-8'
     Airliner, wires = transonic_airliner(display)

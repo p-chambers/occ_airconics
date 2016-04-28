@@ -51,6 +51,9 @@ class AirconicsBase(MutableMapping, object):
 
 
 class AirconicsContainer(MutableMapping):
+    """Simple container class which behaves as a dictionary, with all
+    attributes mapped to the values in self
+    """
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
     
@@ -104,9 +107,6 @@ class AirconicsShape(AirconicsBase):
     -----
     Derived classes should call the AirconicsCollection init with
         super(DerivedClass, self).__init__(self, *args, **kwargs)
-
-
-
     """
 
     def __init__(self, components={}, *args, **kwargs):
@@ -276,7 +276,7 @@ class AirconicsShape(AirconicsBase):
                                         copy=True)
         return mirrored
 
-    def Write(self, filename):
+    def Write(self, filename, single_export=True):
         """Writes the Components in this Airconics shape to filename using
         file format specified in extension of filename.
         Currently stl only (TODO: step, iges)
@@ -301,13 +301,31 @@ class AirconicsShape(AirconicsBase):
         written to file (cannot write multiple files )
         """
         path, ext = os.path.splitext(filename)
-        stl_writer = StlAPI_Writer()
-        stl_ascii_format = False
         status = []
-        for name, component in self.items():
-            f = path + '_' + name + ext
-            shape = component
-            status.append(stl_writer.Write(shape, f, stl_ascii_format))
+        if ext == '.stl':
+            stl_ascii_format = False
+            if single_export:
+                stl_writer = StlAPI_Writer()
+                for name, component in self.items():
+                    shape = component
+                    status.append(stl_writer.Write(shape, filename, stl_ascii_format))
+            else:
+                for name, component in self.items():
+                    stl_writer = StlAPI_Writer()
+                    f = path + '_' + name + ext
+                    shape = component
+                    status.append(stl_writer.Write(shape, f, stl_ascii_format))
+                
+        elif ext in ['.stp', '.step']:
+            if single_export:
+                status.append(act.export_STEPFile(self.values(), filename))
+            else:
+                for name, component in self.items():
+                    f = path + '_' + name + ext
+                    status.append(act.export_STEPFile([component], f))
+        else:
+            raise ValueError('Unexpected file extension {}'.format(ext))
+            
         return status
 
 
@@ -361,9 +379,12 @@ class AirconicsCollection(AirconicsBase):
         output = str(self.keys())   # Note self.keys are self.__Parts.keys
         return output        
 
-    def Write(self, filename):
+    def Write(self, filename, single_export=True):
         """Writes the Parts contained in this instance to file specified by
-        filename. Currently one file is produced for each Part.
+        filename. 
+        
+        One file is produced, unless single_export is False when one file
+        is written for each Part.
 
         Parameters
         ---------
@@ -384,11 +405,38 @@ class AirconicsCollection(AirconicsBase):
         See Also
         --------
         AirconicsBase
-        """
+        """        
         path, ext = os.path.splitext(filename)
-        for name, part in self.items():
-            f = path + '_' + name + ext
-            part.Write(f)
+        
+        status = []
+        
+        if ext == '.stl':
+            stl_ascii_format = False
+            
+            if single_export:
+                stl_writer = StlAPI_Writer()
+                for partname, part in self.items():
+                    for name, component in part.items():
+                        status.append(stl_writer.Write(component, filename,
+                                                   stl_ascii_format))
+            else:
+                for partname, part in self.items():
+                    f = path + '_' + name + ext
+                    status.append(path.Write(f, single_export=True))
+
+        elif ext in ['.stp', '.step']:
+            if single_export:
+                shapes = []
+                for partname, part in self.items():
+                    shapes.extend(part.values())
+                act.export_STEPFile(shapes, filename)
+            else:
+                for name, part in self.items():
+                    f = path + '_' + name + ext
+                    # Writes one file per part
+                    status.append(part.Write(f, single_export=True))
+            
+        return status
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):
         """Displays all Parts of the engine to input context
