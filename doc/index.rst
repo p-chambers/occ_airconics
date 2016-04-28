@@ -6,6 +6,8 @@
 Welcome to the occ_airconics documentation!
 ===========================================
 
+.. image:: Images/cover.png
+	:alt: Transonic Airliner cover image
 
 
 Contents:

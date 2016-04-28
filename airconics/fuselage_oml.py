@@ -369,7 +369,7 @@ class Fuselage(AirconicsShape):
             try:
                 OMLSurf = \
                     act.AddSurfaceLoft(C, first_vertex=self._NoseVertex,
-                                       continuity=GeomAbs_C2)
+                                       continuity=GeomAbs_C2, solid=False)
             except:
                 OMLSurf = None
 
@@ -433,6 +433,96 @@ class Fuselage(AirconicsShape):
 #        SternPoint[1] = SternPoint[1]+NoseCoordinates[1]
 #        SternPoint[2] = SternPoint[2]+NoseCoordinates[2]
 
+
+    def CockpitWindowContours(self, Height = 1.620, Depth = 5):
+        P1 = [0.000,0.076,Height-1.620+2.194]
+        P2 = [0.000,0.852,Height-1.620+2.290]
+        P3 = [0.000,0.904,Height+0.037]
+        P4 = [0.000,0.076,Height]
+        edge1 = act.make_edge(gp_Pnt(*P1), gp_Pnt(*P2))
+        edge2 = act.make_edge(gp_Pnt(*P2), gp_Pnt(*P3))
+        edge3 = act.make_edge(gp_Pnt(*P3), gp_Pnt(*P4))
+        edge4 = act.make_edge(gp_Pnt(*P4), gp_Pnt(*P1))
+        
+        wire = act.make_wire([edge1, edge2, edge3, edge4])
+        
+        face_inner = act.make_face(wire)   #The inner cockpit window
+        
+        filleted_face = act.FilletFaceCorners(face_inner, 0.08)
+        
+#        exp = TopExp_Explorer
+#        CWC1 = 
+    
+        # The outer cockpit window
+        P1 = [0.000,0.951,Height-1.620+2.289]
+        P2 = [0.000,1.343,Height-1.620+2.224]
+        P3 = [0.000,1.634,Height-1.620+1.773]
+        P4 = [0.000,1.557,Height-1.620+1.588]
+        P5 = [0.000,1.027,Height-1.620+1.671]
+        edge1 = act.make_edge(gp_Pnt(*P1), gp_Pnt(*P2))
+        edge2 = act.make_edge(gp_Pnt(*P2), gp_Pnt(*P3))
+        edge3 = act.make_edge(gp_Pnt(*P3), gp_Pnt(*P4))
+        edge4 = act.make_edge(gp_Pnt(*P4), gp_Pnt(*P5))
+        edge5 = act.make_edge(gp_Pnt(*P5), gp_Pnt(*P1))
+
+        
+        wire = act.make_wire([edge1, edge2, edge3, edge4, edge5])
+        
+        face_outer = act.make_face(wire)   #The inner cockpit window
+        
+        CWC2 = act.FilletFaceCorners(face_outer, 0.08)
+            
+    
+        CWC3 = act.mirror(CWC1, plane='xz', copy=True)
+        CWC4 = act.mirror(CWC2, plane='xz', copy=True)
+    
+        return CWC1, CWC2, CWC3, CWC4
+
+
+    def WindowContour(self, WinCenter):
+        P1 = gp_Pnt(WinCenter[0], 0, WinCenter[1] + 0.468/2.)
+        P2 = gp_Pnt(WinCenter[0] + 0.272/2., 0, WinCenter[1])
+        P3 = gp_Pnt(WinCenter[0], 0, WinCenter[1] - 0.468/2.)
+        P4 = gp_Pnt(WinCenter[0] - 0.272/2., 0, WinCenter[1])
+    
+        tangents = np.array([[0,    0,  2.5],
+                            [0,    0, -2.5]])
+    
+        WCurveU = act.points_to_bspline([P4, P1, P2], tangents=tangents)
+        # Need to reverse the tangents for the following shape:
+        WCurveL =  act.points_to_bspline([P2, P3, P4], tangents=tangents[::-1])
+        
+        edgeU = act.make_edge(WCurveU)
+        edgeL = act.make_edge(WCurveL)
+        
+#        W_face= act.make_face(act.make_wire([edgeU, edgeL]))
+        W_wire = act.make_wire([edgeU, edgeL])
+        return W_wire
+
+
+    def MakeWindow(self, Xwc, Zwc):
+        """
+        
+        Notes
+        -----
+        Makes both the port and starboard windows at the input location
+        """
+        WinCenter = [Xwc, Zwc]
+        W_wire = self.WindowContour(WinCenter)
+        
+        ExtPathStbd = gp_Dir(gp_Vec(gp_Pnt(0,0,0), gp_Pnt(0,10,0)))
+        ExtPathPort = gp_Dir(gp_Vec(0,-10,0))
+        
+        self['OML'], WinStbd = act.SplitShapeFromProjection(self['OML'], W_wire,
+            direction=ExtPathStbd)
+        
+        self['OML'], WinPort = act.SplitShapeFromProjection(self['OML'], W_wire,
+            direction=ExtPathPort)
+        
+        return WinStbd, WinPort
+    
+#    def MakeCockpitWindows(self, Height = 1.620, Depth = 5):
+#        CW
 ###############################################################################
 
 if __name__ == '__main__':

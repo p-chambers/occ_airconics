@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """Base classes used by OCC_Airconics
 
-Contains container classes (AirconicsBase) which behaves like a dictionary
+Container classes (AirconicsBase, AirconicsShape, AirconicsCollection) which
+behaves like a dictionary of sub component shapes/parts with some extended
+functionality.
 
 
 Created on Mon Apr 18 10:26:22 2016
@@ -29,7 +31,7 @@ class AirconicsBase(MutableMapping, object):
     
     As this class inherits from MutableMapping, any class inherting from
     AirconicsBase must also define the abstract methods of Mutable mapping,
-    i.e. __setitem__, __getitem__, __len__, __iter__, __del__
+    i.e. __setitem__, __getitem__, __len__, __iter__, __delitem__
     """
     @abstractmethod
     def __init__(self, *args, **kwargs):
@@ -46,6 +48,31 @@ class AirconicsBase(MutableMapping, object):
     @abstractmethod
     def Write(self, *args, **kwargs):
         pass
+
+
+class AirconicsContainer(MutableMapping):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+    
+    def __setitem__(self, name, component):
+        self.__dict__[name] = component
+    
+    def __getitem__(self, name):
+        return self.__dict__[name]
+
+    def __delitem__(self, name):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+    
+    def __len__(self):
+        return len(self.__dict__)
+
+    __getattr__ = __getitem__
+    __setattr__ = __setitem__
+    
+    
 
 
 class AirconicsShape(AirconicsBase):
@@ -84,7 +111,8 @@ class AirconicsShape(AirconicsBase):
 
     def __init__(self, components={}, *args, **kwargs):
         # Set the components dictionary (default empty)
-        self.__Components = {}
+        self.__Components = AirconicsContainer()
+
         for name, component in components.items():
             self.__setitem__(name, component)
 
@@ -187,7 +215,7 @@ class AirconicsShape(AirconicsBase):
         for name, component in self.items():
             self[name] = act.transform_nonuniformal(component, scaling, vec)
 
-    def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
+    def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):
         """Displays all components of this instance to input context
 
         Parameters
@@ -197,10 +225,20 @@ class AirconicsShape(AirconicsBase):
         
         meterial : OCC.Graphic3d_NOM_* type (default=ALUMINIUM)
             The material for display: note some renderers do not allow this
+            
+        color : string
+            The color for all components in this shape
         """
         for name, component in self.items():
             ais = AIS_Shape(component)
             ais.SetMaterial(material)
+            if color:
+                try:
+                    from OCC.Display.OCCViewer import get_color_from_name
+                    color = get_color_from_name(color)
+                except:
+                    pass
+                ais.SetColor(color)
             try:
                 context.Context.Display(ais.GetHandle())
             except:
@@ -292,7 +330,7 @@ class AirconicsCollection(AirconicsBase):
 
     def __init__(self, parts={}, *args, **kwargs):
         # Set the components dictionary (default empty)
-        self.__Parts = {}
+        self.__Parts = AirconicsContainer()
         for name, part in parts.items():
             self.__setitem__(name, part)
 
@@ -352,7 +390,7 @@ class AirconicsCollection(AirconicsBase):
             f = path + '_' + name + ext
             part.Write(f)
 
-    def Display(self, context, material=Graphic3d_NOM_ALUMINIUM):
+    def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):
         """Displays all Parts of the engine to input context
 
         Parameters
@@ -364,7 +402,7 @@ class AirconicsCollection(AirconicsBase):
             The material for display: note some renderers do not allow this
         """
         for name, component in self.items():
-            component.Display(context, material)
+            component.Display(context, material, color)
 
     def AddPart(self, part, name=None):
         """Adds a component to self

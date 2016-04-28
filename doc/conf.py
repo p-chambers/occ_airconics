@@ -385,3 +385,23 @@ epub_exclude_files = ['search.html']
 #epub_use_index = True
 
 sys.path.append(os.path.abspath('..'))
+
+#----------------------------------------------------------------------
+# USER ADDED CODE BELOW HERE:
+#----------------------------------------------------------------------
+
+# Couldnt work out how to move the interact html/x3dom shapes,
+#  so do it manually:
+import shutil
+path_html = os.path.join('.', '_build', 'html')
+path_interact = os.path.join(path_html, '_interact')
+
+if not os.path.exists(path_interact):
+  os.makedirs(path_interact)
+
+
+for file in os.listdir('interact'):
+  if file.endswith('.html') or file.endswith('.x3d'):
+    fpath = os.path.join('.', 'interact', file)
+    shutil.copy(fpath, path_interact)
+

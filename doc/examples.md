@@ -1,10 +1,49 @@
 Examples
 ========
 
+Airfoil
+-------
+This example on building an airfoil NURBS curve with occ_airconics is included in the [occ_airconics core Qt viewer examples](https://github.com/p-chambers/occ_airconics/tree/master/examples/core).
+
+First import the primitives module in which the Airfoil class is contained and the `pythonocc-core` Qt viewer:
+```python
+from airconics import primitives
+# Visualisation with Python-OCC (ensure plot windows are set to qt)
+from OCC.Display.SimpleGui import init_display
+display, start_display, add_menu, add_function_to_menu = init_display()
+```
+
+Next, define the inputs to Airfoil class. In this example, we'll use the `SeligProfile` type airfoil, leading edge point in origin, unit chord along x axis, no rotation around the x or y axes. 
+
+*Note: This class also supports construction of NACA 4 digit profiles using input keyword `NACA4Profile`. See [Airfoil API reference](file:///home/pchambers/git/OCC_AirCONICS/doc/_build/html/reference.html#airconics.primitives.Airfoil).*
+
+```python
+LEPoint = [0., 0., 0.]
+ChordLength = 1
+Rotation = 0
+Twist = 0
+AirfoilSeligName = 'dae11'
+
+# Instantiate class to set up a generic airfoil with these basic parameters
+Af = primitives.Airfoil(LEPoint, ChordLength, Rotation, Twist,
+                        SeligProfile=AirfoilSeligName)
+```
+
+Finally, display the curve and chord line
+
+```python
+display.DisplayShape(Af.Curve, update=True)
+display.DisplayShape(Af.ChordLine, update=True)
+start_display()
+```
+
+![Airfoil curve and chordline](Images/Airfoil.png)
+
+
 Transonic Airliner
 ------------------
 
-In this example, the transonic airliner geometry example from the Rhinoceros Airconics plugin [1] is shown. All renderings are static images here, but represent interactive renderings when run as an IPython notebook available [here](https://github.com/p-chambers/occ_airconics/blob/master/examples/notebooks/notebook_examples.ipynb)
+In this example, the transonic airliner geometry example from the Rhinoceros Airconics plugin [1] is shown. All renderings are static images here, but represent interactive renderings when run as an IPython notebook available [here](https://github.com/p-chambers/occ_airconics/blob/master/examples/notebooks/notebook_examples.ipynb). Interactive shapes can be viewed by clicking the shape hyperlinks however, as produced by the pythonocc-core *x3dom* renderer.
 
 For examples using the pythonocc-core Qt viewer, refer to the airconics [examples/core directory](https://github.com/p-chambers/occ_airconics/tree/master/examples/core)
 
@@ -15,7 +54,7 @@ from airconics.Addons.WebServer.TornadoWeb import TornadoWebRenderer
 from IPython.display import display
 ```
 
-## Parameter Definitions
+### Parameter Definitions
 Parameters used here correspond to a geometry similar to that of the Boeing 787-8
 
 
@@ -46,7 +85,7 @@ TPScaleFact = WingScaleFactor * 0.388
 NacelleLength = 1.95*EngineDia
 ```
 
-## Wing, Transonic Airliner
+### Wing, Transonic Airliner
 
 Formulation of lifting surfaces in `occ_airconics` (and AirCONICS) follows the suggestions in Sobester [2] in which geometry--attached curvilinear functionals are used instead of parameters for shape definition. That is, \\(G(\bf{f}, \bf{X})\\), where
 
@@ -103,11 +142,12 @@ Wing.Display(renderer)
 display(renderer)
 ```
 
-[![occ airconics wing](Images/Wing.png)](../../interact/x3domwing.html)
-[Interactive x3dom output](../../interact/x3domwing.html)
+[![occ airconics wing](Images/Wing.png)](_interact/x3domwing.html)
+
+[Interactive x3dom output](_interact/x3domwing.html)
 
 
-## Tailplane, Transonic Airliner
+### Tailplane, Transonic Airliner
 
 The same `Lifting Surface` class is used here to generate the fin and tailplane of the aircraft, using a different set of input functionals (also defined in `airconics.examples`).
 
@@ -158,13 +198,13 @@ Fin.Display(renderer)
 TP.Display(renderer)
 display(renderer)
 ```
-[![occ_airconics fin and tailplane rendering](Images/Fin_Tailplane.png)](../../interact/x3domfin_tp.html)
-[Interactive x3dom Fin](../../interact/x3domfin_tp.html)
+[![occ_airconics fin and tailplane rendering](Images/Fin_Tailplane.png)](_interact/x3domfin_tp.html)
+
+[Interactive x3dom Fin](_interact/x3domfin_tp.html)
 
 
 
-
-## Fuselage Transonic Airliner
+### Fuselage Transonic Airliner
 
 Fuselage shapes are created following the parameterisation used in Sobester [3]. That is, the outer mould line (OML) is split into a `Nose`, `Central` and `Tail` section, the length of which is described on input to `Fuselage` class as a percentage of the total length. Rib curves are then formed by fitting a NURBS curve to the intersection points of sectional planar cuts and the guide curves of the extremeties of the OML e.g. Port, top and bottom curves. The OML is fitted in `occ_airconics` using the Open CASCADE `ThruSections` loft.
 
@@ -191,11 +231,12 @@ display(renderer)
     Network surface fit succesful on attempt 1
 
 
-[![occ_airconics Fuselage rendering](Images/Fuselage.png)](../../interact/x3domfuselage.html)
-[Interactive x3dom Fuselage](../../interact/x3domfuselage.html)
+[![occ_airconics Fuselage rendering](Images/Fuselage.png)](_interact/x3domfuselage.html)
+
+[Interactive x3dom Fuselage](_interact/x3domfuselage.html)
 
 
-## Wing-Body Fairing:
+### Wing-Body Fairing:
 The wing-body fairing is here created as a simple ellipsoid shape around the root section of the wing. 
 
 *Note that this component will be displayed only in the final model.*
@@ -214,7 +255,7 @@ WBF_shape = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength, WTBFwidth, W
 WBF = AirconicsShape(components={'WBF': WBF_shape})
 ```
 
-## Engine + Pylon
+### Engine + Pylon
 
 First, obtain the wing section and chord at which the engine will be fitted, then fit then engine. The default inputs to the Engine class produce a turbofan engine with Nacelle similar to that of the RR Trent 1000 / GEnx and its pylon (**currently a flat plate only**).
 
@@ -239,12 +280,13 @@ renderer = TornadoWebRenderer()
 eng.Display(renderer)
 display(renderer)
 ```
-[![occ_airconics Engine rendering](Images/Engine.png)](../../interact/x3domengine.html)
-[Interactive x3dom Engine](../../interact/x3domengine.html)
+[![occ_airconics Engine rendering](Images/Engine.png)](_interact/x3domengine.html)
+
+[Interactive x3dom Engine](_interact/x3domengine.html)
 
 
 
-## Miscelaneous operations
+### Miscelaneous operations
 
 ```python
 # Trim the inboard section of the main wing:
@@ -271,7 +313,7 @@ eng2 = eng.MirrorComponents(plane='xz')
     
 
 
-## Ipython Cell Renderer:
+### Ipython Cell Renderer:
 Now render the finished airliner model:
 
 ```python
@@ -303,13 +345,14 @@ display(renderer)
 
 
 
-[![occ_airconics Airliner rendering](Images/Airliner.png)](../../interact/x3domairliner.html)
-[Interactive x3dom Airliner](../../interact/x3domairliner.html)
+[![occ_airconics Airliner rendering](Images/Airliner.png)](_interact/x3domairliner.html)
+
+[Interactive x3dom Airliner](_interact/x3domairliner.html)
 
 
-## Topology model
+### Topology model
 
-This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [1]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
+This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [2]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
 
 The mirror line is also not yet included in this representation, however should exist between central objects (Fuselage, Fin) and the mirrored objects (Tail Plane, Wing, Engine).
 

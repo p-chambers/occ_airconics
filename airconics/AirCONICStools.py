@@ -42,7 +42,9 @@ from OCC.GeomPlate import (GeomPlate_CurveConstraint,
                            GeomPlate_BuildPlateSurface,
                            GeomPlate_MakeApprox)
 from OCC.BRepAdaptor import BRepAdaptor_Curve
-
+from OCC.BRepFeat import BRepFeat_SplitShape
+from OCC.TopTools import TopTools_ListIteratorOfListOfShape
+from OCC.BRepProj import BRepProj_Projection
 
 # FileIO libraries:
 from OCC.STEPCAFControl import STEPCAFControl_Writer
@@ -192,7 +194,7 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
         pt_arr = _type(1, N)
         for i, pt in enumerate(array):
             pt_arr.SetValue(i+1, gp_Pnt(*pt))
-    except IndexError:
+    except:
         # Input pnts are likely to be a list of gp_Pnt:
         N = len(array)
         pt_arr = _type(1, N)
@@ -347,6 +349,117 @@ def transform_nonuniformal(brep, factors, vec=[0, 0, 0], copy=False):
     brep_trns = BRepBuilderAPI_GTransform(brep, trns, copy)
     brep_trns.Build()
     return brep_trns.Shape()
+
+
+def FilletFaceCorners(face, radius):
+    """Fillets the corners of the input face
+    
+    Parameters
+    ----------
+    face : TopoDS_Face
+        
+    radius : the Fillet radius
+    
+    Returns
+    -------
+    """
+    vert_explorer = TopExp_Explorer(face, TopAbs_VERTEX)
+    from OCC.BRepFilletAPI import BRepFilletAPI_MakeFillet2d
+    fillet = BRepFilletAPI_MakeFillet2d(face)
+    while vert_explorer.More():
+        vertex = topods_Vertex(vert_explorer.Current())
+        fillet.AddFillet(vertex, radius)
+        # Note: Needed two next statements here as faces have a vertex on
+        # either side
+        vert_explorer.Next()
+        vert_explorer.Next()
+
+    fillet.Build()
+    face = fillet.Shape()
+    return face
+
+
+def ExtrudeFace(face, vec=gp_Vec(1, 0, 0)):
+    """Extrudes a face by input vector
+    
+    Parameters
+    ----------
+    face : TopoDS_Face
+    
+    vec : OCC.gp.gp_Vec
+        The offset vector to extrude through
+
+    Returns
+    -------
+    shape : TopoDS_Shape
+        The extruded shape
+    
+    Notes
+    -----
+    Uses BRepBuilderAPI_MakePrism
+    """
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakePrism
+    builder = BRepPrimAPI_MakePrism(face, vec)
+    builder.Build()
+    return builder.Shape()
+
+
+def SplitShapeFromProjection(shape, wire, direction, return_section=True):
+    """Splits shape by the projection of wire onto its face
+    
+    Parameters
+    ----------
+    shape : TopoDS_Shape    
+        the brep to subtract from 
+
+    wire : TopoDS_Wire
+        the tool to use for projection and splitting 
+
+    direction: OCC.gp.gp_Dir
+        the direction to project the wire
+
+    return_section : bool
+        returns the split shape 
+
+    Returns
+    -------
+    newshape : TopoDS_Shape
+        input shape with wire subtracted
+    
+    section : the shape which was substracted
+        (returned only if return_section is true)
+    
+    Notes
+    -----
+    Currently assumes splits the first face only
+    """
+#    get the face from the shape
+    exp = TopExp_Explorer(shape, TopAbs_FACE)
+    face = topods_Face(exp.Current())
+
+#    Perform the projection
+    proj = BRepProj_Projection(wire, face, direction)
+    wire = proj.Current()
+
+
+
+    
+    splitter = BRepFeat_SplitShape(face)
+    splitter.Add(wire, face)
+    splitter.Build()
+    
+    section_list = splitter.DirectLeft()
+    iterator = TopTools_ListIteratorOfListOfShape(section_list)
+    section = iterator.Value()    # assume here that only 1 section is produced
+    
+    mod_list = splitter.Modified(face)
+    iterator = TopTools_ListIteratorOfListOfShape(mod_list)
+    newshape = iterator.Value()
+    
+    if return_section:
+        return shape, wire
+    else:
+        return newshape
 
 
 def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
@@ -850,8 +963,8 @@ def project_curve_to_surface(curve, surface, dir):
 
     Parameters
     ----------
-    curve : Geom_curve
-
+    curve : Geom_curve or TopoDS_Edge/Wire
+    
     surface : TopoDS_Shape
 
     dir : gp_Dir
@@ -861,7 +974,13 @@ def project_curve_to_surface(curve, surface, dir):
     -------
     res_curve : geom_curve (bspline only?)
     '''
-    wire = make_wire(make_edge(curve.GetHandle()))
+    try:
+        edge = make_edge(curve.GetHandle())
+    except:
+#        if converting to edge didn't work, assume curve is already an edge
+        edge = curve
+    
+    wire = make_wire(edge)   # This will return wire is curve is already a wire
     from OCC.BRepProj import BRepProj_Projection
     from OCC.BRepAdaptor import BRepAdaptor_CompCurve
     proj = BRepProj_Projection(wire, surface, dir)
