@@ -103,7 +103,7 @@ def test_AirconicsShape_Write_MultiExport(create_engine, filename_examples,
 
 def test_AirconicsCollection_Write_SingleExport(create_engine, filename_collections,
                                            tmpdir):
-    eng1 = create_engine
+    eng = create_engine
     # Note: this doesnt currently seem to output two distinct shapes?
     
     # Create a basic airconics collection with two engines in
