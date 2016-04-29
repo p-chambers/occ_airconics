@@ -81,6 +81,11 @@ class AirconicsContainer(MutableMapping):
 class AirconicsShape(AirconicsBase):
     """Base class from which airconics parts will be made.
 
+    AirconicsShapes represent a 'part' of an aircraft e.g. the engine, which
+    consists of a group of logically shape 'components' but with no relative
+    or relational contact information: class methods are intended to manipulate
+    the part as a whole.
+    
     This is intended as a base class, but can be used as a simple amorphic
     collection of shape components.
 
@@ -99,14 +104,30 @@ class AirconicsShape(AirconicsBase):
 
     Attributes
     ----------
-    __Components : Dictionary of name(string):component(TopoDS_Shape) pairs
-        This should not be interacted with directly. Use assignment or
-        self.AddComponents (see Notes for more detail)
+    __Components : Airconics Container
+        Mapping of name(string):component(TopoDS_Shape) pairs. Note that
+        this should not be interacted with directly, and instead users should
+        use assignment or the AddComponent method:
+        
+        :Example:
+            >>> a = AirconicsShape()
+            >>> a['name'] = shape
+            >>> #OR: a.AddComponent('name', shape)
+        
+        This also supports mapping of attributes to parts, i.e:
+            
+        :Example:
+            >>> a['name'] == a.__Components.name   # returns True
+        
 
     Notes
     -----
     Derived classes should call the AirconicsCollection init with
         super(DerivedClass, self).__init__(self, *args, **kwargs)
+    
+    See Also
+    --------
+    AirconicsCollection
     """
 
     def __init__(self, components={}, *args, **kwargs):
@@ -288,6 +309,10 @@ class AirconicsShape(AirconicsBase):
             Note the Component name will be prepended to the base name of each
             output file
         
+        single_export : bool
+            Writes a single output file if true, otherwise writes one file
+            per component
+        
         Returns
         -------
         status : list of int
@@ -331,19 +356,46 @@ class AirconicsShape(AirconicsBase):
 
 class AirconicsCollection(AirconicsBase):
     """Base class from which collections of parts defined by other Airconics
-    classes will be stored. Allowable inputs are
+    classes will be stored.
+    
+    AirconicsCollection represents a collection of 'parts'
+    (i.e. AirconicsShapes') which are logically grouped. For example, an 
+    aircraft comprised of multiple parts (engine, lifting surfaces, fuselage)
+    all of which may contain sub 'components' and are therefore instances of
+    AirconicsShapes'
     
     Parameters
     ----------
-    parts - dictionary
+    parts : dictionary
         (name: part) pairs, where name is a string for accessing the part,
         and 'part' is an AirconicsShape derived class e.g. Fuselage,
         LiftingSurface or Engine instance
+    
+    Attributes
+    ----------
+    __Parts : Airconics Container
+        Mapping of name(string):component(AirconicsShape) pairs. Note that
+        this should not be interacted with directly, and instead users should
+        use assignment or the AddPart method:
+        
+        :Example:
+            >>> a = AirconicsCollection()
+            >>> a['name'] = part
+            >>> #OR: a.AddPart('name', part)
+        
+        This also supports mapping of attributes to parts, i.e:
+            
+        :Example:
+            >>> a['name'] == a.__Parts.name   # returns True
 
     Notes
     -----
     Derived classes should call the AirconicsCollection init with
         super(DerivedClass, self).__init__(self, *args, **kwargs)
+    
+    See Also
+    --------
+    AirconicsShape
     """
 
     def __init__(self, parts={}, *args, **kwargs):
@@ -392,6 +444,10 @@ class AirconicsCollection(AirconicsBase):
             the BASE.ext name of the file e.g. 'airliner.stp'.
             Note the part name will be prepended to the base name of each
             output file
+        
+        single_export : bool
+            returns a single output file if true, otherwise writes one file
+            per part
 
         Returns
         -------
@@ -429,7 +485,7 @@ class AirconicsCollection(AirconicsBase):
                 shapes = []
                 for partname, part in self.items():
                     shapes.extend(part.values())
-                act.export_STEPFile(shapes, filename)
+                status.append(act.export_STEPFile(shapes, filename))
             else:
                 for name, part in self.items():
                     f = path + '_' + name + ext

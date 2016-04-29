@@ -157,10 +157,14 @@ def transonic_airliner(display=None,
         else:
     
             WTBFZ = WingApex[2] + 0.005*RootChord
-            WTBFheight = 0.09*RootChord 
+            WTBFheight = 1.8 * 0.09*RootChord 
             WTBFwidth = 1.15*FuselageWidth
     
         WTBFlength = 1.167*RootChord #787:26
+        
+        print("Fairing Paramters:")
+        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
+        
         WBF_shape = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength,
                                         WTBFwidth, WTBFheight)
         WBF = AirconicsShape(components={'WBF': WBF_shape})
@@ -275,40 +279,40 @@ def transonic_airliner(display=None,
 #    rs.DeleteObject(CockpitWall)
 #
 #    # Window lines
-    WIN = [1]
-    NOWIN = [0]
-
-#     A typical window pattern (including emergency exit windows)
-    WinVec = WIN + 2*NOWIN + 9*WIN + 3*NOWIN + WIN + NOWIN + 24*WIN + 2*NOWIN + WIN + NOWIN + 14*WIN + 2*NOWIN + WIN + 20*WIN + 2*NOWIN + WIN + NOWIN + 20*WIN
-    wires = []
-    if FuselageHeight < 8.0:
-#         Single deck
-        WindowLineHeight = 0.3555*FuselageHeight
-        WinX = 0.1157*FuselageLength
-        WindowPitch = 0.609
-        WinInd = -1
-        i = 0
-        while WinX < 0.75*FuselageLength:
-            WinInd = WinInd + 1
-            if WinVec[WinInd] == 1 and WinX > CockpitBulkheadX:
-                i=i+1
-                print("Generating cabin window {}".format(i))
-                WinCenter = [WinX, WindowLineHeight]
-                W_wire = Fus.WindowContour(WinCenter)
-                wires.append(W_wire)
-#                display.DisplayShape(W_wire, color='black')
-#                win_port, win_stbd = Fus.MakeWindow(*WinCenter)
-#                print(type(win_port), type(win_stbd))
-#                
-#                display.DisplayShape(win_port, color='Black')
-#                display.DisplayShape(win_stbd, color='Black')
+#    WIN = [1]
+#    NOWIN = [0]
 #
-#                Note: Need to fix makewindow to return windows WinStbd,
-#                # WinPort, 
-#                Fus.MakeWindow(WinX, WindowLineHeight)
-#                act.AssignMaterial(WinStbd,"Plexiglass")
-#                act.AssignMaterial(WinPort,"Plexiglass")
-            WinX = WinX + WindowPitch
+##     A typical window pattern (including emergency exit windows)
+#    WinVec = WIN + 2*NOWIN + 9*WIN + 3*NOWIN + WIN + NOWIN + 24*WIN + 2*NOWIN + WIN + NOWIN + 14*WIN + 2*NOWIN + WIN + 20*WIN + 2*NOWIN + WIN + NOWIN + 20*WIN
+#    wires = []
+#    if FuselageHeight < 8.0:
+##         Single deck
+#        WindowLineHeight = 0.3555*FuselageHeight
+#        WinX = 0.1157*FuselageLength
+#        WindowPitch = 0.609
+#        WinInd = -1
+#        i = 0
+#        while WinX < 0.75*FuselageLength:
+#            WinInd = WinInd + 1
+#            if WinVec[WinInd] == 1 and WinX > CockpitBulkheadX:
+#                i=i+1
+#                print("Generating cabin window {}".format(i))
+#                WinCenter = [WinX, WindowLineHeight]
+#                W_wire = Fus.WindowContour(WinCenter)
+#                wires.append(W_wire)
+##                display.DisplayShape(W_wire, color='black')
+##                win_port, win_stbd = Fus.MakeWindow(*WinCenter)
+##                print(type(win_port), type(win_stbd))
+##                
+##                display.DisplayShape(win_port, color='Black')
+##                display.DisplayShape(win_stbd, color='Black')
+##
+##                Note: Need to fix makewindow to return windows WinStbd,
+##                # WinPort, 
+##                Fus.MakeWindow(WinX, WindowLineHeight)
+##                act.AssignMaterial(WinStbd,"Plexiglass")
+##                act.AssignMaterial(WinPort,"Plexiglass")
+#            WinX = WinX + WindowPitch
 
 #    TODO: Fuselage big enough to accommodate two decks 
 #    else:
@@ -362,7 +366,7 @@ def transonic_airliner(display=None,
 
     try:
 #        boxwing exception (no TP or WBF)
-        airliner['WingBodyFairing'] = WBF
+        airliner['WBF'] = WBF
         airliner['Tailplane_right'] = TP
         airliner['Tailplane_left'] = TP2
     except:
@@ -389,6 +393,7 @@ def transonic_airliner(display=None,
     blue = Quantity_NOC_BLUE4
     grey = Quantity_NOC_GRAY
     painted = Graphic3d_NOM_SHINY_PLASTIC   # Gives a painted (ish) appearance
+
     airliner['Fin'].Display(display, color=red, material=painted)
     
     try:
@@ -416,43 +421,46 @@ def transonic_airliner(display=None,
 
 
 if __name__ == "__main__":
-#    from OCC.Display.SimpleGui import init_display
-#    display, start_display, add_menu, add_function_to_menu = init_display()
+    from OCC.Display.SimpleGui import init_display
+    display, start_display, add_menu, add_function_to_menu = init_display()
 
 #    A few examples, instances of this parametric aircraft geometry:
 
 #    '787-8'
-    Airliner = transonic_airliner(display)
+#    Airliner = transonic_airliner(display)
 
 #    '787-9'
-#    transonic_airliner(FuselageScaling = [61.9, 55.902, 55.902])
+#    Airliner = transonic_airliner(display,
+#                                  FuselageScaling=[61.9, 55.902, 55.902])
 
 #    'A380'
-#     transonic_airliner(Propulsion = 2, 
-#     FuselageScaling = [70.4, 67.36, 80.1], WingScaleFactor = 59.26)
+    Airliner = transonic_airliner(display, Propulsion=2,
+                                  FuselageScaling=[70.4, 67.36, 80.1],
+                                  WingScaleFactor=59.26)
 
 #    This, for now, is just intended to stretch the model a bit in terms of 
 #    topological variety - it is a box wing version of the 787-8. There is 
 #    no serious design intent here, merely a hint of some of the possibilities
 #    in this model.
+#    NOTE: this model is rather slow in occ_airconics
 #    transonic_airliner(display=display, WingScaleFactor = 66,
 #                       WingChordFactor = 0.5, Topology =2)
 
 
 
     # Write step file:
-    import os
-    path = '.'
-    filename = os.path.join(path, 'Airliner.stp')
-    Airliner.Write(filename, single_export=True)    # This function checks filename extension
+#    import os
+#    path = '.'
+#    filename = os.path.join(path, 'Airliner.stp')
+#    Airliner.Write(filename, single_export=True)    # This function checks filename extension
 
 #     or stl export:    
-    filename = os.path.join(path, 'Airliner.stl')
-    Airliner.Write(filename, single_export=True)
+#    filename = os.path.join(path, 'Airliner.stl')
+#    Airliner.Write(filename, single_export=True)
 
     # To output the rendering as pdf:
 #    from OCC.Graphic3d import (Graphic3d_EF_PDF,
 #                           Graphic3d_EF_PostScript)
 #    display.View.View().GetObject().Export('./Airliner.pdf', Graphic3d_EF_PDF)
 
-#    start_display()
+    start_display()

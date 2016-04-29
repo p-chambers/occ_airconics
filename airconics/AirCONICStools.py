@@ -177,6 +177,7 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
     -------
     pt_arr : TCOLgp_Array1OfPnt
         OCC type array of points
+
     Notes
     -----
     USe TColgp_Harray when interpolating a curve from points with the
@@ -441,9 +442,6 @@ def SplitShapeFromProjection(shape, wire, direction, return_section=True):
     proj = BRepProj_Projection(wire, face, direction)
     wire = proj.Current()
 
-
-
-    
     splitter = BRepFeat_SplitShape(face)
     splitter.Add(wire, face)
     splitter.Build()
@@ -539,7 +537,7 @@ def export_STEPFile_Airconics(AirconicsShapes, filename):
     -----
     Work in progress
     """
-
+    print("This function is a work in progress. For now, use export_STEPFile")
     # create an handle to a document
     h_doc = Handle_TDocStd_Document()
 

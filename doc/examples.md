@@ -15,7 +15,7 @@ display, start_display, add_menu, add_function_to_menu = init_display()
 
 Next, define the inputs to Airfoil class. In this example, we'll use the `SeligProfile` type airfoil, leading edge point in origin, unit chord along x axis, no rotation around the x or y axes. 
 
-*Note: This class also supports construction of NACA 4 digit profiles using input keyword `NACA4Profile`. See [Airfoil API reference](file:///home/pchambers/git/OCC_AirCONICS/doc/_build/html/reference.html#airconics.primitives.Airfoil).*
+*Note: This class also supports construction of NACA 4 digit profiles using input keyword `NACA4Profile`. See [Airfoil API reference](http://occ-airconics.readthedocs.io/en/latest/reference.html#airconics.primitives.Airfoil).*
 
 ```python
 LEPoint = [0., 0., 0.]
@@ -43,9 +43,9 @@ start_display()
 Transonic Airliner
 ------------------
 
-In this example, the transonic airliner geometry example from the Rhinoceros Airconics plugin [1] is shown. All renderings are static images here, but represent interactive renderings when run as an IPython notebook available [here](https://github.com/p-chambers/occ_airconics/blob/master/examples/notebooks/notebook_examples.ipynb). Interactive shapes can be viewed by clicking the shape hyperlinks however, as produced by the pythonocc-core *x3dom* renderer.
+In this example, the transonic airliner geometry example from the Rhinoceros Airconics plugin [1] is shown. All renderings are static images here, but represent interactive renderings when run as an IPython notebook available [here](https://github.com/p-chambers/occ_airconics/blob/master/examples/notebooks/notebook_examples.ipynb). Interactive shapes can be viewed by clicking the shape hyperlinks however, as produced by the *PythonOCC* *x3dom* renderer.
 
-For examples using the pythonocc-core Qt viewer, refer to the airconics [examples/core directory](https://github.com/p-chambers/occ_airconics/tree/master/examples/core)
+For examples using the *pythonocc-core* Qt viewer, refer to the *occ-airconics* [examples/core directory](https://github.com/p-chambers/occ_airconics/tree/master/examples/core)
 
 ```python
 import airconics

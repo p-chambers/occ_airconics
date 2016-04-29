@@ -1,6 +1,6 @@
 Installation 
 ============
-*occ_airconics* accesses the powerful [Open CASCADE](http://www.opencascade.com/) geometry kernel through the Python-OCC package. It is possible to build [pythonocc-core](https://github.com/tpaviot/pythonocc-core) from source by [following their installation instructions](https://github.com/tpaviot/pythonocc-core/blob/master/INSTALL.md), however a convenient alternative is to use the prebuilt conda packages suitable for win32/win64/osx64/linux64 users.
+*occ_airconics* accesses the powerful [Open CASCADE](http://www.opencascade.com/) geometry kernel through the [PythonOCC](http://www.pythonocc.org/) package. It is possible to build [pythonocc-core](https://github.com/tpaviot/pythonocc-core) from source by [following their installation instructions](https://github.com/tpaviot/pythonocc-core/blob/master/INSTALL.md), however a convenient and recommended alternative is to use the prebuilt conda packages suitable for win32/win64/osx64/linux64 users.
 
 Note that *occ_airconics* is not currently available through PyPI.
 
@@ -21,7 +21,7 @@ Or do this manually by editing their `~/.condarc` contents, e.g.:
 	    - https://conda.anaconda.org/prchambers
 		- defaults
 
-Then install occ_airconics via
+Then install *occ_airconics* via
 
 	conda install occ_airconics
 

@@ -435,6 +435,10 @@ class Fuselage(AirconicsShape):
 
 
     def CockpitWindowContours(self, Height = 1.620, Depth = 5):
+        """
+        This function is currently not tested
+        """
+        print("This function is in development, and its output is untested")
         P1 = [0.000,0.076,Height-1.620+2.194]
         P2 = [0.000,0.852,Height-1.620+2.290]
         P3 = [0.000,0.904,Height+0.037]
@@ -480,6 +484,18 @@ class Fuselage(AirconicsShape):
 
 
     def WindowContour(self, WinCenter):
+        """Creates and returns the contour of the window at WinCenter
+        
+        Parameters
+        ----------
+        WinCenter : list or array, length 2
+            The [X, Z] coordinate of the center of the window
+        
+        Returns
+        -------
+        W_wire : TopoDS_Wire
+            The wire of the B-spline contour
+        """
         P1 = gp_Pnt(WinCenter[0], 0, WinCenter[1] + 0.468/2.)
         P2 = gp_Pnt(WinCenter[0] + 0.272/2., 0, WinCenter[1])
         P3 = gp_Pnt(WinCenter[0], 0, WinCenter[1] - 0.468/2.)
@@ -501,12 +517,33 @@ class Fuselage(AirconicsShape):
 
 
     def MakeWindow(self, Xwc, Zwc):
-        """
+        """Makes at Window centered at Wxc Zwc using the bspline wire returned
+        by WindowContour
+
+        THIS FUNCTION IS IN DEVELOPMENT AND NOT YET TESTED FULLY        
         
+        Parameters
+        ----------
+        Xwc : scalar
+            The window center x coordinate
+        
+        Zwc : scalar
+            The window center z coordinate
+        
+        Returns
+        -------
+        WinStbd : TopoDS_Shape
+            The window surface cut out (starboard side)
+
+        WinPort : TopoDS_Shape
+            The window surface cut out (Port side)
+
         Notes
         -----
-        Makes both the port and starboard windows at the input location
+        Changes the contents of self['OML'].
+        Makes both the port and starboard windows at the input location.
         """
+        print("This function is in development and is not yet fully tested")
         WinCenter = [Xwc, Zwc]
         W_wire = self.WindowContour(WinCenter)
         
