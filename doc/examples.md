@@ -48,7 +48,7 @@ In this example, the transonic airliner geometry example from the Rhinoceros Air
 For examples using the *pythonocc-core* Qt viewer, refer to the *occ-airconics* [examples/core directory](https://github.com/p-chambers/occ_airconics/tree/master/examples/core)
 
 ```python
-import airconics
+from airconics import liftingsurface, engine, fuselage_oml
 import airconics.AirCONICStools as act
 from airconics.Addons.WebServer.TornadoWeb import TornadoWebRenderer
 from IPython.display import display
@@ -106,7 +106,7 @@ as opposed to the conventional \\(G(\bf{X})\\) formulation where the shape \\(G\
 
 > $$Airfoil (\epsilon)$$
 
-where \\(\epsilon\\) is a functional parameters ranging from 0 at the root of the wing to 1 at the tip. Output of the airfoil function uses the `airconics.primitives.Airfoil` class here, which fits a NURBS curve to airfoil coordinates.
+where \\(\epsilon\\) represents the spanwise coordinate ranging from 0 at the root of the wing to 1 at the tip. Output of the airfoil function uses the `airconics.primitives.Airfoil` class here, which fits a NURBS curve to airfoil coordinates.
 
 The following code demonstrates construction of a wing using built in examples for a transonic airliner wing and tailplane (below).
 
@@ -210,15 +210,14 @@ Fuselage shapes are created following the parameterisation used in Sobester [3].
 
 
 ```python
-from airconics.fuselage_oml import Fuselage
-
 NoseLengthRatio=0.182
 TailLengthRatio=0.293
 
-Fus = Fuselage(NoseLengthRatio, TailLengthRatio, Scaling=FuselageScaling,
-             NoseCoordinates=[0., 0., 0],
-             CylindricalMidSection=False,
-             Maxi_attempt=5)
+Fus = fuselage_oml.Fuselage(NoseLengthRatio, TailLengthRatio, 
+                            Scaling=FuselageScaling,
+                            NoseCoordinates=[0., 0., 0],
+                            CylindricalMidSection=False,
+                            Maxi_attempt=5)
 
 # Display
 renderer = TornadoWebRenderer()

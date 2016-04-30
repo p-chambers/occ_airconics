@@ -401,7 +401,6 @@ if not os.path.exists(path_interact):
 
 
 for file in os.listdir('interact'):
-  if file.endswith('.html') or file.endswith('.x3d'):
-    fpath = os.path.join('.', 'interact', file)
-    shutil.copy(fpath, path_interact)
+  fpath = os.path.join('.', 'interact', file)
+  shutil.copy(fpath, path_interact)
 
