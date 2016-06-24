@@ -29,9 +29,10 @@ class Engine(AirconicsShape):
 
     Parameters
     ----------            
-    Chord : OCC.Geom.Geom_TrimmedCurve
+    Chord : OCC.Geom.Handle_Geom_TrimmedCurve
         The chord line at which the engine will be fitted. The result of
-        OCC.GC.GC_MakeSegment       
+        OCC.GC.GC_MakeSegment.Value() (can be return from helper function 
+        CutSect from AirCONICStools).   
     
     CentreLocation : list, length 3 (default=[0,0,0])
         Location of the centre of the inlet highlight disk
@@ -51,7 +52,7 @@ class Engine(AirconicsShape):
             
     Notes
     -----
-    Also calls the initialiser of parent class AirconicsShape which stores all
+    * Also calls the initialiser of parent class AirconicsShape which stores all
     keywords as attributes 
     
     See also
@@ -59,7 +60,7 @@ class Engine(AirconicsShape):
     airconics.base.AirconicsShape, airconics.primitives.Airfoil
     """
     def __init__(self,
-                 Chord,
+                 HChord,
                  CentreLocation=[0, 0, 0],
                  ScarfAngle=3,
                  HighlightRadius=1.45,
@@ -67,7 +68,7 @@ class Engine(AirconicsShape):
 
 #        Add all kwargs as attributes
         super(Engine, self).__init__(components={},
-                                     Chord=Chord,
+                                     HChord=HChord,
                                      CentreLocation=CentreLocation,
                                      ScarfAngle=ScarfAngle,
                                      HighlightRadius=HighlightRadius,
@@ -97,13 +98,15 @@ class Engine(AirconicsShape):
         SectionNo = 100
 
 #         Draw the nacelle with centre of the intake highlight circle in 0,0,0
-        Highlight = act.make_circle3pt([0, 0, HighlightRadius],
+        HHighlight = act.make_circle3pt([0, 0, HighlightRadius],
                                        [0, -HighlightRadius, 0],
-                                       [0, 0, -HighlightRadius]).GetObject()
-        HighlightCutterCircle = \
+                                       [0, 0, -HighlightRadius])
+        Highlight = HHighlight.GetObject()
+        HHighlightCutterCircle = \
             act.make_circle3pt([0, 0, HighlightRadius*1.5],
                                [0, -HighlightRadius*1.5, 0],
-                               [0, 0, -HighlightRadius*1.5]).GetObject()
+                               [0, 0, -HighlightRadius*1.5])
+        HighlightCutterCircle = HHighlightCutterCircle.GetObject()
 #         Fan disk for CFD boundary conditions
         FanCircle = Handle_Geom_Circle.DownCast(
             Highlight.Translated(gp_Vec(MeanNacelleLength*0.25, 0, 0)))
@@ -132,8 +135,8 @@ class Engine(AirconicsShape):
         Spinner = act.AddCone(SpinnerConeBasePoint,  SpinnerConeRadius,
                               SpinnerConeHeight, direction=gp_Dir(-1, 0, 0))
         self.AddComponent(Spinner, 'Spinner')
-
-#         Tilt the intake
+#
+##         Tilt the intake
         RotAx = gp_OY()
         Highlight.Rotate(RotAx, np.radians(self.ScarfAngle))
 #        # Set up the disk for separating the intake lip later
@@ -178,15 +181,18 @@ class Engine(AirconicsShape):
 #        Move the engine into its actual place on the wing
         self.TranslateComponents(gp_Vec(*CentreLocation))
 
-#        Now build the pylon between the engine and the chord on the wing
+##        Now build the pylon between the engine and the chord on the wing
         CP1 = gp_Pnt(MeanNacelleLength*0.26+CentreLocation[0],
                      CentreLocation[1],
                      CentreLocation[2]+HighlightRadius*0.1)
         CP2 = gp_Pnt(MeanNacelleLength*0.4+CentreLocation[0],
                      CentreLocation[1],
                      HighlightRadius*1.45+CentreLocation[2])
-        CP3 = self.Chord.EndPoint()
-        CP4 = self.Chord.StartPoint()
+                     
+        # Get the chord from its handle
+        Chord = self.HChord.GetObject()
+        CP3 = Chord.EndPoint()
+        CP4 = Chord.StartPoint()
         self._pylonPts = [CP1, CP2, CP3, CP4]
 
 #        Pylon wireframe
@@ -211,7 +217,7 @@ class Engine(AirconicsShape):
         Pylon_symplane = act.make_face(act.make_wire(*edges))
         self.AddComponent(Pylon_symplane, 'Pylon_symplane')
 
-#        TODO: Pylon surface. Currently a flat plate at symmetry plane.
+#         TODO: Pylon surface. Currently a flat plate at symmetry plane.
 #        This should be done with a plate surface (similar to NetworkSrf in
 #        Rhino), but I haven't got this to work yet
 #         Method 1: Sweep - gives the wrong shape
@@ -228,11 +234,11 @@ class Engine(AirconicsShape):
 #        sections = [PylonAf.Curve, PylonTE]
 #        spine = act.make_wire(act.make_edge(PylonTop))
 #        self.PylonLeft = act.make_pipe_shell(spine, sections)
-
+#
 #         Move into place under the wing
 #        self._Translate(gp_Vec(0,-CentreLocation[1],0))
-
-#        TODO: Mirror the pylon half surface
+#
+##        TODO: Mirror the pylon half surface
 #        PylonRight = act.mirror(PylonLeft, plane='xz')
 #        PylonAfCurve = act.AddTEtoOpenAirfoil(PylonAfCurve)
 #        PylonAfSrf = rs.AddPlanarSrf(PylonAfCurve)
@@ -264,7 +270,8 @@ if __name__ == "__main__":
     EngineDia = 2.9
     NacelleLength = 1.95*EngineDia
 
-    EngineSection, Chord = act.CutSect(Wing['Surface'], SpanStation)
+    EngineSection, HChord = act.CutSect(Wing['Surface'], SpanStation)
+    Chord = HChord.GetObject()
     CEP = Chord.EndPoint()
     display.DisplayShape(Chord, update=True, color='black')
     # Variables controlling the position of the engine with respect to the wing
@@ -276,7 +283,7 @@ if __name__ == "__main__":
                  CEP.Z()-EngineCtrBelowLE*NacelleLength]
 
 #   Now build the engine and its pylon
-    eng1 = Engine(Chord,
+    eng1 = Engine(HChord,
                   CentreLocation=Centreloc,
                   ScarfAngle=Scarf_deg,
                   HighlightRadius=EngineDia/2.0,
@@ -284,11 +291,5 @@ if __name__ == "__main__":
 
 #    Display Engine Components:
     eng1.Display(display)
-
-#    Display pylon components:
-#    display.DisplayShape(eng1._PylonAf.Curve)
-#    display.DisplayShape(eng1._PylonTop)
-#    display.DisplayShape(eng1._PylonTE)
-#    display.DisplayShape(eng1.PylonLeft)
 
     start_display()

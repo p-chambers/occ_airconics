@@ -23,8 +23,9 @@ from airconics.base import AirconicsCollection
 
 @pytest.fixture
 def create_engine():
-    Chord = GC_MakeSegment(gp_Pnt(21.24886, 7.96639, 1.07678),
-                           gp_Pnt(12.32218, 7.96639, 1.07604)).Value().GetObject()
+    HChord = GC_MakeSegment(gp_Pnt(21.24886, 7.96639, 1.07678),
+                           gp_Pnt(12.32218, 7.96639, 1.07604)).Value()
+    Chord = HChord.GetObject()
 
     CEP = Chord.EndPoint()
     # Variables controlling the position of the engine with respect to the wing
@@ -40,7 +41,7 @@ def create_engine():
                  CEP.Z()-EngineCtrBelowLE*NacelleLength]
 
     #   Now build the engine and its pylon
-    eng1 = Engine(Chord,
+    eng1 = Engine(HChord,
                   CentreLocation=Centreloc,
                   ScarfAngle=Scarf_deg,
                   HighlightRadius=EngineDia/2.0,

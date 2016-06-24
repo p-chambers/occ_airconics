@@ -210,10 +210,9 @@ class Fuselage(AirconicsShape):
         self._LSPort = LSPort
 
 #        # Project the plan view onto the mean surface
-        PortCurveSimplified = \
-            act.project_curve_to_surface(PlanPortCurve, LSPort,
-                                         gp_Dir(0, 0, 100))
-
+        HPortCurve = act.project_curve_to_surface(PlanPortCurve, LSPort,
+                                                  gp_Dir(0, 0, 100))
+        PortCurve = HPortCurve.GetObject()
 #        # TODO: House-keeping
 #        DeleteObjects([LSPort,PlanPortCurve,ParallelLoftEdgePort,RuleLinePort,
 #                       AftLoftEdgePort])
@@ -245,13 +244,13 @@ class Fuselage(AirconicsShape):
         # Seems easiest to mirror portcurve with handles?
         h = Handle_Geom_BSplineCurve()
         mirror_ax2 = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0))
-        c = PortCurveSimplified.Copy()
+        c = PortCurve.Copy()
         c.GetObject().Mirror(mirror_ax2)
-        h2 = h.DownCast(c)
-        StarboardCurve = h2.GetObject()
+        HStarboardCurve = h.DownCast(c)
+#        StarboardCurve = hSt.GetObject()
 
         EndX = Xmax        # This is not correct: just trying to get it working
-        return (StarboardCurve, PortCurveSimplified, FSVUCurve, FSVLCurve,
+        return (HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve,
                 FSVMeanCurve, NoseEndX, TailStartX, EndX)
 
     def _BuildFuselageOML(self, Max_attempt):
@@ -269,10 +268,17 @@ class Fuselage(AirconicsShape):
                                        [25, 20, 15, 2, 20],
                                        [20, 20, 15, 2, 20],
                                        [15, 20, 15, 2, 20]])
-        StarboardCurve, PortCurve, FSVUCurve, FSVLCurve, FSVMeanCurve, \
+        HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve, FSVMeanCurve, \
             NoseEndX, TailStartX, EndX =                               \
             self._FuselageLongitudinalGuideCurves(self.NoseLengthRatio,
                                                   self.TailLengthRatio)
+        
+        # Returning the PortCurve and StarboardCurve as Geom_BSplineCurve
+        # makes kernel freeze in pythonocc 0.16.5, so needed to carry around a
+        # handle instead - very strange bug!
+        PortCurve = HPortCurve .GetObject()
+        StarboardCurve = HStarboardCurve.GetObject()
+        
         # Compute the stern point coordinates of the fuselage
         Pu = FSVUCurve.EndPoint()
         Pl = FSVLCurve.EndPoint()
@@ -321,7 +327,7 @@ class Fuselage(AirconicsShape):
                     IPoint3 = act.points_from_intersection(P, PortCurve)
                     IPoint4 = act.points_from_intersection(P, FSVLCurve)
                     IPoint1 = act.points_from_intersection(P, StarboardCurve)
-
+#
                     IPointCentre = act.points_from_intersection(P,
                                                                 FSVMeanCurve)
                 except RuntimeError:
