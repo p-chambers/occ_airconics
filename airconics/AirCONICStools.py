@@ -139,8 +139,12 @@ def ObjectsExtents(breps, tol=1e-6, as_vec=False):
     bbox = OCC.Bnd.Bnd_Box()
     bbox.SetGap(tol)
 
-    for shape in breps:
-        brepbndlib_Add(shape, bbox, True)
+    try:
+        for shape in breps:
+            brepbndlib_Add(shape, bbox, True)
+    except TypeError:
+        # Assume not iterable:
+        brepbndlib_Add(breps, bbox, True)
 
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
     if as_vec is False:
