@@ -189,12 +189,13 @@ def transonic_airliner(display=None,
    
     engines = []
     for i, SpanStation in enumerate(SpanStations):
-        EngineSection, Chord = act.CutSect(Wing['Surface'], SpanStation)
+        EngineSection, HChord = act.CutSect(Wing['Surface'], SpanStation)
+        Chord = HChord.GetObject()
         CEP = Chord.EndPoint()
         Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
                     CEP.Y(), 
                     CEP.Z()-EngineCtrBelowLE*NacelleLength]
-        eng =  engine.Engine(Chord,
+        eng =  engine.Engine(HChord,
                CentreLocation=Centreloc,
                ScarfAngle=Scarf_deg,
                HighlightRadius=EngineDia/2.0,

@@ -987,7 +987,7 @@ def project_curve_to_surface(curve, surface, dir):
     from OCC.BRepAdaptor import BRepAdaptor_CompCurve
     proj = BRepProj_Projection(wire, surface, dir)
     res_wire = proj.Current()
-    res_curve = BRepAdaptor_CompCurve(res_wire).BSpline().GetObject()
+    res_curve = BRepAdaptor_CompCurve(res_wire).BSpline()
     return res_curve
 
 
@@ -1144,8 +1144,9 @@ def CutSect(Shape, SpanStation):
     TrailingPoint = gp_Pnt(Xs[max_idx], DivPoints[max_idx].Y(),
                            DivPoints[max_idx].Z())
 
-    Chord = GC_MakeSegment(TrailingPoint, LeadingPoint).Value().GetObject()
-    return Section, Chord
+    HChord = GC_MakeSegment(TrailingPoint, LeadingPoint).Value()
+#    Chord = HChord.GetObject()
+    return Section, HChord
 
 
 def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):

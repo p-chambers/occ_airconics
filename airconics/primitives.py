@@ -324,8 +324,9 @@ class Airfoil(object):
 #            rs.FairCurve(self.Curve)
 
         # Can assume that the chord is from 0,0,0 to 1,0,0 before translation
-        ChordLine = GC_MakeSegment(gp_Pnt(0, 0, 0),
-                                   gp_Pnt(1, 0, 0)).Value().GetObject()
+        h_ChordLine = GC_MakeSegment(gp_Pnt(0, 0, 0),
+                                   gp_Pnt(1, 0, 0)).Value()
+        ChordLine = h_ChordLine.GetObject()
 
         Curve = self.Curve.GetObject()
 
