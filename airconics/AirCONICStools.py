@@ -499,12 +499,12 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
 
 def export_STEPFile(shapes, filename):
     """Exports a .stp file containing the input shapes
-    
+
     Parameters
     ----------
     shapes : list of TopoDS_Shape
         Shapes to write to file
-    
+
     filename : string
         The output filename
     """
@@ -977,7 +977,7 @@ def project_curve_to_surface(curve, surface, dir):
     res_curve : geom_curve (bspline only?)
     '''
     try:
-        edge = make_edge(curve.GetHandle())
+        edge = make_edge(curve)
     except:
 #        if converting to edge didn't work, assume curve is already an edge
         edge = curve
@@ -1030,63 +1030,63 @@ def points_from_intersection(plane, curve):
 
 
 # TODO: Network surface function needs fixing
-def Add_Network_Surface(curvenet, deg=3, initsurf=None):
-    '''Adds a surface from curve network using the OCC plate surface algorithm
+# def Add_Network_Surface(curvenet, deg=3, initsurf=None):
+#     '''Adds a surface from curve network using the OCC plate surface algorithm
     
-    This function is in development and currently raises an error 
+#     This function is in development and currently raises an error 
 
-    Parameters
-    ----------
-    curvenet : list of Handle_GeomCurve
+#     Parameters
+#     ----------
+#     curvenet : list of Handle_GeomCurve
 
-    Notes
-    -----
-    '''
-    raise NotImplementedError('This function is not yet safe for general use')
-#    fill = BRepFill_Filling(deg)
-#    for curve in curvenet:
-#        try:
-#            fill.Add(make_edge(curve), continuity)
-#        except TypeError:
-#            # If curve is given as object rather than handle
-#            fill.Add(make_edge(curve.GetHandle()), continuity)
-#    fill.Build()
-#    face = fill.Face()
-#    return face
-    print("This function is not tested and should not be used with certainty")
-    builder = GeomPlate_BuildPlateSurface(deg, 15, 5)
-    if initsurf is not None:
-        "Loading Initial Surface"
-        builder.LoadInitSurface()
-        "Initial Surface loaded"
+#     Notes
+#     -----
+#     '''
+#     raise NotImplementedError('This function is not yet safe for general use')
+# #    fill = BRepFill_Filling(deg)
+# #    for curve in curvenet:
+# #        try:
+# #            fill.Add(make_edge(curve), continuity)
+# #        except TypeError:
+# #            # If curve is given as object rather than handle
+# #            fill.Add(make_edge(curve.GetHandle()), continuity)
+# #    fill.Build()
+# #    face = fill.Face()
+# #    return face
+#     print("This function is not tested and should not be used with certainty")
+#     builder = GeomPlate_BuildPlateSurface(deg, 15, 5)
+#     if initsurf is not None:
+#         "Loading Initial Surface"
+#         builder.LoadInitSurface()
+#         "Initial Surface loaded"
 
-    for curve in curvenet:
-        print(type(curve))
-        adaptor = GeomAdaptor_Curve(curve)
-        Hadapter = GeomAdaptor_HCurve(adaptor)
-        constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
-        builder.Add(constr.GetHandle())
-        # first didnt work... attempt 2 :
-#        edge = make_edge(curve)
-#        C = BRepAdaptor_HCurve()
-#        C.ChangeCurve().Initialize(edge)
-#        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()
-#        builder.Add(Cont)
-#
-#    Try adding from wires instead.. attempt 3:
-#         exp =
+#     for curve in curvenet:
+#         print(type(curve))
+#         adaptor = GeomAdaptor_Curve(curve)
+#         Hadapter = GeomAdaptor_HCurve(adaptor)
+#         constr = GeomPlate_CurveConstraint(Hadapter.GetHandle(), 0)
+#         builder.Add(constr.GetHandle())
+#         # first didnt work... attempt 2 :
+# #        edge = make_edge(curve)
+# #        C = BRepAdaptor_HCurve()
+# #        C.ChangeCurve().Initialize(edge)
+# #        Cont = BRepFill_CurveConstraint(C.GetHandle(), 0).GetHandle()
+# #        builder.Add(Cont)
+# #
+# #    Try adding from wires instead.. attempt 3:
+# #         exp =
 
-    builder.Perform()
-    with assert_isdone(builder, 'Failed to create Plate Surface'):
-        # Approximate the surface into a bspline surface
-        surf = builder.Surface()
-        approx = GeomPlate_MakeApprox(surf, 0.001, 10, 8, 0.001, 0).Surface()
-        Umin, Umax, Vmin, Vmax = surf.GetObject().Bounds()
-        print(Umin, Umax, Vmin, Vmax)
-        print("about to make face:")
-        face = make_face(approx, 0.1)   # Umin, Umax, Vmin, Vmax, 0.1)
-        print("Face made")
-        return face
+#     builder.Perform()
+#     with assert_isdone(builder, 'Failed to create Plate Surface'):
+#         # Approximate the surface into a bspline surface
+#         surf = builder.Surface()
+#         approx = GeomPlate_MakeApprox(surf, 0.001, 10, 8, 0.001, 0).Surface()
+#         Umin, Umax, Vmin, Vmax = surf.GetObject().Bounds()
+#         print(Umin, Umax, Vmin, Vmax)
+#         print("about to make face:")
+#         face = make_face(approx, 0.1)   # Umin, Umax, Vmin, Vmax, 0.1)
+#         print("Face made")
+#         return face
 
 
 def CutSect(Shape, SpanStation):

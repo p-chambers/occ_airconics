@@ -18,55 +18,67 @@ from OCC.GC import GC_MakeSegment
 
 class Engine(AirconicsShape):
     """A class for generating aircraft engine and pylon geometries.
-    
+
     Currently only yields a turbofan engine with nacelle similar to that of an
     RR Trent 1000 / GEnx. Shapes produced include the nacelle, spinner cone,
     tail cone, Fan disk, Bypass disk, and pylon symmetry plane. The nacelle
     is produced by inclining an inlet disk by its scarf angle about the span-
     wise (y) axis and uniformly spacing airfoil 'ribs' before lofting a surface
-    through them. The pylon is currently the symetry plane of a fully pylon 
+    through them. The pylon is currently the symetry plane of a fully pylon
     only
 
     Parameters
-    ----------            
-    Chord : OCC.Geom.Handle_Geom_TrimmedCurve
+    ----------
+    HChord : OCC.Geom.Handle_Geom_TrimmedCurve
         The chord line at which the engine will be fitted. The result of
-        OCC.GC.GC_MakeSegment.Value() (can be return from helper function 
-        CutSect from AirCONICStools).   
-    
+        OCC.GC.GC_MakeSegment.Value() (can be return from helper function
+        CutSect from AirCONICStools).
+
     CentreLocation : list, length 3 (default=[0,0,0])
         Location of the centre of the inlet highlight disk
-        
+
     ScarfAngle : scalar, deg (default=3)
         angle of inclination of engine intake (rotated around y axis)
-    
+
     HighlightRadius : scalar (default=1.45)
         Intake highlight radius
-    
+
     MeanNacelleLength : scalar (default=5.67)
         Mean length of the nacelle, to be used as the airfoil rib chordlength
-    
+
     Attributes
     ----------
     _AirconicsShape__Components : dictionary of shapes
-            
+
     Notes
     -----
-    * Also calls the initialiser of parent class AirconicsShape which stores all
-    keywords as attributes 
-    
+    * Also calls the initialiser of parent class AirconicsShape which stores
+      all keywords as attributes
+
+
+    construct_geometry : bool
+        If true, geometry will be created on construction
+
     See also
     --------
     airconics.base.AirconicsShape, airconics.primitives.Airfoil
     """
+
     def __init__(self,
-                 HChord,
+                 HChord=0,
                  CentreLocation=[0, 0, 0],
                  ScarfAngle=3,
                  HighlightRadius=1.45,
-                 MeanNacelleLength=5.67):
+                 MeanNacelleLength=5.67,
+                 construct_geometry=True):
 
-#        Add all kwargs as attributes
+        if HChord == 0:
+            print("No HChord specified to fit engine to: creating default")
+            SP = gp_Pnt(MeanNacelleLength * 2.2, 0, HighlightRadius * 1.75)
+            EP = gp_Pnt(MeanNacelleLength * 0.5, 0, HighlightRadius * 1.75)
+            HChord = GC_MakeSegment(SP, EP).Value()
+
+        # Add all kwargs as attributes
         super(Engine, self).__init__(components={},
                                      HChord=HChord,
                                      CentreLocation=CentreLocation,
@@ -74,7 +86,10 @@ class Engine(AirconicsShape):
                                      HighlightRadius=HighlightRadius,
                                      MeanNacelleLength=MeanNacelleLength)
 
-        self.Build_Engine()
+        if construct_geometry:
+            self.Build_Engine()
+        else:
+            print("Skipping engine geometry construction")
 
     def Build_Engine(self):
         """Currently only calls BuildTurbofanNacelle.
@@ -89,6 +104,8 @@ class Engine(AirconicsShape):
     def BuildTurbofanNacelle(self):
         """
         The defaults yield a nacelle similar to that of an RR Trent 1000 / GEnx
+
+        #TODO: break this down into modular function calls
         """
         CentreLocation = self.CentreLocation
 
@@ -99,44 +116,45 @@ class Engine(AirconicsShape):
 
 #         Draw the nacelle with centre of the intake highlight circle in 0,0,0
         HHighlight = act.make_circle3pt([0, 0, HighlightRadius],
-                                       [0, -HighlightRadius, 0],
-                                       [0, 0, -HighlightRadius])
+                                        [0, -HighlightRadius, 0],
+                                        [0, 0, -HighlightRadius])
         Highlight = HHighlight.GetObject()
         HHighlightCutterCircle = \
-            act.make_circle3pt([0, 0, HighlightRadius*1.5],
-                               [0, -HighlightRadius*1.5, 0],
-                               [0, 0, -HighlightRadius*1.5])
+            act.make_circle3pt([0, 0, HighlightRadius * 1.5],
+                               [0, -HighlightRadius * 1.5, 0],
+                               [0, 0, -HighlightRadius * 1.5])
         HighlightCutterCircle = HHighlightCutterCircle.GetObject()
 #         Fan disk for CFD boundary conditions
         FanCircle = Handle_Geom_Circle.DownCast(
-            Highlight.Translated(gp_Vec(MeanNacelleLength*0.25, 0, 0)))
+            Highlight.Translated(gp_Vec(MeanNacelleLength * 0.25, 0, 0)))
         wire = act.make_wire(act.make_edge(FanCircle))
         FanDisk = act.make_face(wire)
         self.AddComponent(FanDisk, 'FanDisk')
 
 #         Aft outflow for CFD boundary conditions
         BypassCircle = Handle_Geom_Circle.DownCast(
-            Highlight.Translated(gp_Vec(MeanNacelleLength*0.85, 0, 0)))
+            Highlight.Translated(gp_Vec(MeanNacelleLength * 0.85, 0, 0)))
         wire = act.make_wire(act.make_edge(BypassCircle))
         BypassDisk = act.make_face(wire)
         self.AddComponent(BypassDisk, 'BypassDisk')
 
 #         Outflow cone
-        TailConeBasePoint = np.array([MeanNacelleLength*0.84, 0, 0])
-        TailConeHeight    = MeanNacelleLength * (1.35 - 0.84)
-        TailConeRadius    = HighlightRadius*0.782
+        TailConeBasePoint = np.array([MeanNacelleLength * 0.84, 0, 0])
+        TailConeHeight = MeanNacelleLength * (1.35 - 0.84)
+        TailConeRadius = HighlightRadius * 0.782
         TailCone = act.AddCone(TailConeBasePoint, TailConeRadius,
                                TailConeHeight)
         self.AddComponent(TailCone, 'TailCone')
+
 #         Spinner cone
-        SpinnerConeBasePoint = np.array([MeanNacelleLength*0.26, 0, 0])
-        SpinnerConeHeight    = MeanNacelleLength*(0.26-0.08)
-        SpinnerConeRadius    = MeanNacelleLength*0.09
-        Spinner = act.AddCone(SpinnerConeBasePoint,  SpinnerConeRadius,
+        SpinnerConeBasePoint = np.array([MeanNacelleLength * 0.26, 0, 0])
+        SpinnerConeHeight = MeanNacelleLength * (0.26 - 0.08)
+        SpinnerConeRadius = MeanNacelleLength * 0.09
+        Spinner = act.AddCone(SpinnerConeBasePoint, SpinnerConeRadius,
                               SpinnerConeHeight, direction=gp_Dir(-1, 0, 0))
         self.AddComponent(Spinner, 'Spinner')
 #
-##         Tilt the intake
+# Tilt the intake
         RotAx = gp_OY()
         Highlight.Rotate(RotAx, np.radians(self.ScarfAngle))
 #        # Set up the disk for separating the intake lip later
@@ -181,14 +199,14 @@ class Engine(AirconicsShape):
 #        Move the engine into its actual place on the wing
         self.TranslateComponents(gp_Vec(*CentreLocation))
 
-##        Now build the pylon between the engine and the chord on the wing
-        CP1 = gp_Pnt(MeanNacelleLength*0.26+CentreLocation[0],
+# Now build the pylon between the engine and the chord on the wing
+        CP1 = gp_Pnt(MeanNacelleLength * 0.26 + CentreLocation[0],
                      CentreLocation[1],
-                     CentreLocation[2]+HighlightRadius*0.1)
-        CP2 = gp_Pnt(MeanNacelleLength*0.4+CentreLocation[0],
+                     CentreLocation[2] + HighlightRadius * 0.1)
+        CP2 = gp_Pnt(MeanNacelleLength * 0.4 + CentreLocation[0],
                      CentreLocation[1],
-                     HighlightRadius*1.45+CentreLocation[2])
-                     
+                     HighlightRadius * 1.45 + CentreLocation[2])
+
         # Get the chord from its handle
         Chord = self.HChord.GetObject()
         CP3 = Chord.EndPoint()
@@ -201,8 +219,8 @@ class Engine(AirconicsShape):
                                          tangents=tangents)
         self._PylonTop = PylonTop
         PylonBase_LE = [CP1.X(), CP1.Y(), CP1.Z()]
-        PylonAf = primitives.Airfoil(PylonBase_LE, MeanNacelleLength*1.35, 90,
-                                     0, Naca4Profile='0012',
+        PylonAf = primitives.Airfoil(PylonBase_LE, MeanNacelleLength * 1.35,
+                                     90, 0, Naca4Profile='0012',
                                      EnforceSharpTE=False)
         self._PylonAf = PylonAf
         LowerTE = PylonAf.ChordLine.GetObject().EndPoint()
@@ -238,7 +256,7 @@ class Engine(AirconicsShape):
 #         Move into place under the wing
 #        self._Translate(gp_Vec(0,-CentreLocation[1],0))
 #
-##        TODO: Mirror the pylon half surface
+# TODO: Mirror the pylon half surface
 #        PylonRight = act.mirror(PylonLeft, plane='xz')
 #        PylonAfCurve = act.AddTEtoOpenAirfoil(PylonAfCurve)
 #        PylonAfSrf = rs.AddPlanarSrf(PylonAfCurve)
@@ -268,7 +286,7 @@ if __name__ == "__main__":
     Wing.Display(display)
     SpanStation = 0.3              # The engine is to be placed at 30% span
     EngineDia = 2.9
-    NacelleLength = 1.95*EngineDia
+    NacelleLength = 1.95 * EngineDia
 
     EngineSection, HChord = act.CutSect(Wing['Surface'], SpanStation)
     Chord = HChord.GetObject()
@@ -278,15 +296,15 @@ if __name__ == "__main__":
     EngineCtrFwdOfLE = 0.98
     EngineCtrBelowLE = 0.35
     Scarf_deg = 4
-    Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
+    Centreloc = [CEP.X() - EngineCtrFwdOfLE * NacelleLength,
                  CEP.Y(),
-                 CEP.Z()-EngineCtrBelowLE*NacelleLength]
+                 CEP.Z() - EngineCtrBelowLE * NacelleLength]
 
 #   Now build the engine and its pylon
     eng1 = Engine(HChord,
                   CentreLocation=Centreloc,
                   ScarfAngle=Scarf_deg,
-                  HighlightRadius=EngineDia/2.0,
+                  HighlightRadius=EngineDia / 2.0,
                   MeanNacelleLength=NacelleLength)
 
 #    Display Engine Components:

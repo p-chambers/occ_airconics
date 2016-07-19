@@ -53,6 +53,9 @@ class Fuselage(AirconicsShape):
     MaxFittingAtempts : integer
         Maximum number of times to attempt to fit surface to guide curves
 
+    construct_geometry : bool
+        If true, geometry will be created on construction
+
     Notes
     -----
     Geometry building is done on initialisation of a Fuselage instance.
@@ -65,7 +68,8 @@ class Fuselage(AirconicsShape):
                  NoseCoordinates=[0., 0., 0],
                  CylindricalMidSection=False,
                  SimplificationReqd=False,
-                 Maxi_attempt=5):
+                 Maxi_attempt=5,
+                 construct_geometry=True):
         super(Fuselage, self).__init__(NoseLengthRatio=NoseLengthRatio,
                                        TailLengthRatio=TailLengthRatio,
                                        Scaling=Scaling,
@@ -73,10 +77,14 @@ class Fuselage(AirconicsShape):
                                        CylindricalMidSection=CylindricalMidSection,
                                        SimplificationReqd=SimplificationReqd)
 
-        self._BuildFuselageOML(Maxi_attempt)
-        self._TransformOML()
+        if construct_geometry:
+          self.BuildFuselageOML(Maxi_attempt)
+          self.TransformOML()
+        else:
+          print("Skipping fuselage geometry construction")
 
-    def _AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
+
+    def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
         """Internal function. Defines the control
         polygons of the fuselage in side view"""
 
@@ -104,7 +112,7 @@ class Fuselage(AirconicsShape):
 
         return PlanPort, NoseEndX, TailStartX
 
-    def _AirlinerFuselageSideView(self, NoseLengthRatio, TailLengthRatio):
+    def AirlinerFuselageSideView(self, NoseLengthRatio, TailLengthRatio):
         """Internal function. Defines the control
         polygons of the fuselage in side view"""
         kN = NoseLengthRatio / 0.182
@@ -142,21 +150,21 @@ class Fuselage(AirconicsShape):
 
         return AFSVUpper, AFSVLower
 
-    def _FuselageLongitudinalGuideCurves(self, NoseLengthRatio,
+    def FuselageLongitudinalGuideCurves(self, NoseLengthRatio,
                                          TailLengthRatio):
         """Internal function. Defines the four longitudinal curves that outline
         the fuselage (outer mould line)."""
 
-        FSVU, FSVL = self._AirlinerFuselageSideView(NoseLengthRatio,
+        FSVU, FSVL = self.AirlinerFuselageSideView(NoseLengthRatio,
                                                     TailLengthRatio)
         FSVUCurve = act.points_to_BezierCurve(FSVU)
         FSVLCurve = act.points_to_BezierCurve(FSVL)
 
         AFPVPort, NoseEndX, TailStartX = \
-            self._AirlinerFuselagePlanView(NoseLengthRatio, TailLengthRatio)
+            self.AirlinerFuselagePlanView(NoseLengthRatio, TailLengthRatio)
 
         # Generate plan view
-        PlanPortCurve = act.points_to_BezierCurve(AFPVPort)
+        PlanPortCurve = act.points_to_BezierCurve(AFPVPort).GetHandle()
 
         # TODO: How wide is the fuselage (use bounding box)
         # Note: THIS DOESNT WORK AS OCC BOUNDING BOX ROUTINES INCLUDE CURVE
@@ -253,7 +261,7 @@ class Fuselage(AirconicsShape):
         return (HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve,
                 FSVMeanCurve, NoseEndX, TailStartX, EndX)
 
-    def _BuildFuselageOML(self, Max_attempt):
+    def BuildFuselageOML(self, Max_attempt=5):
         """Builds the Fuselage outer mould line
         Notes
         -----
@@ -270,7 +278,7 @@ class Fuselage(AirconicsShape):
                                        [15, 20, 15, 2, 20]])
         HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve, FSVMeanCurve, \
             NoseEndX, TailStartX, EndX =                               \
-            self._FuselageLongitudinalGuideCurves(self.NoseLengthRatio,
+            self.FuselageLongitudinalGuideCurves(self.NoseLengthRatio,
                                                   self.TailLengthRatio)
         
         # Returning the PortCurve and StarboardCurve as Geom_BSplineCurve
@@ -303,8 +311,8 @@ class Fuselage(AirconicsShape):
             Step01, Step12, Step23, Step34, Step45 = \
                 NetworkSrfSettings[i_attempt-1]
 
-            print("Attempting thrusections surface fit with network density\
-                setup ", NetworkSrfSettings[i_attempt][:])
+            print("""Attempting thrusections surface fit with network density
+                setup """, NetworkSrfSettings[i_attempt][:])
             Stations01 = np.linspace(SX0, SX1, max([Step01, 2]))
             Stations12 = np.linspace(SX1, SX2, max([Step12, 2]))
             Stations23 = np.linspace(SX2, SX3, max([Step23, 2]))
@@ -388,10 +396,10 @@ class Fuselage(AirconicsShape):
 #         If all attempts at fitting a network surface failed, we attempt a
 #            Pipe Shell:
         if OMLSurf is None:
-            print("Failed to fit network surface to the external shape of the\
-                fuselage")
-            print("Attempting alternative fitting method,\
-                quality likely to be low...")
+            print("""Failed to fit network surface to the external shape of the
+                fuselage""")
+            print("""Attempting alternative fitting method, quality likely to
+                be low...""")
 
             try:
                 OMLSurf = act.make_pipe_shell(C)
@@ -418,7 +426,7 @@ class Fuselage(AirconicsShape):
         # Shouldnt get here
         return None
 
-    def _TransformOML(self):
+    def TransformOML(self):
         """Use parameters defined in self to scale and translate the fuselage
         """
         ScalingF = [0, 0, 0]
@@ -440,24 +448,25 @@ class Fuselage(AirconicsShape):
 #        SternPoint[2] = SternPoint[2]+NoseCoordinates[2]
 
 
-    def CockpitWindowContours(self, Height = 1.620, Depth = 5):
+    def CockpitWindowContours(self, Height=1.620, Depth=5):
         """
         This function is currently not tested
         """
-        print("This function is in development, and its output is untested")
-        P1 = [0.000,0.076,Height-1.620+2.194]
-        P2 = [0.000,0.852,Height-1.620+2.290]
-        P3 = [0.000,0.904,Height+0.037]
-        P4 = [0.000,0.076,Height]
+        raise NotImplementedError(
+            "This function is in development, and its output is untested")
+        P1 = [0.000, 0.076, Height - 1.620 + 2.194]
+        P2 = [0.000, 0.852, Height - 1.620 + 2.290]
+        P3 = [0.000, 0.904, Height + 0.037]
+        P4 = [0.000, 0.076, Height]
         edge1 = act.make_edge(gp_Pnt(*P1), gp_Pnt(*P2))
         edge2 = act.make_edge(gp_Pnt(*P2), gp_Pnt(*P3))
         edge3 = act.make_edge(gp_Pnt(*P3), gp_Pnt(*P4))
         edge4 = act.make_edge(gp_Pnt(*P4), gp_Pnt(*P1))
-        
+
         wire = act.make_wire([edge1, edge2, edge3, edge4])
-        
+
         face_inner = act.make_face(wire)   #The inner cockpit window
-        
+
         filleted_face = act.FilletFaceCorners(face_inner, 0.08)
         
 #        exp = TopExp_Explorer
@@ -502,6 +511,8 @@ class Fuselage(AirconicsShape):
         W_wire : TopoDS_Wire
             The wire of the B-spline contour
         """
+        raise NotImplementedError(
+            "This function is in development, and its output is untested")
         P1 = gp_Pnt(WinCenter[0], 0, WinCenter[1] + 0.468/2.)
         P2 = gp_Pnt(WinCenter[0] + 0.272/2., 0, WinCenter[1])
         P3 = gp_Pnt(WinCenter[0], 0, WinCenter[1] - 0.468/2.)
@@ -549,7 +560,8 @@ class Fuselage(AirconicsShape):
         Changes the contents of self['OML'].
         Makes both the port and starboard windows at the input location.
         """
-        print("This function is in development and is not yet fully tested")
+        raise NotImplementedError(
+            "This function is in development, and its output is untested")
         WinCenter = [Xwc, Zwc]
         W_wire = self.WindowContour(WinCenter)
         
