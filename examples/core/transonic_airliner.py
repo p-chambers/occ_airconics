@@ -428,11 +428,11 @@ if __name__ == "__main__":
 #    A few examples, instances of this parametric aircraft geometry:
 
 #    '787-8'
-#    Airliner = transonic_airliner(display)
+    # Airliner = transonic_airliner(display)
 
 #    '787-9'
-#    Airliner = transonic_airliner(display,
-#                                  FuselageScaling=[61.9, 55.902, 55.902])
+    # Airliner = transonic_airliner(display,
+    #                              FuselageScaling=[61.9, 55.902, 55.902])
 
 #    'A380'
     Airliner = transonic_airliner(display, Propulsion=2,

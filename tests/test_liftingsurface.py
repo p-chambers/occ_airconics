@@ -34,7 +34,7 @@ def test_GenerateLeadingEdge():
                              myChordFunctionAirliner,
                              myAirfoilFunctionAirliner, SegmentNo=NSeg)
 
-    LEPoints = Wing._GenerateLeadingEdge()
+    LEPoints = Wing.GenerateLeadingEdge()
     # Test First and final point first (easier to debug)
     assert(np.all(np.abs(LEPoints[1] - LEPoints_ref[1]) < 1e-3))
     assert(np.all(np.abs(LEPoints[-1] - LEPoints_ref[-1]) < 1e-3))

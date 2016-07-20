@@ -111,7 +111,8 @@ class LiftingSurface(AirconicsShape):
                  SegmentNo=11,
                  TipRequired=False,
                  max_degree=8,
-                 continuity=GeomAbs_C2
+                 continuity=GeomAbs_C2,
+                 create_geometry=True
                  ):
 #        Initialise the components using base class:
         super(LiftingSurface, self).__init__(components={},
@@ -127,15 +128,17 @@ class LiftingSurface(AirconicsShape):
                                          LooseSurf=LooseSurf,
                                          SegmentNo=SegmentNo,
                                          TipRequired=TipRequired,
-                                         _max_degree=max_degree,
-                                         _Cont=continuity)
+                                         max_degree=max_degree,
+                                         Cont=continuity,
+                                         create_geometry=create_geometry)
 
 
-#        self._CreateConstructionGeometry()
+#        self.CreateConstructionGeometry()
 
+    def Build(self):
         self.GenerateLiftingSurface(self.ChordFactor, self.ScaleFactor)
 
-    def _GenerateLeadingEdge(self):
+    def GenerateLeadingEdge(self):
         """Epsilon coordinate attached to leading edge defines sweep
          Returns airfoil leading edge points
          """
@@ -176,7 +179,7 @@ class LiftingSurface(AirconicsShape):
 
         return LEPoints
 
-    def _BuildLS(self, ChordFactor, ScaleFactor):
+    def BuildLS(self, ChordFactor, ScaleFactor):
         """Generates a tentative lifting surface, given the general,
         nondimensional parameters of the object (variations of chord length,
         dihedral, etc.) and the two scaling factors.
@@ -207,7 +210,7 @@ class LiftingSurface(AirconicsShape):
         WingTip : TopoDS face or shape
             TODO: currently not calculated, None is returned
         """
-        LEPoints = self._GenerateLeadingEdge()
+        LEPoints = self.GenerateLeadingEdge()
 
         Sections = []
         # TODO: These lists are used for when the curve has been smoothed or
@@ -216,25 +219,25 @@ class LiftingSurface(AirconicsShape):
 #        TEPoints_u = []
 #        TEPoints_l = []
 
-        Eps = np.linspace(0, 1, self.SegmentNo+1)
+        Eps = np.linspace(0, 1, self.SegmentNo + 1)
         Sections = [self.AirfoilFunct(Eps[i], LEPoints[i], self.ChordFunct,
                                       ChordFactor, self.DihedralFunct,
                                       self.TwistFunct).Curve
-                    for i in xrange(self.SegmentNo+1)]
+                    for i in xrange(self.SegmentNo + 1)]
 
         self._Sections = Sections   # I used from debugging - remove it?
 
-        # TODO: Implement chord projection and Curve start/end points 
+        # TODO: Implement chord projection and Curve start/end points
         # to rescale smoothed curves and for secondary loft methods
 
         LS = act.AddSurfaceLoft(Sections,
-                                max_degree=self._max_degree,
-                                continuity=self._Cont)
+                                max_degree=self.max_degree,
+                                continuity=self.Cont)
 
         if LS is None:
             pass
 ###############################################################################
-            # TODO: backup surface loft is not yet implemented for OCC 
+            # TODO: backup surface loft is not yet implemented for OCC
             # Version of Airconics (this is legacy from the Rhino plugin)
 
 #            Failed to fit loft surface. Try another fitting algorithm
@@ -396,7 +399,7 @@ class LiftingSurface(AirconicsShape):
 #                                                       % (x0[0], x0[1]))
 
         LS, ActualSemiSpan, LSP_area, AR, WingTip = \
-            self._BuildLS(*x0)
+            self.BuildLS(*x0)
             
 #        Update instance components:
         self.AddComponent(LS, 'Surface')
@@ -408,7 +411,7 @@ class LiftingSurface(AirconicsShape):
         return None
 
 # TODO: CreateConstructionGeometry from rhino plugin needs migrating to OCC? 
-#    def _CreateConstructionGeometry(self):
+#    def CreateConstructionGeometry(self):
 #        self.PCG1 = rs.AddPoint([-100,-100,0])
 #        self.PCG2 = rs.AddPoint([-100,100,0])
 #        self.PCG3 = rs.AddPoint([100,100,0])

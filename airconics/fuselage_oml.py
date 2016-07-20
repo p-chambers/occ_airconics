@@ -70,19 +70,25 @@ class Fuselage(AirconicsShape):
                  SimplificationReqd=False,
                  Maxi_attempt=5,
                  construct_geometry=True):
+
+        # Keywords args passed to super's init are added as attributes, except
+        # construct geometry
         super(Fuselage, self).__init__(NoseLengthRatio=NoseLengthRatio,
                                        TailLengthRatio=TailLengthRatio,
                                        Scaling=Scaling,
                                        NoseCoordinates=NoseCoordinates,
                                        CylindricalMidSection=CylindricalMidSection,
-                                       SimplificationReqd=SimplificationReqd)
+                                       SimplificationReqd=SimplificationReqd,
+                                       Max_attempt=Maxi_attempt,
+                                       construct_geometry=construct_geometry)
 
-        if construct_geometry:
-          self.BuildFuselageOML(Maxi_attempt)
-          self.TransformOML()
-        else:
-          print("Skipping fuselage geometry construction")
+    def Build(self):
+        """Overrides the AirconicsShape empty Build method.
 
+        Calls BuildFuselageOML, which has been maintained for older versions.
+        """
+        self.BuildFuselageOML(self.Max_attempt)
+        self.TransformOML()
 
     def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
         """Internal function. Defines the control

@@ -48,7 +48,7 @@ class Engine(AirconicsShape):
 
     Attributes
     ----------
-    _AirconicsShape__Components : dictionary of shapes
+    _Components : dictionary of shapes
 
     Notes
     -----
@@ -80,18 +80,14 @@ class Engine(AirconicsShape):
 
         # Add all kwargs as attributes
         super(Engine, self).__init__(components={},
+                                     construct_geometry=construct_geometry,
                                      HChord=HChord,
                                      CentreLocation=CentreLocation,
                                      ScarfAngle=ScarfAngle,
                                      HighlightRadius=HighlightRadius,
                                      MeanNacelleLength=MeanNacelleLength)
 
-        if construct_geometry:
-            self.Build_Engine()
-        else:
-            print("Skipping engine geometry construction")
-
-    def Build_Engine(self):
+    def Build(self):
         """Currently only calls BuildTurbofanNacelle.
 
         Notes

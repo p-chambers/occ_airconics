@@ -104,7 +104,7 @@ class AirconicsShape(AirconicsBase):
 
     Attributes
     ----------
-    __Components : Airconics Container
+    _Components : Airconics Container
         Mapping of name(string):component(TopoDS_Shape) pairs. Note that
         this should not be interacted with directly, and instead users should
         use assignment or the AddComponent method:
@@ -117,8 +117,8 @@ class AirconicsShape(AirconicsBase):
         This also supports mapping of attributes to parts, i.e:
             
         :Example:
-            >>> a['name'] == a.__Components.name   # returns True
-        
+            >>> a['name'] == a._Components.name   # returns True
+
 
     Notes
     -----
@@ -130,9 +130,10 @@ class AirconicsShape(AirconicsBase):
     AirconicsCollection
     """
 
-    def __init__(self, components={}, *args, **kwargs):
+    def __init__(self, components={}, construct_geometry=True,
+                 *args, **kwargs):
         # Set the components dictionary (default empty)
-        self.__Components = AirconicsContainer()
+        self._Components = AirconicsContainer()
 
         for name, component in components.items():
             self.__setitem__(name, component)
@@ -141,36 +142,57 @@ class AirconicsShape(AirconicsBase):
         for key, value in kwargs.items():
             self.__setattr__(key, value)
 
+        if construct_geometry:
+            print("Attempting to construct {} geometry...".format(
+                type(self).__name__))
+            self.Build()
+        else:
+            print("Skipping geometry construction for {}".format(
+                type(self).__name__))
+
     def __getitem__(self, name):
-        return self.__Components[name]
+        return self._Components[name]
 
     def __setitem__(self, name, component):
         if component is not None:
             if not isinstance(component, TopoDS_Shape):
                     raise TypeError('Component must be a TopoDS_Shape or None')
-        self.__Components[name] = component
+        self._Components[name] = component
 
     def __delitem__(self, name):
-        del self.__Components[name]
+        del self._Components[name]
 
     def __iter__(self):
-        return iter(self.__Components)
+        return iter(self._Components)
 
     def __len__(self):
-        return len(self.__Components)
-    
+        return len(self._Components)
+
     def __str__(self):
-        """Overloads print output to display the names of components in 
+        """Overloads print output to display the names of components in
         the object instance"""
-        output = str(self.keys()) 
+        output = str(self.keys())
         return output
-        
+
+    def Build(self):
+        """Does nothing for AirconicsShape.
+
+        This method allows AirconicsShape to be instantiated alone, as Build
+        is called in the __init__. 'Build' Should be redefined by all derived
+        classes
+
+        Notes
+        -----
+        * If Class.Build is not redefined in a derived class, confusion may
+        arise as no geometry will result from passing construct_geometry=True
+        """
+        print("Using empty AirconicsShape.Build method: does nothing.")
 
     def AddComponent(self, component, name=None):
         """Adds a component to self
-        
+
         Parameters
-        ----------        
+        ----------
         component : TopoDS_Shape
 
         name : string
@@ -207,7 +229,7 @@ class AirconicsShape(AirconicsBase):
             self[name] = act.translate_topods_from_vector(component, vec)
 
     def RotateComponents(self, ax, deg):
-        """Rotation of each component in self.__Components around ax by
+        """Rotation of each component in self._Components around ax by
         angle deg
 
         Parameters
