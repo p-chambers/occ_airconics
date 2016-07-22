@@ -18,6 +18,7 @@ from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
 from OCC.TopoDS import TopoDS_Shape
 from OCC.StlAPI import StlAPI_Writer
 from OCC.AIS import AIS_Shape
+from OCC.gp import gp_Pnt
 
 
 class AirconicsBase(MutableMapping, object):
@@ -56,10 +57,10 @@ class AirconicsContainer(MutableMapping):
     """
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-    
+
     def __setitem__(self, name, component):
         self.__dict__[name] = component
-    
+
     def __getitem__(self, name):
         return self.__dict__[name]
 
@@ -68,14 +69,12 @@ class AirconicsContainer(MutableMapping):
 
     def __iter__(self):
         return iter(self.__dict__)
-    
+
     def __len__(self):
         return len(self.__dict__)
 
     __getattr__ = __getitem__
     __setattr__ = __setitem__
-    
-    
 
 
 class AirconicsShape(AirconicsBase):
@@ -85,7 +84,7 @@ class AirconicsShape(AirconicsBase):
     consists of a group of logically shape 'components' but with no relative
     or relational contact information: class methods are intended to manipulate
     the part as a whole.
-    
+
     This is intended as a base class, but can be used as a simple amorphic
     collection of shape components.
 
@@ -98,6 +97,9 @@ class AirconicsShape(AirconicsBase):
     ----------
     components : dictionary of components to be added as attributes
         To add attributes directly. Values must be OCC.TopoDS.TopoDS_Shape
+
+    construct_geometry : bool
+        If true, geometry will be created on construction
 
     **kwargs : All other keyword arguments will be added as an attribute
         to the resulting class calling super(subclass, self).__init__
@@ -242,6 +244,21 @@ class AirconicsShape(AirconicsBase):
         """
         for name, component in self.items():
             self[name] = act.rotate(component, ax, deg)
+
+    def ScaleComponents_Uniformal(self, scaling, origin=gp_Pnt(0, 0, 0), ):
+        """General scaling and translation of components in self
+        (applies act.transform_nonuniformal)
+        
+        Parameters
+        ----------
+        origin : gp_Pnt
+            The origin of the scaling operation
+
+        scaling : list or array, length 3
+            [x, y, z] scaling factors
+        """
+        for name, component in self.items():
+            self[name] = act.scale_uniformal(component, origin, factor)
 
     def TransformComponents_Nonuniformal(self, scaling, vec):
         """General scaling and translation of components in self
@@ -395,7 +412,7 @@ class AirconicsCollection(AirconicsBase):
     
     Attributes
     ----------
-    __Parts : Airconics Container
+    _Parts : Airconics Container
         Mapping of name(string):component(AirconicsShape) pairs. Note that
         this should not be interacted with directly, and instead users should
         use assignment or the AddPart method:
@@ -408,7 +425,7 @@ class AirconicsCollection(AirconicsBase):
         This also supports mapping of attributes to parts, i.e:
             
         :Example:
-            >>> a['name'] == a.__Parts.name   # returns True
+            >>> a['name'] == a._Parts.name   # returns True
 
     Notes
     -----
@@ -422,7 +439,7 @@ class AirconicsCollection(AirconicsBase):
 
     def __init__(self, parts={}, *args, **kwargs):
         # Set the components dictionary (default empty)
-        self.__Parts = AirconicsContainer()
+        self._Parts = AirconicsContainer()
         for name, part in parts.items():
             self.__setitem__(name, part)
 
@@ -431,26 +448,26 @@ class AirconicsCollection(AirconicsBase):
             self.__setattr__(key, value)
 
     def __getitem__(self, name):
-        return self.__Parts[name]
+        return self._Parts[name]
 
     def __setitem__(self, name, part):
         """Note no error checks done here: users responsible for content
         of this class"""
-        self.__Parts[name] = part
+        self._Parts[name] = part
 
     def __delitem__(self, name):
-        del self.__Parts[name]
+        del self._Parts[name]
 
     def __iter__(self):
-        return iter(self.__Parts)
+        return iter(self._Parts)
 
     def __len__(self):
-        return len(self.__Parts)
+        return len(self._Parts)
     
     def __str__(self):
         """Overloads print output to display the names of components in 
         the object instance"""
-        output = str(self.keys())   # Note self.keys are self.__Parts.keys
+        output = str(self.keys())   # Note self.keys are self._Parts.keys
         return output        
 
     def Write(self, filename, single_export=True):
@@ -528,7 +545,14 @@ class AirconicsCollection(AirconicsBase):
             The material for display: note some renderers do not allow this
         """
         for name, component in self.items():
-            component.Display(context, material, color)
+            try:
+                component.Display(context, material, color)
+            except AttributeError:
+                # We are probably dealing with a core pythonocc shape:
+                context.DisplayShape(component)
+            except:
+                print("Could not display shape type {}: skipping".format(
+                    type(component)))
 
     def AddPart(self, part, name=None):
         """Adds a component to self

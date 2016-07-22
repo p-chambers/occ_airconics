@@ -11,61 +11,69 @@ from .base import AirconicsCollection
 from airconics.liftingsurface import LiftingSurface
 from airconics.fuselage_oml import Fuselage
 from airconics.engine import Engine
-import copy
-import numpy as np
+from OCC.gp import gp_Ax2
+# import copy
+# import numpy as np
+
 
 # This dictionary will be used for topology tree formatting
 FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              'L': LiftingSurface,   # L = Lifting Surface
-             'P': Engine}           # P = Propulsion
+             'P': Engine,           # P = Propulsion
+             '|': gp_Ax2}           # M = Mirror Plane
 
 # Reversed dictionary for manually adding shapes, i.e. converting
-#  a class instance to a string 
+#  a class instance to a string
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
 
-#The shapes of nodes in the exported graph from Topo class:
+# The shapes of nodes in the exported graph from Topo class:
 SHAPES = {'E': 'ellipse',
           'L': 'box',
-          'P': 'hexagon'}
+          'P': 'hexagon',
+          '|': ''}                  # NB: M does not have a node shape
+
 
 class TreeNode(object):
     def __init__(self, part, name, affinity):
         """Basic type to define node elements in the topology tree. To be used
         by Topology class.
+
         Parameters
         ----------
         part - Airconics type Fuselage, LiftingSurface or Engine
-            The type to convert 
-        
+            The type to convert
+
         name - string
             The name of the part (e.g. 'Wing' or 'Fin')
-        
+
         affinity - int
-            the number of descendant                
-        
+            the number of descendant
+
         Attributes
         ----------
         affty - int
-            Affinity (number of descendants) of this node
-            
+            Affinity (number of descendants) of this node.
+
         name - string
             Name of the part
-            
+
         func - string
             Indicates the type of node i.e.
         """
-        self.affty = affinity
         self.name = name
+        self.affty = affinity
+
         if type(part) not in FUNCTIONS.values():
             raise TypeError("Not a recognised part type: {}. Should be {}"
                 .format(type(part), FUNCTIONS.values()))
         else:
             func_str = FUNCTIONS_INV[type(part)]
-        self.func = FUNCTIONS_INV[type(part)]
-        
+        self.func = func_str
+
         def __str__(self):
             output = (self.name, self.func, self.affty)
             return output
+
 
 class Topology(AirconicsCollection):
     def __init__(self, parts={}):
@@ -94,7 +102,7 @@ class Topology(AirconicsCollection):
         Notes
         -----
         - warning will be raised if no affinities are provided
-        
+
         example:
             # (Wing is an airconics Lifting Surface instace):
             aircraft = Topology(parts={'Wing': (Wing['Surface'], 2)})
@@ -104,10 +112,10 @@ class Topology(AirconicsCollection):
         topological tree suggested by Sobester [1]. It is the users
         responsibility to ensure the input nodes are a valid lisp tree for a
         correct graph to result (no checks are currently performed)
-        
-        
+
+
         See Also: AirconicsCollection
-        
+
         References
         ----------
         [1] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
@@ -116,65 +124,66 @@ class Topology(AirconicsCollection):
             jan 2014.
         """
         self._Tree = []
+        # Start with an empty parts list, as all parts will be added using
+        # the for loop of self[name] = XXX below (__setitem__ calls the base)
+        # AirconicsCollection __setitem__, which adds part to self._Parts)
+        super(Topology, self).__init__(parts={})
 
         for name, part_w_affinity in parts.items():
-            
-            try:
-                part, affinity = part_w_affinity
-            except:
-                print("Warning: no affinity set. Treating as zero")
-                part = part_w_affinity
-                affinity = 0
+            self[name] = part_w_affinity
 
-            node = TreeNode(part, name, affinity)
-            self._Tree.append(node)            
-
-        # This stores the (name: part) into the self using base class init
-        super(Topology, self).__init__(parts=parts)
-        
     def __setitem__(self, name, part_w_affinity):
         """Overloads the assignment operator used by AirconicsCollection
         to allow only tuples as inputs - Affinity must be specified for
         topology.
-        
+
         Parameters
         ----------
         name - string
         part_w_affinity - tuple
             (Airconics class, int), eg:
-                (Fuselage, 2) is a Fuselage shape with 2 descendents in 
+                (Fuselage, 2) is a Fuselage shape with 2 descendents in
                 its topological tree
-        
+
         Notes
         -----
-        appends to the self.Tree and self._OrderedParts attributes 
+        appends to the self.Tree and self._OrderedParts attributes
         """
         try:
             part, affinity = part_w_affinity
         except:
             print("Warning: no affinity set. Treating as zero")
             part = part_w_affinity
-            affinity = 0            
+            affinity = 0
 
         node = TreeNode(part, name, affinity)
+
         self._Tree.append(node)
         super(Topology, self).__setitem__(name, part)
 
     def __str__(self):
         """Overloads the base classes string representation to resemble
         the Aircrafts flattened tree topology resembling a LISP tree.
+
+        Currently only set up to allow a single mirror terminal
+
         Notes
         -----
         This follows a similar format to GPLearn program representation
-        
+
         See also: self.__init__ notes
         """
         terminals = [0]
         output = ''
-        
+
         for i, node in enumerate(self._Tree):
 #            If node has a non zero affinity, there is some nested printing
 #            required, otherwise node is a terminal:
+            if node.func == '|':
+                # Mirror lines are a special case: simply put a line an skip
+                # to next iteration
+                output += '|'
+                continue
             if node.affty > 0:
                 terminals.append(node.affty)
                 output += node.func + '('
@@ -203,6 +212,8 @@ class Topology(AirconicsCollection):
     def export_graphviz(self):
         """Returns a string, Graphviz script for visualizing the program.
 
+        Currently only set up to allow a single mirror terminal
+
         Returns
         -------
         oupput : string
@@ -222,32 +233,58 @@ class Topology(AirconicsCollection):
         class methods.
         """
         terminals = []
-        output = "digraph program {\nnode [style=filled]"
+        # Assume the geometry is not mirrored at first
+        mirror_flag = False
+        output = """digraph program {
+        splines=ortho;
+        ranksep="0.1";
+        node [style=filled]
+        edge [arrowhead=none];
+
+        # Start the primary cluster (assume only one mirror exists, leading
+        # to two clusters)
+        subgraph cluster_0 {
+            color=invis;
+        """
         for i, node in enumerate(self._Tree):
-            fill = "#136ed4"
-            if node.affty > 0:
-                terminals.append([node.affty, i])
-                output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
-                           % (i, node.name, fill, SHAPES[node.func]))
+            if node.func == '|':
+                # Mirror node branch
+                output += '}\n'     # Close the primary cluster
+                output += 'subgraph cluster_1{\nstyle=dashed\n'
+                mirror_flag = True
+
             else:
-                output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
-                           % (i, node.name, fill, SHAPES[node.func]))
-                if i == 0:
-                    # A degenerative program of only one node
-                    return output + "}"
-                terminals[-1][0] -= 1
-                terminals[-1].append(i)
-                while terminals[-1][0] == 0:
-                    output += '%d -> %d ;\n' % (terminals[-1][1],
-                                                terminals[-1][-1])
-                    terminals[-1].pop()
-                    if len(terminals[-1]) == 2:
-                        parent = terminals[-1][-1]
-                        terminals.pop()
-                        if len(terminals) == 0:
-                            return output + "}"
-                        terminals[-1].append(parent)
-                        terminals[-1][0] -= 1
+                # All other functions, e.g., Enclosure, LiftingSurface,
+                # Propulsion
+                fill = "#136ed4"
+                if node.affty > 0:
+                    terminals.append([node.affty, i])
+                    output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
+                               % (i, node.name, fill, SHAPES[node.func]))
+                    # Add a point below to allow orthogonal branching in graphs
+                    output += ('p%d [shape=point, color=none];\n' %(i))
+                    output += ('%d -> p%d;\n' %(i, i))
+                else:
+                    output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
+                               % (i, node.name, fill, SHAPES[node.func]))
+                    if i == 0:
+                        # A degenerative program of only one node
+                        return output + "}"
+                    terminals[-1][0] -= 1
+                    terminals[-1].append(i)
+                    while terminals[-1][0] == 0:
+                        output += 'p%d -> %d ;\n' % (terminals[-1][1],
+                                                     terminals[-1][-1])
+                        terminals[-1].pop()
+                        if len(terminals[-1]) == 2:
+                            parent = terminals[-1][-1]
+                            terminals.pop()
+                            if len(terminals) == 0:
+                                # close current cluster and end digraph
+                                return output + "}\n}"
+
+                            terminals[-1].append(parent)
+                            terminals[-1][0] -= 1
 
         # We should never get here
         return None

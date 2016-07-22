@@ -7,6 +7,7 @@ Created on Thu Jan 14 15:10:50 2016
 import numpy as np
 import airconics.liftingsurface as ls
 from airconics.examples.wing_example_transonic_airliner import *
+import pytest
 
 
 def test_GenerateLeadingEdge():
@@ -41,3 +42,8 @@ def test_GenerateLeadingEdge():
 
     # Now check that the entire array is less than 3 dp. out:
     assert(np.all(np.abs(LEPoints-LEPoints_ref) < 1e-3))
+
+
+@pytest.mark.xfail
+def test_liftingSurface_ChordScaleOptimizer():
+    raise NotImplementedError
