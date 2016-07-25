@@ -27,35 +27,42 @@ class LiftingSurface(AirconicsShape):
     Parameters
     ----------
     ApexPoint - array, length 3
-        Foremost point of the wing (x direction).
+        Foremost point of the wing (x direction). Updating will rebuild the
+        geometry.
 
     SweepFunct - function
         function defining the leading edge sweep vs epsilon spanwise
         variable coordinate between 0 and 1 (curvilinear attached
-        coordinates)
+        coordinates). Updating will rebuild the geometry.
 
     DihedralFunct - function
         function defining the leading edge dihedral vs epsilon spanwise
-        variable coordinate between 0 and 1 (curvilinear attached)
+        variable coordinate between 0 and 1 (curvilinear attached).
+        Updating will rebuild the geometry.
 
     TwistFunc - function
         function defining the sectional twist vs epsilon spanwise
-        variable coordinate between 0 and 1 (curvilinear attached)
+        variable coordinate between 0 and 1 (curvilinear attached).
+        Updating will rebuild the geometry.
 
     ChordFunct - function
         function defining the leading edge chord vs epsilon spanwise
         variable coordinate between 0 and 1 (curvilinear attached)
+        Updating will rebuild the geometry.
 
     AirfoilFunct - function
         function defining the sectional Airfoil (see primitives.Airfoil)
         vs epsilon spanwise variable coordinate between 0 and 1
-        (curvilinear attached)
+        (curvilinear attached).
+        Updating will rebuild the geometry.
 
     ChordFactor - int (default = 1)
-        Scaling factor applied in chordwise direction
+        Scaling factor applied in chordwise direction. Updating will rebuild
+        the geometry.
 
     ScaleFactor - int (default = 1)
-        Scaling factor applied in all directions (uniform)
+        Scaling factor applied in all directions (uniform). Updating will
+        rebuild the geometry.
 
     OptimizeChordScale - int or bool (default = 0)
         TODO: Not yet used.
@@ -64,7 +71,8 @@ class LiftingSurface(AirconicsShape):
         TODO:
 
     NSegments - int (default = 11)
-        Number of segments to sample the wing defined by input functions
+        Number of segments to sample the wing defined by input functions.
+        Updating will rebuild the geometry.
 
     TipRequired - bool (default = False)
         TODO: Not yet used
@@ -77,19 +85,26 @@ class LiftingSurface(AirconicsShape):
         the order of continuity i.e. C^0, C^1, C^2... would be
         GeomAbs_C0, GeomAbs_C1, GeomAbs_C2 ...
 
-
+    construct_geometry : bool
+        If true, Build method will be called on construction
 
     Attributes
     ----------
     self['Surface'] : TopoDS_Shape
         The generated lifting surface
 
+    Sections : list of OCC Handle_GeomBSplineCurve objects
+        The rib curves from which the main surface is lofted. Updating any of
+        the spanwise functions (ChordFunct, TwistFunct, etc...), SpanFactor,
+        ChordFactor Raises an
+        error if attempting to write over it manually.
+
+    RootChord : Scalar
+        The length of the Root Chord. Updated by GenerateLiftingSurface
+
+
     Notes
     -----
-    * It is expected that users will create shapes mostly on initialisation
-      of a LiftingSurface instance. GenerateLiftingSurface is therefore not
-      expected to be called directly.
-
     * Output surface is stored in self['Surface']
     *
     * See airconics.examples.wing_example_transonic_airliner for
@@ -97,7 +112,8 @@ class LiftingSurface(AirconicsShape):
 
     See also
     --------
-    airconics.primitives.Airfoil
+    airconics.primitives.Airfoil,
+    airconics.examples.wing_example_transonic_airliner
 
     """
     def __init__(self, ApexPoint=gp_Pnt(0, 0, 0),
@@ -131,7 +147,8 @@ class LiftingSurface(AirconicsShape):
                                          _AirfoilFunct=AirfoilFunct,
                                          _ChordFactor=ChordFactor,
                                          _ScaleFactor=ScaleFactor,
-                                         _Sections = [],
+                                         _Sections=[],
+                                         RootChord=None,
                                          OptimizeChordScale=OptimizeChordScale,
                                          LooseSurf=LooseSurf,
                                          _NSegments=SegmentNo,
@@ -166,7 +183,7 @@ class LiftingSurface(AirconicsShape):
         self._SweepFunct = newSweepFunct
         # Only rebuild if Build was previously successful (if some components
         # have been created in self)
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     # Dihedral
@@ -178,7 +195,7 @@ class LiftingSurface(AirconicsShape):
     def DihedralFunct(self, newDihedralFunct):
         # Maybe add some tests here
         self._DihedralFunct = newDihedralFunct
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     # Twist
@@ -190,7 +207,7 @@ class LiftingSurface(AirconicsShape):
     def TwistFunct(self, newTwistFunct):
         # Maybe add some tests here
         self._TwistFunct = newTwistFunct
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     # Chord
@@ -202,7 +219,7 @@ class LiftingSurface(AirconicsShape):
     def ChordFunct(self, newChordFunct):
         # Maybe add some tests here
         self._ChordFunct = newChordFunct
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     # Airfoil
@@ -214,7 +231,7 @@ class LiftingSurface(AirconicsShape):
     def AirfoilFunct(self, newAirfoilFunct):
         # Maybe add some tests here
         self._AirfoilFunct = newAirfoilFunct
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     @property
@@ -224,7 +241,7 @@ class LiftingSurface(AirconicsShape):
     @NSegments.setter
     def NSegments(self, newNSegments):
         self._NSegments = newNSegments
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     @property
@@ -235,7 +252,7 @@ class LiftingSurface(AirconicsShape):
     def ChordFactor(self, newChordFactor):
         self._ChordFactor = newChordFactor
         # Note: may eventually try to scale rather than rebuild here for speed
-        if len(self) > 0:
+        if self.construct_geometry:
             self.Build()
 
     @property
@@ -247,6 +264,12 @@ class LiftingSurface(AirconicsShape):
         self._ScaleFactor = newScaleFactor
         # No need to rebuild surface here, just scale w.r.t Apex
         self.ScaleComponents_Uniformal(self._ScaleFactor, self.ApexPoint)
+
+    @property
+    def Sections(self):
+        # Note: there is no setter for this, as it should not be directly
+        # interacted with
+        return self._Sections
     # ----------------------------------------------------------------------
 
     def Build(self):
@@ -273,10 +296,19 @@ class LiftingSurface(AirconicsShape):
         --------
         airconics.examples.wing_example_transonic_airliner
         """
-        self.GenerateSectionCurves()
-        assert(len(self._Sections) > 1), \
-            'Cannot create a loft with {} sections'.format(self._Sections)
+        super(LiftingSurface, self).Build()
+        assert(self.SweepFunct), 'No sweep function defined : '
+        assert(self.ChordFunct), 'No Chord function defined : '
+        assert(self.AirfoilFunct), 'No Airfoil function defined : '
+        assert(self.TwistFunct), 'No Twist function defined : '
+        assert(self.DihedralFunct), 'No Dihedral function defined : '
 
+        # The first time all functions are successfully defined, change the
+        # build flag to true so that further changes to these functions will
+        # rebuild geometry via the setter property functions
+        self.construct_geometry = True
+
+        self.GenerateSectionCurves()
         self.GenerateLiftingSurface()
 
     def GenerateLeadingEdge(self):
@@ -471,13 +503,15 @@ class LiftingSurface(AirconicsShape):
 
         # Scaling (w.r.t. origin)
         if self.ScaleFactor != 1:
-            LS = self.ScaleComponents_Uniformal(LS, self.ScaleFactor)
+            self.ScaleComponents_Uniformal(self.ScaleFactor)
 
         # TODO: Calculate key features
         # ActualSemiSpan = ActualSemiSpan * ScaleFactor
         # LSP_area = LSP_area * ScaleFactor ** 2.0
         RootChord = (self.ChordFunct(0) * self.ChordFactor) * self.ScaleFactor
         # AR = ((2.0 * ActualSemiSpan) ** 2.0) / (2 * LSP_area)
+
+        self.RootChord = RootChord
 
         # Position the Components at the apex:
         vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)

@@ -46,6 +46,9 @@ class Engine(AirconicsShape):
     MeanNacelleLength : scalar (default=5.67)
         Mean length of the nacelle, to be used as the airfoil rib chordlength
 
+    construct_geometry : bool
+        If true, Build method will be called on construction
+
     Attributes
     ----------
     _Components : dictionary of shapes
@@ -54,10 +57,6 @@ class Engine(AirconicsShape):
     -----
     * Also calls the initialiser of parent class AirconicsShape which stores
       all keywords as attributes
-
-
-    construct_geometry : bool
-        If true, geometry will be created on construction
 
     See also
     --------
@@ -94,6 +93,7 @@ class Engine(AirconicsShape):
         -----
         May add options for other engine types
         """
+        super(Engine, self).Build()
         self.BuildTurbofanNacelle()
         return None
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 #    Generate a wing first to attach the engine to
     P = (0, 0, 0)
 
-    SegmentNo = 10
+    NSegments = 10
     ChordFactor = 1
     ScaleFactor = 44.56
     Wing = LiftingSurface(P, wingex.mySweepAngleFunctionAirliner,
@@ -275,7 +275,7 @@ if __name__ == "__main__":
                           wingex.myTwistFunctionAirliner,
                           wingex.myChordFunctionAirliner,
                           wingex.myAirfoilFunctionAirliner,
-                          SegmentNo=SegmentNo,
+                          NSegments=NSegments,
                           ChordFactor=ChordFactor,
                           ScaleFactor=ScaleFactor)
 

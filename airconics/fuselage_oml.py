@@ -54,7 +54,7 @@ class Fuselage(AirconicsShape):
         Maximum number of times to attempt to fit surface to guide curves
 
     construct_geometry : bool
-        If true, geometry will be created on construction
+        If true, Build method will be called on construction
 
     Notes
     -----
@@ -87,6 +87,7 @@ class Fuselage(AirconicsShape):
 
         Calls BuildFuselageOML, which has been maintained for older versions.
         """
+        super(Fuselage, self).Build()
         self.BuildFuselageOML(self.Max_attempt)
         self.TransformOML()
 

@@ -70,13 +70,13 @@ class TreeNode(object):
             func_str = FUNCTIONS_INV[type(part)]
         self.func = func_str
 
-        def __str__(self):
-            output = (self.name, self.func, self.affty)
-            return output
+    def __str__(self):
+        output = '({}, {}, {})'.format(self.name, self.func, self.affty)
+        return output
 
 
 class Topology(AirconicsCollection):
-    def __init__(self, parts={}):
+    def __init__(self, parts={}, construct_geometry=False):
         """Class to define abstract aircraft topologies as extensible lists
         of lifting surfaces, enclosure, and propulsion type objects. 
         
@@ -106,7 +106,7 @@ class Topology(AirconicsCollection):
         example:
             # (Wing is an airconics Lifting Surface instace):
             aircraft = Topology(parts={'Wing': (Wing['Surface'], 2)})
-        
+
         Although not enforced, parts should be added to this class recursively
         (from the top node first) to represent the aircraft's flattened
         topological tree suggested by Sobester [1]. It is the users
@@ -127,7 +127,8 @@ class Topology(AirconicsCollection):
         # Start with an empty parts list, as all parts will be added using
         # the for loop of self[name] = XXX below (__setitem__ calls the base)
         # AirconicsCollection __setitem__, which adds part to self._Parts)
-        super(Topology, self).__init__(parts={})
+        super(Topology, self).__init__(parts={},
+                                       construct_geometry=construct_geometry)
 
         for name, part_w_affinity in parts.items():
             self[name] = part_w_affinity
@@ -208,17 +209,45 @@ class Topology(AirconicsCollection):
 #            if affty > 0:
 #                n_level += 1
 #        return depth
-        
+
+    def Build(self):
+        """Recursively builds all sub components in the current topology tree
+        if self.construct_geometry is true. Will also mirror components
+        if a mirror node has been added, regardless of if construct_geometry
+        is true.
+
+        Uses the the Build method of all sub components. Any user defined
+        classes must therefore define the Build method in order for this to
+        work correctly.
+        """
+        if self.construct_geometry:
+            print("Building all geometries from Topology object")
+            for name, part in self.items():
+                part.Build()
+
+        # Mirror the geometry where required
+        mirror_plane = False
+        for node in self._Tree:
+            if mirror_plane:
+                print(type(mirror_plane))
+                mirrored = self[node.name].MirrorComponents(axe2=mirror_plane)
+                # Store the mirrored part, without adding it to self._Tree:
+                name_str = node.name + '_mirror'
+                super(Topology, self).__setitem__(name_str, mirrored)
+            if node.func == '|':
+                'Mirroring around plane {}'.format(node.name)
+                mirror_plane = self[node.name]
+
     def export_graphviz(self):
-        """Returns a string, Graphviz script for visualizing the program.
+        """Returns a string, Graphviz script for visualizing the topology tree.
 
         Currently only set up to allow a single mirror terminal
 
         Returns
         -------
-        oupput : string
+        output : string
             The Graphviz script to plot the tree representation of the program.
-            
+
         Notes
         -----
         This function is originally from GPLearns _Program class, but has been
