@@ -137,6 +137,13 @@ class LiftingSurface(AirconicsShape):
             ApexPoint = gp_Pnt(*ApexPoint)
         except:
             pass
+
+        if not (SweepFunct or DihedralFunct or TwistFunct or ChordFunct or
+                AirfoilFunct):
+            print("Lifting Surface functional parameters not defined:")
+            print("Initialising without geometry construction")
+            construct_geometry = False
+
 #        Initialise the components using base class:
         super(LiftingSurface, self).__init__(components={},
                                          _ApexPoint=ApexPoint,
@@ -297,11 +304,11 @@ class LiftingSurface(AirconicsShape):
         airconics.examples.wing_example_transonic_airliner
         """
         super(LiftingSurface, self).Build()
-        assert(self.SweepFunct), 'No sweep function defined : '
-        assert(self.ChordFunct), 'No Chord function defined : '
-        assert(self.AirfoilFunct), 'No Airfoil function defined : '
-        assert(self.TwistFunct), 'No Twist function defined : '
-        assert(self.DihedralFunct), 'No Dihedral function defined : '
+        assert(self.SweepFunct), 'No sweep function defined'
+        assert(self.ChordFunct), 'No Chord function defined'
+        assert(self.AirfoilFunct), 'No Airfoil function defined'
+        assert(self.TwistFunct), 'No Twist function defined'
+        assert(self.DihedralFunct), 'No Dihedral function defined'
 
         # The first time all functions are successfully defined, change the
         # build flag to true so that further changes to these functions will
@@ -330,6 +337,15 @@ class LiftingSurface(AirconicsShape):
         Tilt_array = self.DihedralFunct(Epsilon_midpoints)
         Sweep_array = self.SweepFunct(Epsilon_midpoints)
 
+        # If length of Tilt array and epsilon midpoints does not match, then
+        # the input function is not numpy compatible: use a for loop instead
+        if np.shape(Tilt_array) != Epsilon_midpoints.shape:
+            Tilt_array = np.zeros_like(Epsilon_midpoints)
+            Sweep_array = np.zeros_like(Epsilon_midpoints)
+            for i, eps_mid in enumerate(Epsilon_midpoints):
+                Tilt_array[i] = self.DihedralFunct(eps_mid)
+                Sweep_array[i] = self.SweepFunct(eps_mid)
+
         DeltaXs = SegmentLength * np.sin(Sweep_array * (np.pi / 180.))
         DeltaYs = SegmentLength * np.cos(Tilt_array * np.pi / 180.) * \
             np.cos(Sweep_array * np.pi / 180.)
@@ -354,11 +370,15 @@ class LiftingSurface(AirconicsShape):
         return LEPoints
 
     def GenerateSectionCurves(self):
-        """Generates and stores the loft sections based on the current state
-        of the object.
+        """Generates the loft section curves  based on the current
+        functional parameters and ChordFactor of the object. 
 
         Uses self._AirfoilFunct, _ChordFunct etc. and other attributes to
-        update the contents of self._Sections
+        update the content of self._Sections.
+
+        Returns
+        -------
+        None
         """
         # Empty the current geometry
         self._Sections = []
@@ -375,11 +395,12 @@ class LiftingSurface(AirconicsShape):
 
         for i, eps in enumerate(Eps):
             self._Sections.append(self.AirfoilFunct(eps,
-                                                     LEPoints[i],
-                                                     self.ChordFunct,
-                                                     self.ChordFactor,
-                                                     self.DihedralFunct,
-                                                     self.TwistFunct).Curve)
+                                                    LEPoints[i],
+                                                    self.ChordFunct,
+                                                    self.ChordFactor,
+                                                    self.DihedralFunct,
+                                                    self.TwistFunct).Curve)
+
 
     def ChordScaleOptimizer(self):
         """

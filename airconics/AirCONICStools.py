@@ -716,13 +716,13 @@ def translate_topods_from_vector(brep_or_iterable, vec, copy=False):
     Function Originally from pythonocc-utils, modified to work on objects
 
     translates a brep over a vector
-    
+
     Parameters
     ----------
     brep : the Topo_DS to translate
-    
+
     vec : the vector defining the translation
-    
+
     copy : copies to brep if True
     '''
     trns = gp_Trsf()

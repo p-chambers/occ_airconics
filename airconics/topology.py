@@ -225,7 +225,15 @@ class Topology(AirconicsCollection):
             for name, part in self.items():
                 part.Build()
 
-        # Mirror the geometry where required
+        self.MirrorSubtree()
+
+
+    def MirrorSubtree(self):
+        """Mirrors the geometry where required, based on the current topology
+        tree.
+
+        Does nothing is no mirror plane has been added
+        """
         mirror_plane = False
         for node in self._Tree:
             if mirror_plane:

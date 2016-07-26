@@ -550,10 +550,10 @@ class Fuselage(AirconicsShape):
         ----------
         Xwc : scalar
             The window center x coordinate
-        
+
         Zwc : scalar
             The window center z coordinate
-        
+
         Returns
         -------
         WinStbd : TopoDS_Shape
@@ -571,18 +571,18 @@ class Fuselage(AirconicsShape):
             "This function is in development, and its output is untested")
         WinCenter = [Xwc, Zwc]
         W_wire = self.WindowContour(WinCenter)
-        
-        ExtPathStbd = gp_Dir(gp_Vec(gp_Pnt(0,0,0), gp_Pnt(0,10,0)))
-        ExtPathPort = gp_Dir(gp_Vec(0,-10,0))
-        
+
+        ExtPathStbd = gp_Dir(gp_Vec(gp_Pnt(0, 0, 0), gp_Pnt(0, 10, 0)))
+        ExtPathPort = gp_Dir(gp_Vec(0, -10, 0))
+
         self['OML'], WinStbd = act.SplitShapeFromProjection(self['OML'], W_wire,
             direction=ExtPathStbd)
-        
+
         self['OML'], WinPort = act.SplitShapeFromProjection(self['OML'], W_wire,
             direction=ExtPathPort)
-        
+
         return WinStbd, WinPort
-    
+
 #    def MakeCockpitWindows(self, Height = 1.620, Depth = 5):
 #        CW
 ###############################################################################
