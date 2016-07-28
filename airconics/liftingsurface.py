@@ -15,10 +15,72 @@ Created on Fri Dec 18 15:52:58 2015
 """
 import numpy as np
 from airconics.base import AirconicsShape
+from airconics.primitives import Airfoil
 import AirCONICStools as act
 
 from OCC.gp import gp_Pnt, gp_Vec
 from OCC.GeomAbs import GeomAbs_C2
+
+
+def airfoilfunct(ProfileFunct):
+    """Decorator function : creates and returns a functional parameter
+    AirfoilFunct(epsilon), where epsilon is the spanwise coordinate, given the
+    input profile function
+
+    Parameters
+    ----------
+    ProfileFunct : function
+        This function should return a dictionary of KEYWORD: VALUE pairs,
+        for all keywords required to define to the airfoil profile at
+        spanwise location epsilon, e.g.,
+
+        >>> def my_simple_profilfunct(eps):
+        >>>     return {'NACA4Profile': '0012'}
+
+    Returns
+    -------
+    AirfoilFunct : function
+        A wrapper to the input ProfileFunct. Takes in Epsilon, LEPoint,
+        ChordFunct, ChordFactor, DihedralFunct, TwistFunct as inputs, and
+        passes all arguments (and information about the profile from
+        ProfileFunct), to the airconics.Airfoil class.
+        - Returns the generated airfoil.
+
+    Notes
+    -----
+    Example:
+
+    >>> @airfoilfunct
+    >>> def my_AirfoilFunct(eps)
+    >>>     return {'NACA4Profile': '0012'}
+    >>> Wing = LiftingSurface((0,0,0), mySweepFunct,
+                              myDihedralFunct,
+                              myTwistFunct,
+                              myChordFunct,
+                              my_AirfoilFunct,
+                              )
+
+    Where mySweepFunct has been previously defined.
+
+    See Also
+    --------
+    airconics.primitives.Airfoil,
+    core examples liftingsurface_airfoilfunct_decorator
+    """
+    def AirfoilFunct(Epsilon, LEPoint, ChordFunct, ChordFactor,
+                     DihedralFunct, TwistFunct):
+        # Wraps ProfileFunct
+        Profile_Dict = ProfileFunct(Epsilon)
+
+        AfChord = ((ChordFactor * ChordFunct(Epsilon)) /
+                   np.cos(np.radians(TwistFunct(Epsilon))))
+
+        Af = Airfoil(LEPoint, ChordLength=AfChord,
+                     Rotation=DihedralFunct(Epsilon),
+                     Twist=TwistFunct(Epsilon),
+                     **Profile_Dict)
+        return Af
+    return AirfoilFunct
 
 
 class LiftingSurface(AirconicsShape):
@@ -116,6 +178,7 @@ class LiftingSurface(AirconicsShape):
     airconics.examples.wing_example_transonic_airliner
 
     """
+
     def __init__(self, ApexPoint=gp_Pnt(0, 0, 0),
                  SweepFunct=False,
                  DihedralFunct=False,
@@ -146,23 +209,23 @@ class LiftingSurface(AirconicsShape):
 
 #        Initialise the components using base class:
         super(LiftingSurface, self).__init__(components={},
-                                         _ApexPoint=ApexPoint,
-                                         _SweepFunct=SweepFunct,
-                                         _DihedralFunct=DihedralFunct,
-                                         _TwistFunct=TwistFunct,
-                                         _ChordFunct=ChordFunct,
-                                         _AirfoilFunct=AirfoilFunct,
-                                         _ChordFactor=ChordFactor,
-                                         _ScaleFactor=ScaleFactor,
-                                         _Sections=[],
-                                         RootChord=None,
-                                         OptimizeChordScale=OptimizeChordScale,
-                                         LooseSurf=LooseSurf,
-                                         _NSegments=SegmentNo,
-                                         TipRequired=TipRequired,
-                                         max_degree=max_degree,
-                                         Cont=continuity,
-                                         construct_geometry=construct_geometry)
+                                             _ApexPoint=ApexPoint,
+                                             _SweepFunct=SweepFunct,
+                                             _DihedralFunct=DihedralFunct,
+                                             _TwistFunct=TwistFunct,
+                                             _ChordFunct=ChordFunct,
+                                             _AirfoilFunct=AirfoilFunct,
+                                             _ChordFactor=ChordFactor,
+                                             _ScaleFactor=ScaleFactor,
+                                             _Sections=[],
+                                             RootChord=None,
+                                             OptimizeChordScale=OptimizeChordScale,
+                                             LooseSurf=LooseSurf,
+                                             _NSegments=SegmentNo,
+                                             TipRequired=TipRequired,
+                                             max_degree=max_degree,
+                                             Cont=continuity,
+                                             construct_geometry=construct_geometry)
 
 #        self.CreateConstructionGeometry()
 
@@ -279,6 +342,35 @@ class LiftingSurface(AirconicsShape):
         return self._Sections
     # ----------------------------------------------------------------------
 
+    # def SetAirfoilFunct_from_list(self, Profile_list):
+    #     """Creates and returns a functional parameter AirfoilFunct(epsilon),
+    #     where epsilon is the spanwise coordinate, given the input list of
+    #     [(AirfoilProfileType, AirfoilProfile, Epsilon), (...), ....]
+
+    #     Parameters
+    #     ----------
+    #     Profile_list - list of tuples
+    #         Each tuple in Profile_list should be of the form:
+    #             >>> (AirfoilProfileType, AirfoilProfile, Epsilon)
+    #         where AirfoilProfileType is one of the defined Profiles in
+    #         airconics.primitives.Airfoil, e.g., 'Naca4Profile', 'SeligProfile',
+    #         AirfoilProfile is the selected Profile of that type, and Epsilon is
+    #         the spanwise coordinate (0 at root, 1 at tip) at which that airfoil
+    #         exists.
+
+    #     Notes
+    #     -----
+    #     Example:
+
+    #     >>> af = Airfoil()
+    #     >>> af.SetAirfoilFunct_from_list()
+
+    #     See Also
+    #     --------
+    #     airconics.primitives.Airfoil
+    #     """
+    #     for profile in Profile_list:
+
     def Build(self):
         """Builds the section curves and lifting surface using the current
 
@@ -394,13 +486,12 @@ class LiftingSurface(AirconicsShape):
         Eps = np.linspace(0, 1, self.NSegments + 1)
 
         for i, eps in enumerate(Eps):
-            self._Sections.append(self.AirfoilFunct(eps,
-                                                    LEPoints[i],
-                                                    self.ChordFunct,
-                                                    self.ChordFactor,
-                                                    self.DihedralFunct,
-                                                    self.TwistFunct).Curve)
-
+                self._Sections.append(self.AirfoilFunct(eps,
+                                                        LEPoints[i],
+                                                        self.ChordFunct,
+                                                        self.ChordFactor,
+                                                        self.DihedralFunct,
+                                                        self.TwistFunct).Curve)
 
     def ChordScaleOptimizer(self):
         """
@@ -514,7 +605,6 @@ class LiftingSurface(AirconicsShape):
         #            ActualSemiSpan = BB[2].Y - BB[0].Y
         #        else:
         #            ActualSemiSpan = 0.0
-
 
         if self.TipRequired:
             # TODO: retrieve wing tip

@@ -15,6 +15,8 @@ from pkg_resources import resource_string, resource_exists
 import numpy as np
 
 
+# Classes
+# -----------------------------------------------------------------------------
 class Airfoil(object):
     """Class for defining a range of spline-fitted airfoil curves
 
@@ -52,26 +54,55 @@ class Airfoil(object):
         CRM_Epsilon : float
             Spanwise fraction between 0 and 1 to interpolate profile from CRM
 
+        InterpProfile : bool
+            If True, a set of points between Af1 and Af2 will be interpolated
+            for BSpline curve fitting (see AddInterp2)
+
+        Eps : scalar
+            Spanwise coordinate between Eps1 and Eps2 (used if InterpProfile is
+            True)
+
+        Af1 : airconics.Airfoil
+            The Airfoil located at spanwise location Eps1. Af1.x and Af1.z.
+            (used if InterpProfile is True)
+
+        Af2 : airconics.Airfoil
+            The Airfoil located at spanwise location Eps2.
+            (used if InterpProfile is True)
+
+        Eps1 : scalar
+            Spanwise coordinate location of Airfoil Af1. Expected to range from
+            0 (root of a lifting surface) to 1 (tip of a lifting surface)
+            (used if InterpProfile is True)
+
+        Eps2 : scalar
+            Spanwise coordinate location of Airfoil Af2. Expected to range from
+            0 (root of a lifting surface) to 1 (tip of a lifting surface), and
+            also expected to be greater than Eps1
+            (used if InterpProfile is True)
+
         EnforceSharpTE : bool
             Enforces sharp trailing edge (NACA airfoils only)
-            
+
         Attributes
         ----------
-        Curve - OCC.Geom.Handle_Geom_BsplineCurve 
+        points : array of scalar, shape (N, 2)
+            The x-z coordinates of points on the airfoils surface
+
+        Curve - OCC.Geom.Handle_Geom_BsplineCurve
             The generated airfoil spline
 
         Notes
         -----
         * NACA5 profiles are not yet supported in OCC_AirCONICS.
-        
+
         * Preference is that users allow the class constructor to handle
           building the Airfoil i.e. pass all physical definitions as class
           arguments.
-        
+
         * Although the physical attributes can changed i.e. rotation, twist,
           ChordLength, LeadingEdgePoint etc., it is the users responsibility
           to rebuild the Airfoil with the 'Add***Airfoil' afterwards
-        
         """
     def __init__(self,
                  LeadingEdgePoint=[0., 0., 0.],
@@ -83,84 +114,96 @@ class Airfoil(object):
                  Naca5Profile=None,
                  CRMProfile=None,
                  CRM_Epsilon=0.,
+                 InterpProfile=None,
+                 Epsilon=0, Af1=None, Af2=None, Eps1=0, Eps2=1,
                  EnforceSharpTE=False):
-        
+
         if CRM_Epsilon:
             CRMProfile = True
         Profiles = [SeligProfile, Naca4Profile, Naca5Profile, CRMProfile]
 
         assert(sum([1 for prof in Profiles if prof]) < 2),\
             "Ambiguous airfoil: More than one profile has been specified"
-        
+
         self.LE = LeadingEdgePoint
         self.ChordLength = ChordLength
         self.Rotation = Rotation
         self.Twist = Twist
         self._EnforceSharpTE = EnforceSharpTE
-        self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile,
-                           CRMProfile, CRM_Epsilon)
 
+        # Initialise the x and z airfoil surface points as None
+        self._points = None
+
+        self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile,
+                           CRMProfile, CRM_Epsilon,
+                           InterpProfile, Epsilon, Af1, Af2, Eps1, Eps2)
+
+    @property
+    def points(self):
+        return self._points
+
+    @points.setter
+    def points(self, newpoints):
+        # Updating this value recalls the _fitAirfoiltoPoints function. Does
+        # not transform the airfoil
+        self._points = newpoints
+        self._fitAirfoiltoPoints()
 
     def _make_airfoil(self, SeligProfile, Naca4Profile, Naca5Profile,
-                      CRMProfile, CRM_Epsilon):
+                      CRMProfile, CRM_Epsilon,
+                      InterpProfile, Epsilon, Af1, Af2, Eps1, Eps2):
         """Selects airfoil 'add' function based on Profile specified """
-        if SeligProfile is not None:
+        if SeligProfile:
             self.AddAirfoilFromSeligFile(SeligProfile)
-        elif Naca4Profile is not None:
+        elif Naca4Profile:
             self.AddNACA4(Naca4Profile)
-        elif Naca5Profile is not None:
-            raise NotImplementedError("This class is not yet\
-                implemented for Naca 5 digit profiles")
+        elif Naca5Profile:
+            raise NotImplementedError("""This class is not yet
+                implemented for Naca 5 digit profiles""")
         elif CRMProfile:
             self.AddCRMLinear(CRM_Epsilon)
+        elif InterpProfile:
+            self.AddLinear2(Epsilon, Af1, Af2, Eps1, Eps2)
         else:
             # 'Empty' Profile
             print("No Profile specified: Creating 'empty' Airfoil")
             self.Curve = None
             self.Profile = None
 
-    def _fitAirfoiltoPoints(self, x, z):
-        """ Fits an OCC curve to airfoil x, z points
+    def _fitAirfoiltoPoints(self):
+        """ Fits an OCC curve to current airfoil.points.
 
-        Parameters
-        ----------
-        x : array
-            airfoil curve x points
+        airfoil.points should be N by 2, the array of x, z points on the
+        airfoil's surface.
 
-        z : array
-            airfoil curve z points
-            
         Returns
         -------
-        spline_2d : OCC.Geom.Geom_BSplineCurve
+        Curve : OCC.Geom.Geom_BSplineCurve
             the generated spline
         """
-        N = len(x)
-        y = [0. for i in xrange(N)]
-        pnts = np.vstack([x, y, z]).T
-        Curve = act.points_to_bspline(pnts)
-        # Saving the points for visualisation (need to remove this)
-        self._points = [gp_Pnt(*pnt) for pnt in pnts]
+        N = np.shape(self._points)[0]
+        y = np.zeros(N)
+        points3d = np.column_stack([self._points[:, 0], y, self._points[:, 1]])
+        Curve = act.points_to_bspline(points3d)
         return Curve
 
-              
     def _AirfoilPointsSeligFormat(self, SeligProfile):
         """Extracts airfoil coordinates from a file
-        
-        Assumes input selig files are specified in the Selig format, i.e., 
-        header line, followed by x column, z column, from upper trailing edge 
+
+        Assumes input selig files are specified in the Selig format, i.e.,
+        header line, followed by x column, z column, from upper trailing edge
         to lower trailing edge.
 
         Parameters
         ----------
         SeligProfile : string
             The file basename containing the selig profile data
-            
+
         Returns
         -------
         x - array of float
             x coordinates of airfoil curve
-        
+
         z - array of float
             z coordinates of airfoil curve
         """
@@ -186,31 +229,31 @@ class Airfoil(object):
         Paramters
         ---------
         MaxCamberLocTenthChord : int
-        
+
         MaxCamberPercChord : int
-        
+
         Returns
         -------
-        
+
         """
         # Using the original notation of Jacobs et al.(1933)
         xmc     = MaxCamberLocTenthChord / 10.0
         zcammax = MaxCamberPercChord     / 100.0
-        
+
         # Protect against division by zero on airfoils like NACA0012
-        if xmc==0:
-            xmc = 0.2 
+        if xmc == 0:
+            xmc = 0.2
 
         # Sampling the chord line
         ChordCoord, NCosPoints = act.coslin(xmc)
-        
+
         # Compute the two sections of the camber curve and its slope
 #        zcam = []
 #        dzcamdx = []
         cos_pts = ChordCoord[0:NCosPoints]
         lin_pts = ChordCoord[NCosPoints:]
-        
-        zcam = np.hstack(( (zcammax/(xmc ** 2)) * (2*xmc*cos_pts - cos_pts**2), 
+
+        zcam = np.hstack(( (zcammax/(xmc ** 2)) * (2*xmc*cos_pts - cos_pts**2),
                            (zcammax/((1-xmc)**2)) * \
                              (1-2*xmc+2*xmc*lin_pts-(lin_pts ** 2)) ))
         
@@ -359,7 +402,7 @@ class Airfoil(object):
     def AddAirfoilFromSeligFile(self, SeligProfile, Smoothing=1):
         """Adds an airfoil generated by fitting a NURBS curve to a set
         of points whose coordinates are given in a Selig formatted file
-        
+
         Parameters
         ----------
         SeligProfile : string
@@ -382,7 +425,8 @@ class Airfoil(object):
 
         self.Profile = {'SeligProfile': SeligProfile}
         x, z = self._AirfoilPointsSeligFormat(SeligProfile)
-        self.Curve = self._fitAirfoiltoPoints(x, z)
+        self._points = np.column_stack([x, z])
+        self.Curve = self._fitAirfoiltoPoints()
         self._TransformAirfoil()
         return None
 
@@ -427,8 +471,8 @@ class Airfoil(object):
             self._NACA4digitPnts(MaxCamberPercChord,
                                  MaxCamberLocTenthChord,
                                  MaxThicknessPercChord)
-        self._surface_pts = np.vstack([x, z]).T
-        self.Curve = self._fitAirfoiltoPoints(x, z)
+        self._points = np.column_stack([x, z])
+        self.Curve = self._fitAirfoiltoPoints()
 #        if 'Smoothing' in locals():
 #            self.SmoothingIterations = Smoothing
         self._TransformAirfoil()
@@ -457,7 +501,8 @@ class Airfoil(object):
 
         self.Profile = {'CRM_Epsilon': str(CRM_Epsilon)}
         x, z = CRMfoil.CRMlinear(CRM_Epsilon)
-        self.Curve = self._fitAirfoiltoPoints(x, z)
+        self._points = np.column_stack([x, z])
+        self.Curve = self._fitAirfoiltoPoints()
         # TODO: Smoothing..
 #        if 'Smoothing' in locals():
 #            self.SmoothingIterations = Smoothing
@@ -467,3 +512,44 @@ class Airfoil(object):
 #        def _FiniteTE(self):
 #            """Fits a finite trailing edge"""
 #
+
+    def AddLinear2(self, Eps, Af1, Af2, Eps1=0, Eps2=1):
+        """Interpolates the bspline control points fitted between two other
+        Airfoil objects.
+
+        Interpolates the x and z values of an Airfoil at spanwise location Eps
+        between Af1 (at Eps1) and Af2 (at Eps2). The BSpline Curve is then
+        fitted to the resulting points with Airfoil._fitAirfoiltoPoints, and
+        transformed to the orientation specified in self.Rotation, self.Twist,
+        self.ChordLength and self.LEPoint via the _TransformAirfoil function.
+
+        Parameters
+        ----------
+        Eps : scalar
+            Spanwise coordinate between Eps1 and Eps2
+
+        Af1 : airconics.Airfoil
+            The Airfoil located at spanwise location Eps1. Af1.x and Af1.z
+
+        Af2 : airconics.Airfoil
+            The Airfoil located at spanwise location Eps2.
+
+        Eps1 : scalar
+            Spanwise coordinate location of Airfoil Af1. Expected to range from
+            0 (root of a lifting surface) to 1 (tip of a lifting surface)
+
+        Eps2 : scalar
+            Spanwise coordinate location of Airfoil Af2. Expected to range from
+            0 (root of a lifting surface) to 1 (tip of a lifting surface), and
+            also expected to be greater than Eps1
+        """
+        # Linearly interpolate curve X,Z points at spanwise location epsilon:
+
+        x = Af1.points[:, 0] * (Eps2 - Eps) / (Eps2 - Eps1) + \
+            Af2.points[:, 0] * (Eps - Eps1) / (Eps2 - Eps1)
+        z = Af1.points[:, 1] * (Eps2 - Eps) + Af2.points[:, 1] * (Eps - Eps1)
+
+        self.Profile = {'Interp': (Eps, Af1.Profile, Eps1, Af2.Profile, Eps2)}
+        self._points = np.column_stack([x, z])
+        self.Curve = self._fitAirfoiltoPoints()
+        self._TransformAirfoil()

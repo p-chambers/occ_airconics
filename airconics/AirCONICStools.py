@@ -1090,12 +1090,12 @@ def points_from_intersection(plane, curve):
 
 
 def CutSect(Shape, SpanStation):
-    """ 
+    """
     Parameters
     ----------
     Shape : TopoDS_Shape
         The Shape to find planar cut section (parallel to xz plane)
-    
+
     SpanStation : scalar in range (0, 1)
         y-direction location at which to cut Shape
 
@@ -1103,20 +1103,20 @@ def CutSect(Shape, SpanStation):
     -------
     Section : result of OCC.BRepAlgoAPI.BRepAlgoAPI_Section (TopoDS_Shape)
         The cut section of shape given a cut plane parallel to xz at input
-        Spanstation. 
-    
+        Spanstation.
+
     Chord : result of OCC.GC.GC_MakeSegment.Value (Geom_TrimmedCurve)
-        The Chord line between x direction extremeties 
+        The Chord line between x direction extremeties
     """
     (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Shape])
 
-    YStation = Ymin + (Ymax-Ymin)*SpanStation
+    YStation = Ymin + (Ymax - Ymin) * SpanStation
     OriginX = Xmin - 1
     OriginZ = Zmin - 1
 
     P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0)))
     # Note: using 2*extents here as previous +1 trimmed plane too short
-    CutPlaneSrf = make_face(P, 0, Zmax+2, 0, Xmax+2)
+    CutPlaneSrf = make_face(P, 0, Zmax + 2, 0, Xmax +2)
 
     I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
     I.ComputePCurveOn1(True)
