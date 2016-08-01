@@ -22,6 +22,8 @@ FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              'P': Engine,           # P = Propulsion
              '|': gp_Ax2}           # M = Mirror Plane
 
+
+
 # Reversed dictionary for manually adding shapes, i.e. converting
 #  a class instance to a string
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
@@ -34,7 +36,7 @@ SHAPES = {'E': 'ellipse',
 
 
 class TreeNode(object):
-    def __init__(self, part, name, affinity):
+    def __init__(self, part, name, arity):
         """Basic type to define node elements in the topology tree. To be used
         by Topology class.
 
@@ -46,13 +48,13 @@ class TreeNode(object):
         name - string
             The name of the part (e.g. 'Wing' or 'Fin')
 
-        affinity - int
-            the number of descendant
+        arity - int
+            the number of descendants
 
         Attributes
         ----------
-        affty - int
-            Affinity (number of descendants) of this node.
+        arity - int
+            arity (number of descendants) of this node.
 
         name - string
             Name of the part
@@ -61,7 +63,7 @@ class TreeNode(object):
             Indicates the type of node i.e.
         """
         self.name = name
-        self.affty = affinity
+        self.arity = arity
 
         if type(part) not in FUNCTIONS.values():
             raise TypeError("Not a recognised part type: {}. Should be {}"
@@ -71,7 +73,7 @@ class TreeNode(object):
         self.func = func_str
 
     def __str__(self):
-        output = '({}, {}, {})'.format(self.name, self.func, self.affty)
+        output = '({}, {}, {})'.format(self.name, self.func, self.arity)
         return output
 
 
@@ -84,14 +86,14 @@ class Topology(AirconicsCollection):
         ----------
         parts - dictionary
             Should contain the following,
-                {name: (Part, affinity)}
+                {name: (Part, arity)}
             i.e. the string 'name' values are presented as a tuple or list of:
                 Part - TopoDS_Shape
                     The shape
-                affinity - int
-                    the affinity (number of descendant nodes) attached to part
+                arity - int
+                    the arity (number of descendant nodes) attached to part
             A warning is raised if afinities are not provided, in which case
-            affinity is assumed to be zero
+            arity is assumed to be zero
         
         Attributes
         ----------
@@ -130,18 +132,18 @@ class Topology(AirconicsCollection):
         super(Topology, self).__init__(parts={},
                                        construct_geometry=construct_geometry)
 
-        for name, part_w_affinity in parts.items():
-            self[name] = part_w_affinity
+        for name, part_w_arity in parts.items():
+            self[name] = part_w_arity
 
-    def __setitem__(self, name, part_w_affinity):
+    def __setitem__(self, name, part_w_arity):
         """Overloads the assignment operator used by AirconicsCollection
-        to allow only tuples as inputs - Affinity must be specified for
+        to allow only tuples as inputs - arity must be specified for
         topology.
 
         Parameters
         ----------
         name - string
-        part_w_affinity - tuple
+        part_w_arity - tuple
             (Airconics class, int), eg:
                 (Fuselage, 2) is a Fuselage shape with 2 descendents in
                 its topological tree
@@ -151,13 +153,13 @@ class Topology(AirconicsCollection):
         appends to the self.Tree and self._OrderedParts attributes
         """
         try:
-            part, affinity = part_w_affinity
+            part, arity = part_w_arity
         except:
-            print("Warning: no affinity set. Treating as zero")
-            part = part_w_affinity
-            affinity = 0
+            print("Warning: no arity set. Treating as zero")
+            part = part_w_arity
+            arity = 0
 
-        node = TreeNode(part, name, affinity)
+        node = TreeNode(part, name, arity)
 
         self._Tree.append(node)
         super(Topology, self).__setitem__(name, part)
@@ -178,15 +180,15 @@ class Topology(AirconicsCollection):
         output = ''
 
         for i, node in enumerate(self._Tree):
-#            If node has a non zero affinity, there is some nested printing
+#            If node has a non zero arity, there is some nested printing
 #            required, otherwise node is a terminal:
             if node.func == '|':
                 # Mirror lines are a special case: simply put a line an skip
                 # to next iteration
                 output += '|'
                 continue
-            if node.affty > 0:
-                terminals.append(node.affty)
+            if node.arity > 0:
+                terminals.append(node.arity)
                 output += node.func + '('
             else:
                 output += node.func
@@ -205,8 +207,8 @@ class Topology(AirconicsCollection):
 #        """
 #        n_level = 1             # A program must have at least 1 level
 #        for node in self._Tree:
-#            func, affty = node
-#            if affty > 0:
+#            func, arity = node
+#            if arity > 0:
 #                n_level += 1
 #        return depth
 
@@ -294,8 +296,8 @@ class Topology(AirconicsCollection):
                 # All other functions, e.g., Enclosure, LiftingSurface,
                 # Propulsion
                 fill = "#136ed4"
-                if node.affty > 0:
-                    terminals.append([node.affty, i])
+                if node.arity > 0:
+                    terminals.append([node.arity, i])
                     output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
                                % (i, node.name, fill, SHAPES[node.func]))
                     # Add a point below to allow orthogonal branching in graphs
@@ -326,9 +328,9 @@ class Topology(AirconicsCollection):
         # We should never get here
         return None
         
-    def AddPart(self, part, name, affinity=0):
+    def AddPart(self, part, name, arity=0):
         """Overloads the AddPart method of AirconicsCollection base class
-        to append the affinity of the input topology node
+        to append the arity of the input topology node
         
         Parameters
         ----------
@@ -339,7 +341,7 @@ class Topology(AirconicsCollection):
             name of the part (will be used to look up this part in
             self.aircraft)
         
-        affinity - int
+        arity - int
             The number of terminals attached to this part; this will be
             randomized at a later stage
         
@@ -351,4 +353,4 @@ class Topology(AirconicsCollection):
         
         See also: AirconicsCollection.AddPart
         """
-        self.__setitem__(name, (part, affinity))
+        self.__setitem__(name, (part, arity))
