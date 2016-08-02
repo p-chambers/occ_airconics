@@ -99,6 +99,7 @@ def test_EnforceSharpTE():
 
 
 def test_overdefined_Airfoil():
+    # Test that two or more specified profiles raises an error
     with pytest.raises(AssertionError):
         Af = Airfoil(SeligProfile='b707a', Naca4Profile='0012')
 
@@ -158,10 +159,17 @@ def test_Airfoil_manual(airfoil_examples):
     assert((np.abs(start_pt[0] - Af.ChordLength) / Af.ChordLength) < 0.01)
 
 
+def test_Airfoil_emptystring():
+    # Test that an empty profile string creates an 'empty' airfoil
+    Af = Airfoil(Naca4Profile='')
+    assert(not Af.Curve)
+
+    # Also check Selig airfoils:
+    Af = Airfoil(SeligProfile='')
+    assert(not Af.Curve)
+
+
 def test_NACA4_Airfoil_Assertions():
-    # Test that an empty profile string raises an error
-    with pytest.raises(AssertionError):
-        Af = Airfoil(Naca4Profile='')
     # Test that a non-string raises a type error
     with pytest.raises(TypeError):
         Af = Airfoil(Naca4Profile=100)
@@ -184,9 +192,6 @@ def test_CRM_Airfoil_Assertions():
 
 
 def test_Selig_Airfoil_Assertions():
-    # Test that an empty profile string raises an error
-    with pytest.raises(AssertionError):
-        Af = Airfoil(SeligProfile='')
     # Test that a non-string raises a type error
     with pytest.raises(TypeError):
         Af = Airfoil(SeligProfile=100)

@@ -55,33 +55,33 @@ class AirconicsBase(MutableMapping, object):
         pass
 
 
-class AirconicsContainer(MutableMapping):
-    """Simple container class which behaves as a dictionary, with all
-    attributes mapped to the values in self
-    """
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+# class AirconicsContainer(MutableMapping):
+#     """Simple container class which behaves as a dictionary, with all
+#     attributes mapped to the values in self
+#     """
+#     def __init__(self, **kwargs):
+#         self.__dict__.update(kwargs)
 
-    def __setitem__(self, name, component):
-        self.__dict__[name] = component
+#     def __setitem__(self, name, component):
+#         self.__dict__[name] = component
 
-    def __getitem__(self, name):
-        return self.__dict__[name]
+#     def __getitem__(self, name):
+#         return self.__dict__[name]
 
-    def __delitem__(self, name):
-        del self.__dict__[key]
+#     def __delitem__(self, name):
+#         del self.__dict__[key]
 
-    def __iter__(self):
-        return iter(self.__dict__)
+#     def __iter__(self):
+#         return iter(self.__dict__)
 
-    def __len__(self):
-        return len(self.__dict__)
+#     def __len__(self):
+#         return len(self.__dict__)
 
-    def __str__(self):
-        return str(self.__dict__)
+#     def __str__(self):
+#         return str(self.__dict__)
 
-    __getattr__ = __getitem__
-    __setattr__ = __setitem__
+#     __getattr__ = __getitem__
+#     __setattr__ = __setitem__
 
 
 class AirconicsShape(AirconicsBase):
@@ -144,7 +144,7 @@ class AirconicsShape(AirconicsBase):
     def __init__(self, components={}, construct_geometry=False,
                  *args, **kwargs):
         # Set the components dictionary (default empty)
-        self._Components = AirconicsContainer()
+        self._Components = {}
 
         for name, component in components.items():
             self.__setitem__(name, component)
@@ -453,7 +453,7 @@ class AirconicsCollection(AirconicsBase):
 
     def __init__(self, parts={}, construct_geometry=False, *args, **kwargs):
         # Set the components dictionary (default empty)
-        self._Parts = AirconicsContainer()
+        self._Parts = {}
         for name, part in parts.items():
             self.__setitem__(name, part)
 
