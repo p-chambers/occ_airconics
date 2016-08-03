@@ -49,6 +49,10 @@ class Engine(AirconicsShape):
     construct_geometry : bool
         If true, Build method will be called on construction
 
+    randomize : bool
+        If true, a random set of inputs will be selected. See also:
+        airconics.Engine.Randomize
+
     Attributes
     ----------
     _Components : dictionary of shapes
@@ -69,7 +73,9 @@ class Engine(AirconicsShape):
                  ScarfAngle=3,
                  HighlightRadius=1.45,
                  MeanNacelleLength=5.67,
-                 construct_geometry=True):
+                 construct_geometry=True,
+                 randomize=False,
+                 parent=None):
 
         if HChord == 0:
             print("No HChord specified to fit engine to: creating default")
@@ -84,7 +90,9 @@ class Engine(AirconicsShape):
                                      CentreLocation=CentreLocation,
                                      ScarfAngle=ScarfAngle,
                                      HighlightRadius=HighlightRadius,
-                                     MeanNacelleLength=MeanNacelleLength)
+                                     MeanNacelleLength=MeanNacelleLength,
+                                     randomize=randomize,
+                                     parent=parent)
 
     def Build(self):
         """Currently only calls BuildTurbofanNacelle.
@@ -96,6 +104,16 @@ class Engine(AirconicsShape):
         super(Engine, self).Build()
         self.BuildTurbofanNacelle()
         return None
+
+    def Randomize(self, parent=None):
+      """Randomizes the parameters which this geometry
+      
+      """
+      HChord=0
+      CentreLocation=[0, 0, 0]
+      ScarfAngle=3
+      HighlightRadius=1.45
+      MeanNacelleLength=5.67
 
     def BuildTurbofanNacelle(self):
         """

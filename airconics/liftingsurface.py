@@ -150,6 +150,10 @@ class LiftingSurface(AirconicsShape):
     construct_geometry : bool
         If true, Build method will be called on construction
 
+    randomize : bool
+        If true, a random set of inputs will be selected. See also:
+        airconics.LiftingSurface.Randomize
+
     Attributes
     ----------
     self['Surface'] : TopoDS_Shape
@@ -179,6 +183,9 @@ class LiftingSurface(AirconicsShape):
 
     """
 
+    # Preset lifting surface options:
+    # PRESETS = {'SweepFunct' : }
+
     def __init__(self, ApexPoint=gp_Pnt(0, 0, 0),
                  SweepFunct=False,
                  DihedralFunct=False,
@@ -193,7 +200,9 @@ class LiftingSurface(AirconicsShape):
                  TipRequired=False,
                  max_degree=8,
                  continuity=GeomAbs_C2,
-                 construct_geometry=True
+                 construct_geometry=True,
+                 randomize=False,
+                 parent=None
                  ):
         # convert ApexPoint from list if necessary
         try:
@@ -225,7 +234,9 @@ class LiftingSurface(AirconicsShape):
                                              TipRequired=TipRequired,
                                              max_degree=max_degree,
                                              Cont=continuity,
-                                             construct_geometry=construct_geometry)
+                                             construct_geometry=construct_geometry,
+                                             randomize=randomize,
+                                             parent=parent)
 
 #        self.CreateConstructionGeometry()
 
@@ -409,6 +420,39 @@ class LiftingSurface(AirconicsShape):
 
         self.GenerateSectionCurves()
         self.GenerateLiftingSurface()
+
+    def Randomize(self, parent=None):
+        """Randomizes the input parameters defining this LiftingSurface object,
+        either free standing or with some reference to a 'parent' node to which
+        it is attached.
+
+        Parameters
+        ----------
+        parent : Fuselage, LiftingSurface or Engine (default : None)
+          The parent shape to which this randomised fuselage will be fitted. If
+          None, the ApexPoint will be (0,0,0), otherwise the ApexPoint will be
+          placed according to the type and shape of the geometry of parent.
+
+        Notes
+        -----
+        This method can be called on initialisation of the class using the flag
+        'randomize' as True, e.g.
+
+        >>> random_wing = LiftingSurface(randomize=True)
+
+        See Also
+        --------
+        airconics.topology.Topology
+        """
+        if parent:
+            raise NotImplementedError(
+                "Randomize method does not yet work with parent geometry node")
+        else:
+            self.SweepFunct=False,
+            self.DihedralFunct=False,
+            self.TwistFunct=False,
+            self.ChordFunct=False,
+            self.AirfoilFunct=False,
 
     def GenerateLeadingEdge(self):
         """Epsilon coordinate attached to leading edge defines sweep

@@ -111,6 +111,11 @@ class AirconicsShape(AirconicsBase):
         classes should pass construct_geometry=True if a Build method should
         be called on construction
 
+    randomize : bool
+        If true, a random set of inputs will be selected. See also:
+        airconics.Fuselage.Randomize
+
+
     **kwargs : All other keyword arguments will be added as an attribute
         to the resulting class calling super(subclass, self).__init__
 
@@ -142,6 +147,7 @@ class AirconicsShape(AirconicsBase):
     """
 
     def __init__(self, components={}, construct_geometry=False,
+                 randomize=False, parent=None,
                  *args, **kwargs):
         # Set the components dictionary (default empty)
         self._Components = {}
@@ -154,6 +160,9 @@ class AirconicsShape(AirconicsBase):
             self.__setattr__(key, value)
 
         self.construct_geometry = construct_geometry
+
+        if randomize:
+            self.Randomize(parent=parent)
 
         if self.construct_geometry:
             self.Build()
@@ -199,6 +208,16 @@ class AirconicsShape(AirconicsBase):
         """
         print("Attempting to construct {} geometry...".format(
             type(self).__name__))
+
+    def Randomize(self):
+        """Raises an error if called directly, but should be overridden by
+        any derived classes that are intended to have a random generation
+
+        Optional abstract method - derived classes are not enforced to
+        implement this class, however an error will be raised when
+        attempting to call it"""
+        raise NotImplementedError(
+            "Randomize method of AirconicsShape should not be called directly")
 
     def AddComponent(self, component, name=None):
         """Adds a component to self
