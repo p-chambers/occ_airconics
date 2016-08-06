@@ -184,7 +184,8 @@ class LiftingSurface(AirconicsShape):
     """
 
     # Preset lifting surface options:
-    # PRESETS = {'SweepFunct' : }
+
+    PRESETS = {'SweepFunct': None}   # TODO: populate this
 
     def __init__(self, ApexPoint=gp_Pnt(0, 0, 0),
                  SweepFunct=False,
@@ -448,11 +449,12 @@ class LiftingSurface(AirconicsShape):
             raise NotImplementedError(
                 "Randomize method does not yet work with parent geometry node")
         else:
-            self.SweepFunct=False,
-            self.DihedralFunct=False,
-            self.TwistFunct=False,
-            self.ChordFunct=False,
-            self.AirfoilFunct=False,
+            self.ApexPoint = gp_Pnt(0., 0., 0.)
+            self.SweepFunct=False
+            self.DihedralFunct=False
+            self.TwistFunct=False
+            self.ChordFunct=False
+            self.AirfoilFunct=False
 
     def GenerateLeadingEdge(self):
         """Epsilon coordinate attached to leading edge defines sweep
