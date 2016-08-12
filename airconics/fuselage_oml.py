@@ -66,6 +66,7 @@ class Fuselage(AirconicsShape):
     It is therefore not expected that users will do this through the
     BuildFuselageOML function
     """
+
     def __init__(self, NoseLengthRatio=0.182,
                  TailLengthRatio=0.293,
                  Scaling=[55.902, 55.902, 55.902],

@@ -549,7 +549,12 @@ class Airfoil(object):
             Af2.points[:, 0] * (Eps - Eps1) / (Eps2 - Eps1)
         z = Af1.points[:, 1] * (Eps2 - Eps) + Af2.points[:, 1] * (Eps - Eps1)
 
-        self.Profile = {'Interp': (Eps, Af1.Profile, Eps1, Af2.Profile, Eps2)}
+        if Eps == Eps1:
+            self.Profile = Af1.Profile
+        elif Eps == Eps2:
+            self.Profile = Af2.Profile
+        else:
+            self.Profile = {'Interp': (Eps, Af1.Profile, Eps1, Af2.Profile, Eps2)}
         self._points = np.column_stack([x, z])
         self.Curve = self._fitAirfoiltoPoints()
         self._TransformAirfoil()

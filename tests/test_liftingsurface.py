@@ -5,10 +5,54 @@ Created on Thu Jan 14 15:10:50 2016
 @author: pchambers
 """
 import numpy as np
-from airconics import LiftingSurface
+from airconics.LiftingSurface import LiftingSurface, airfoilfunct
+from airconics.primitives import Airfoil
 from airconics.examples.wing_example_transonic_airliner import *
 from OCC.gp import gp_Pnt
 import pytest
+
+
+@pytest.fixture
+def simple_wing():
+    """Initialises a simple wing class, roughly the shape of the jetstream
+    airconics example"""
+    def myDihedralFunction(Epsilon):
+        return 7
+
+    def myTwistFunction(Epsilon):
+        RootTwist = 0
+        TipTwist  = -2
+        return RootTwist + Epsilon*TipTwist
+
+    myChordFunction = act.Generate_InterpFunction([1, 0.33], [0,1])
+
+    @airfoilfunct
+    def myAirfoilFunction(eps):
+        af_root = Airfoil(SeligProfile='naca63a418')
+        af_tip = Airfoil(SeligProfile='naca63a412')
+
+        profile_dict = {'InterpProfile': True, 'Epsilon': eps, 'Af1': af_root,
+                        'Af2': af_tip, 'Eps1': 0, 'Eps2': 1}
+        return profile_dict
+
+    def mySweepAngleFunction(Epsilon):
+        return 3
+
+    P = (0, 0, 0)
+    NSeg = 1
+
+    # Instantiate the class
+    ChordFactor = 0.3
+    ScaleFactor = 7.951
+    Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunction,
+                                         myDihedralFunction,
+                                         myTwistFunction,
+                                         myChordFunction,
+                                         myAirfoilFunction,
+                                         SegmentNo=NSeg,
+                                         ScaleFactor=ScaleFactor,
+                                         ChordFactor=ChordFactor)
+    return Wing
 
 
 def test_empty_liftingsurface():
@@ -171,3 +215,17 @@ def test_update_ScalingFactor():
 def test_update_ChordFactor():
     """Tests that Build is triggered on updating chord factor parameter"""
     raise NotImplementedError
+
+
+def test_Fit_BlendedTipDevice(simple_wing):
+    # Fit a blended winglet to this wing and test the output
+    wing = simple_wing
+
+    wing.Fit_BlendedTipDevice(rootchord_norm=0.8, spanfraction=0.1, cant=40,
+                             transition=0.1, sweep=40, taper=0.7)
+
+    # Test the (theoretical) tip chord equals the winglet root chord:
+    assert((Wing.ChordFunct(1) * Wing.ScaleFactor * Wing.ChordFactor) ==
+        Winglet.ChordFunct(0) * Winglet.ScaleFactor * Winglet.ChordFactor)
+
+    # Test the length of the LE curve is the correct spanfraction

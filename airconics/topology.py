@@ -22,8 +22,6 @@ FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              'P': Engine,           # P = Propulsion
              '|': gp_Ax2}           # M = Mirror Plane
 
-
-
 # Reversed dictionary for manually adding shapes, i.e. converting
 #  a class instance to a string
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}

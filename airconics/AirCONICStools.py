@@ -679,7 +679,7 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
 
 def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
     """Generates a lookup interpolation function.
-    
+
     Given an array of spanwise coordinates epsilon along a curvilinear
     leading-edge attached coordinate system, and a set of values describing
     e.g. Chord, Sweep at each station, generate and return a function
@@ -696,11 +696,11 @@ def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
     uniform : bool
         If True, assumes that Values corresponds to uniformly distribution
         epsilon locations along the lifting surface span
-    
+
     Returns
     -------
     f : function
-        the function which returns the interpolated epsilon 
+        the function which returns the interpolated epsilon
     """
     if uniform:
         EpsArray = np.linspace(0, 1, len(Values))

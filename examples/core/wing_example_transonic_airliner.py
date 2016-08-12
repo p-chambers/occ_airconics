@@ -97,7 +97,7 @@ if __name__ == "__main__":
     Wing.Display(display)
     
     for section in Wing._Sections:
-        display.DisplayShape(section, update=True)
+        display.DisplayShape(section.Curve, update=True)
     
 #    To export the STEP file, uncomment the following line:
 #    Wing.Write('Wing.stp')

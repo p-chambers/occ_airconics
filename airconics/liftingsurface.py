@@ -83,6 +83,47 @@ def airfoilfunct(ProfileFunct):
     return AirfoilFunct
 
 
+# The following functions are the supported preset parameters for a
+# range of geometries
+def make_random_uniform_function(scaling_value):
+    """Uniform value function to be used as a preset geometry input for
+    either Sweep, Chord, Twist or Dihedral functions to LiftingSurface
+
+    Parameters
+    ----------
+    scaling_value : scalar
+        Multiplies the normalised random number (between 0 and 1)
+
+    Returns
+    -------
+    uniform_parametric_function : function
+        inputs are epsilon (spanwise coordinate, Leading edge attached),
+        outputs are the 
+    """
+    value = np.random.random(size=1) * scaling_value
+    def uniform_parametric_function(epsilon):
+        """Does nothing with spanwise parameter epsilon, but is required for
+        the general definition of shape in the lifting surface class""" 
+        return value
+    return uniform_parametric_function
+
+
+def get_LiftingSurface_presets():
+    presets = {}
+    presets['SweepFunct'] = (make_random_uniform_function(5),)
+    presets['ChordFunct'] = (make_random_uniform_function(1),)
+    presets['DihedralFunct'] = (make_random_uniform_function(5),)
+    presets['SweepFunct'] = (make_random_uniform_function(10),)
+
+    @airfoilfunct
+    def uniform_airfoil_funct():
+        # Simple uniform NACA0012 airfoil function: see airfoilfunct for use
+        # Note: the airfoil choice will probably come from design requirements
+        return {'NACA4Profile': '0012'}
+    presets['SweepFunct'] = (uniform_airfoil_funct,)
+    return presets
+
+
 class LiftingSurface(AirconicsShape):
     """Airconics class for defining lifting surface shapes
 
@@ -159,7 +200,7 @@ class LiftingSurface(AirconicsShape):
     self['Surface'] : TopoDS_Shape
         The generated lifting surface
 
-    Sections : list of OCC Handle_GeomBSplineCurve objects
+    Sections : list of airconics.primitives.Airfoil objects
         The rib curves from which the main surface is lofted. Updating any of
         the spanwise functions (ChordFunct, TwistFunct, etc...), SpanFactor,
         ChordFactor Raises an
@@ -185,7 +226,8 @@ class LiftingSurface(AirconicsShape):
 
     # Preset lifting surface options:
 
-    PRESETS = {'SweepFunct': None}   # TODO: populate this
+    # Just adding some uniform functions for now
+    PRESETS = get_LiftingSurface_presets()
 
     def __init__(self, ApexPoint=gp_Pnt(0, 0, 0),
                  SweepFunct=False,
@@ -448,6 +490,8 @@ class LiftingSurface(AirconicsShape):
         if parent:
             raise NotImplementedError(
                 "Randomize method does not yet work with parent geometry node")
+            if type(parent) == LiftingSurface:
+                pass
         else:
             self.ApexPoint = gp_Pnt(0., 0., 0.)
             self.SweepFunct=False
@@ -505,6 +549,8 @@ class LiftingSurface(AirconicsShape):
         Deltas = np.vstack([DeltaXs, DeltaYs, DeltaZs]).T
         LEPoints[1:, :] = np.cumsum(Deltas, axis=0)
 
+        self.LEPoints = LEPoints
+
         return LEPoints
 
     def GenerateSectionCurves(self):
@@ -537,7 +583,7 @@ class LiftingSurface(AirconicsShape):
                                                         self.ChordFunct,
                                                         self.ChordFactor,
                                                         self.DihedralFunct,
-                                                        self.TwistFunct).Curve)
+                                                        self.TwistFunct))
 
     def ChordScaleOptimizer(self):
         """
@@ -692,3 +738,97 @@ class LiftingSurface(AirconicsShape):
 #        self.PCG5 = rs.AddPoint([3,3,0])
 #        self.PCG6 = rs.AddPoint([3,3,100])
 #        self.ProjVectorZ = rs.VectorCreate(self.PCG5, self.PCG6)
+
+    def Fit_BlendedTipDevice(self, rootchord_norm, spanfraction=0.1, cant=40,
+                             transition=0.1, sweep=40, taper=0.7):
+        """Fits a blended wing tip device [1],
+
+        Parameters
+        ----------
+        chordlength
+
+        span : scalar
+            The percentage of the full wings span used by the winglet
+
+        TipLS :
+            The Lifting surface to fit as the tip device. Behaviour depends on
+            the selected dev_type:
+            If dev_type is 'Blended' and a TipLS is provided, a blended section
+            will be used to fit the device. If no TipLS is defined, a surface
+            will be created using additional keyword arguments passed to this
+            function
+
+        orientation : scalar
+            The angle of orientation of this device measured from a positive
+            normal plane to the plane formed by chordlines of this shape
+
+        radius : scalar
+            The radius of the bend joining this wing to the TipLS
+
+
+        kwargs : optional
+            if TipLS is none, any additional keyword arguments will be passed
+            to the construction of
+
+        Notes
+        -----
+        Might eventually specifically add the tip section here rather than
+        recreating a copy.
+
+        References
+        ----------
+        [1] L. B. Gratzer, "Blended winglet," Google Patents, 1994
+        """
+        # The array of spanwise locations at which values of sweep, chord etc
+        # are known
+        Eps_Array = np.array([0, transition, 1])
+        Dihedrals = np.array([self.DihedralFunct(1),
+                              90 - cant,
+                              90 - cant])
+        Sweeps = np.array([self.SweepFunct(1), sweep, sweep])
+        # No change in washout along the winglet
+        Twists = np.ones(3) * self.TwistFunct(1)
+        # Normalised chord (will be scaled st root chord = main wing tip chord)
+        Chords = np.array([1, rootchord_norm,  taper * rootchord_norm])
+
+        # Generating all the interpolated transition functions
+        DihedralFunctWinglet = act.Generate_InterpFunction(Dihedrals,
+                                                           Eps_Array)
+
+        # if linear_TE:
+        #     # If a linear trailing edge is selected, offset the LE from 
+
+        # else:
+        SweepFunctWinglet = act.Generate_InterpFunction(Sweeps,
+                                                        Eps_Array)
+        ChordFunctWinglet = act.Generate_InterpFunction(Chords,
+                                                        Eps_Array)
+        TwistFunctWinglet = act.Generate_InterpFunction(Twists,
+                                                        Eps_Array)
+
+        # No change in airfoil profile
+        @airfoilfunct
+        def AirfoilFunctWinglet(Epsilon):
+            return self.Sections[-1].Profile
+
+        Winglet_apex = self.LEPoints[-1] * self.ScaleFactor
+
+        # Scale the entire wing to get the span as a percentage of this wing
+        scalefactor = self.ScaleFactor * spanfraction
+
+        # Scale the winglet root chord to match the tip chord of this wing
+        chordfactor = ((self.ChordFunct(1) * self.ChordFactor) /
+                       (ChordFunctWinglet(0) * spanfraction)
+                       )
+        print(chordfactor)
+
+        Winglet = LiftingSurface(ApexPoint=Winglet_apex,
+                                 SweepFunct=SweepFunctWinglet,
+                                 DihedralFunct=DihedralFunctWinglet,
+                                 TwistFunct=TwistFunctWinglet,
+                                 ChordFunct=ChordFunctWinglet,
+                                 AirfoilFunct=AirfoilFunctWinglet,
+                                 ScaleFactor=scalefactor,
+                                 ChordFactor=chordfactor)
+
+        return Winglet
