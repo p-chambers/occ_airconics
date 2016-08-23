@@ -78,29 +78,30 @@ if __name__ == "__main__":
     # Initialise the display
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
-    
+
     # Position of the apex of the wing
-    P = (0,0,0)
-    
+    P = (0, 0, 0)
+
     # Class definition
     NSeg = 10
     ChordFactor = 1
     ScaleFactor = 50
-    
+
     # Instantiate the class
-    Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunctionAirliner, 
-        myDihedralFunctionAirliner, 
-        myTwistFunctionAirliner, 
-        myChordFunctionAirliner, 
-        myAirfoilFunctionAirliner, SegmentNo=NSeg)
-    
+    Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunctionAirliner,
+                                         myDihedralFunctionAirliner,
+                                         myTwistFunctionAirliner,
+                                         myChordFunctionAirliner,
+                                         myAirfoilFunctionAirliner,
+                                         SegmentNo=NSeg)
+
     Wing.Display(display)
-    
+
     for section in Wing._Sections:
         display.DisplayShape(section.Curve, update=True)
-    
+
 #    To export the STEP file, uncomment the following line:
 #    Wing.Write('Wing.stp')
 #    act.export_STEPFile([Wing['Surface']], 'wing.stp')
-    
+
     start_display()

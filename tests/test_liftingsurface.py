@@ -5,8 +5,9 @@ Created on Thu Jan 14 15:10:50 2016
 @author: pchambers
 """
 import numpy as np
-from airconics.LiftingSurface import LiftingSurface, airfoilfunct
+from airconics.liftingsurface import LiftingSurface, airfoilfunct
 from airconics.primitives import Airfoil
+import airconics.AirCONICStools as act
 from airconics.examples.wing_example_transonic_airliner import *
 from OCC.gp import gp_Pnt
 import pytest
@@ -217,15 +218,15 @@ def test_update_ChordFactor():
     raise NotImplementedError
 
 
-def test_Fit_BlendedTipDevice(simple_wing):
-    # Fit a blended winglet to this wing and test the output
-    wing = simple_wing
+# def test_Fit_BlendedTipDevice(simple_wing):
+#     # Fit a blended winglet to this wing and test the output
+#     wing = simple_wing
 
-    wing.Fit_BlendedTipDevice(rootchord_norm=0.8, spanfraction=0.1, cant=40,
-                             transition=0.1, sweep=40, taper=0.7)
+#     wing.Fit_BlendedTipDevice(rootchord_norm=0.8, spanfraction=0.1, cant=40,
+#                              transition=0.1, sweep=40, taper=0.7)
 
-    # Test the (theoretical) tip chord equals the winglet root chord:
-    assert((Wing.ChordFunct(1) * Wing.ScaleFactor * Wing.ChordFactor) ==
-        Winglet.ChordFunct(0) * Winglet.ScaleFactor * Winglet.ChordFactor)
+#     # Test the (theoretical) tip chord equals the winglet root chord:
+#     assert((Wing.ChordFunct(1) * Wing.ScaleFactor * Wing.ChordFactor) ==
+#         Winglet.ChordFunct(0) * Winglet.ScaleFactor * Winglet.ChordFactor)
 
-    # Test the length of the LE curve is the correct spanfraction
+#     # Test the length of the LE curve is the correct spanfraction
