@@ -464,6 +464,9 @@ class LiftingSurface(AirconicsShape):
         self.GenerateSectionCurves()
         self.GenerateLiftingSurface()
 
+        # Also store the tip leading edge point (for fitting tip devices)?
+        # self.TipLE = self.Sections[-1].Chord.
+
     def Randomize(self, parent=None):
         """Randomizes the input parameters defining this LiftingSurface object,
         either free standing or with some reference to a 'parent' node to which
@@ -747,16 +750,15 @@ class LiftingSurface(AirconicsShape):
         ----------
         chordlength
 
-        span : scalar
-            The percentage of the full wings span used by the winglet
+        rootchord_norm : scalar
+            The root chord of the straight part of the winglet, normalised by
+            the tip chord of this lifting surface.
 
-        TipLS :
-            The Lifting surface to fit as the tip device. Behaviour depends on
-            the selected dev_type:
-            If dev_type is 'Blended' and a TipLS is provided, a blended section
-            will be used to fit the device. If no TipLS is defined, a surface
-            will be created using additional keyword arguments passed to this
-            function
+        spanfraction : scalar
+            span of the winglet normalised by the span of the main wing
+
+        cant : scalar
+            Angle (deg) of the wing tip from vertical
 
         orientation : scalar
             The angle of orientation of this device measured from a positive
@@ -811,7 +813,9 @@ class LiftingSurface(AirconicsShape):
         def AirfoilFunctWinglet(Epsilon):
             return self.Sections[-1].Profile
 
-        Winglet_apex = self.LEPoints[-1] * self.ScaleFactor
+        apex_array = np.array([self.ApexPoint.X(), self.ApexPoint.Y(),
+            self.ApexPoint.Z()])
+        Winglet_apex = apex_array + np.array(self.LEPoints[-1]) * self.ScaleFactor
 
         # Scale the entire wing to get the span as a percentage of this wing
         scalefactor = self.ScaleFactor * spanfraction
@@ -832,3 +836,45 @@ class LiftingSurface(AirconicsShape):
                                  ChordFactor=chordfactor)
 
         return Winglet
+
+
+    def Fit_Winglet(self, rootchord_norm, spanfraction=0.1, cant=40,
+                             sweep=40, taper=0.7, location=1):
+        """Fits a non blended (fenced type) winglet.
+
+        Note that the geometry is not fused with a boolean operation here,
+        however this should be a simple addition with BRepAlgoAPI_Fuse
+
+        Parameters
+        ----------
+        chordlength
+
+        span : scalar
+            The percentage of the full wings span used by the winglet
+
+        TipLS :
+            The Lifting surface to fit as the tip device. Behaviour depends on
+            the selected dev_type:
+            If dev_type is 'Blended' and a TipLS is provided, a blended section
+            will be used to fit the device. If no TipLS is defined, a surface
+            will be created using additional keyword arguments passed to this
+            function
+
+        orientation : scalar
+            The angle of orientation of this device measured from a positive
+            normal plane to the plane formed by chordlines of this shape
+
+
+        kwargs : optional
+            if TipLS is none, any additional keyword arguments will be passed
+            to the construction of
+
+        Notes
+        -----
+        Might eventually specifically add the tip section here rather than
+        recreating a copy.
+
+        References
+        ----------
+        """
+        raise NotImplementedError

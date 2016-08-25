@@ -2,7 +2,7 @@
 # @Author: pc12g10
 # @Date:   2016-08-11 14:19:53
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-08-12 17:38:55
+# @Last Modified time: 2016-08-25 15:37:24
 
 import numpy as np
 from airconics.primitives import Airfoil
@@ -74,10 +74,11 @@ if __name__ == "__main__":
     Winglet = Wing.Fit_BlendedTipDevice(
         0.8,
         cant=15,
+        transition=0.3
         )
 
-    # Wing.Display(display)
-    # Winglet.Display(display)
+    Wing.Display(display)
+    Winglet.Display(display)
 
     # This is just me trying to create a phantom surface:
     shapelist = Wing.values() + Winglet.values()
@@ -100,31 +101,42 @@ if __name__ == "__main__":
 
 
     # Method 2: Sewing
-    from OCC.TopExp import TopExp_Explorer
-    from OCC.TopAbs import TopAbs_FACE
-    from OCC.TopoDS import topods_Face
-    from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
+    # from OCC.TopExp import TopExp_Explorer
+    # from OCC.TopAbs import TopAbs_FACE
+    # from OCC.TopoDS import topods_Face
+    # from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
 
-    sewing = BRepBuilderAPI_Sewing()
-    for shape in shapelist:
-        exp = TopExp_Explorer(shape, TopAbs_FACE)
-        while exp.More():
-            face = topods_Face(exp.Current())
-            sewing.Add(face)
-            exp.Next()
+    # sewing = BRepBuilderAPI_Sewing()
+    # for shape in shapelist:
+    #     exp = TopExp_Explorer(shape, TopAbs_FACE)
+    #     while exp.More():
+    #         face = topods_Face(exp.Current())
+    #         sewing.Add(face)
+    #         exp.Next()
 
-    sewing.Perform()
-    sewed_shape = sewing.SewedShape()
-    print(type(sewed_shape))
+    # sewing.Perform()
+    # sewed_shape = sewing.SewedShape()
+    # print(type(sewed_shape))
     # act.export_STEPFile([sewed_shape], 'sewing.step')
 
     # display.DisplayShape(sewed_shape)
-    for section in Wing.Sections:
-        display.DisplayShape(section.Curve)
-    for section in Winglet.Sections:
-        display.DisplayShape(section.Curve)    
+    # for section in Wing.Sections:
+    #     display.DisplayShape(section.Curve)
+    # for section in Winglet.Sections:
+    #     display.DisplayShape(section.Curve)    
 
 
+    # Why not also try a C wing made from two recursively added winglets?
+    Winglet2 = Winglet.Fit_BlendedTipDevice(1, spanfraction=1, transition=0.2,
+        cant=-90, sweep=10, taper=0.9)
 
+    Winglet2.Display(display)
+
+    from airconics.base import AirconicsCollection
+
+    geometry = AirconicsCollection(parts={'Wing': Wing, 'Winglet':Winglet, 'CWinglet':Winglet2})
+
+    geometry.Write('C Wing.step')
 
     start_display()
+

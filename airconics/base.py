@@ -397,6 +397,11 @@ class AirconicsShape(AirconicsBase):
         written to file (cannot write multiple files )
         """
         path, ext = os.path.splitext(filename)
+
+        # Default to a step writer if no extension type was provided:
+        if not ext:
+            ext = '.stp'
+
         status = []
         if ext == '.stl':
             stl_ascii_format = False

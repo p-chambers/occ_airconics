@@ -702,7 +702,7 @@ def Generate_InterpFunction(Values, EpsArray=None, uniform=True):
     f : function
         the function which returns the interpolated epsilon
     """
-    if uniform:
+    if EpsArray is None:
         EpsArray = np.linspace(0, 1, len(Values))
 
     def f(Epsilon):
