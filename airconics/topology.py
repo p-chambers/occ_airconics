@@ -33,6 +33,26 @@ SHAPES = {'E': 'ellipse',
           '|': ''}                  # NB: M does not have a node shape
 
 
+def generate_population(size, max_recursion):
+    """
+    Parameters
+    ----------
+    size : int
+        The size of the population
+
+    max_recursion : int
+        The maximum number of levels of recursion for each member in the
+        population
+    """
+    population = []
+    for i in range(size):
+        topo = Topology()
+
+
+
+        population.append(topo)
+
+
 # def _parallel_evolve(n_programs, parents, X, y, sample_weight, seeds, params):
 #     """Function used to build a batch of 'programs' within a job.
 
@@ -196,59 +216,65 @@ class TreeNode(object):
 
 
 class Topology(AirconicsCollection):
-    def __init__(self, parts={}, construct_geometry=False):
-        """Class to define abstract aircraft topologies as extensible lists
-        of lifting surfaces, enclosure, and propulsion type objects. 
-        
-        Parameters
-        ----------
-        parts - dictionary
-            Should contain the following,
-                {name: (Part, arity)}
-            i.e. the string 'name' values are presented as a tuple or list of:
-                Part - TopoDS_Shape
-                    The shape
-                arity - int
-                    the arity (number of descendant nodes) attached to part
-            A warning is raised if afinities are not provided, in which case
-            arity is assumed to be zero
-        
-        Attributes
-        ----------
-        _Tree - list
-            the list of LISP-like instructions (in the order they were called
-            with AddPart)
+    """Class to define abstract aircraft topologies as extensible lists
+    of lifting surfaces, enclosure, and propulsion type objects.
 
-        Notes
-        -----
-        - warning will be raised if no affinities are provided
+    Parameters
+    ----------
+    parts - dictionary
+        Should contain the following,
+            {name: (Part, arity)}
+        i.e. the string 'name' values are presented as a tuple or list of:
+            Part - TopoDS_Shape
+                The shape
+            arity - int
+                the arity (number of descendant nodes) attached to part
+        A warning is raised if afinities are not provided, in which case
+        arity is assumed to be zero
 
-        example:
-            # (Wing is an airconics Lifting Surface instace):
-            aircraft = Topology(parts={'Wing': (Wing['Surface'], 2)})
+    Attributes
+    ----------
+    _Tree - list
+        the list of LISP-like instructions (in the order they were called
+        with AddPart)
 
-        Although not enforced, parts should be added to this class recursively
-        (from the top node first) to represent the aircraft's flattened
-        topological tree suggested by Sobester [1]. It is the users
-        responsibility to ensure the input nodes are a valid lisp tree for a
-        correct graph to result (no checks are currently performed)
+    Notes
+    -----
+    - warning will be raised if no affinities are provided
+
+    example:
+        # (Wing is an airconics Lifting Surface instace):
+        aircraft = Topology(parts={'Wing': (Wing['Surface'], 2)})
+
+    Although not enforced, parts should be added to this class recursively
+    (from the top node first) to represent the aircraft's flattened
+    topological tree suggested by Sobester [1]. It is the users
+    responsibility to ensure the input nodes are a valid lisp tree for a
+    correct graph to result (no checks are currently performed)
 
 
-        See Also: AirconicsCollection
+    See Also: AirconicsCollection
 
-        References
-        ----------
-        [1] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
-            10th AIAA Multidisciplinary Design Optimization Conference,
-            AIAA SciTech, American Institute of Aeronautics and Astronautics,
-            jan 2014.
-        """
+    References
+    ----------
+    [1] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
+        10th AIAA Multidisciplinary Design Optimization Conference,
+        AIAA SciTech, American Institute of Aeronautics and Astronautics,
+        jan 2014.
+    """
+    def __init__(self, parts={},
+                 max_recursion=5,
+                 max_arity=5,
+                 construct_geometry=False):
+
         self._Tree = []
         # Start with an empty parts list, as all parts will be added using
         # the for loop of self[name] = XXX below (__setitem__ calls the base)
         # AirconicsCollection __setitem__, which adds part to self._Parts)
         super(Topology, self).__init__(parts={},
-                                       construct_geometry=construct_geometry)
+                                       construct_geometry=construct_geometry,
+                                       max_recursion=max_recursion,
+                                       max_arity=max_arity)
 
         for name, part_w_arity in parts.items():
             self[name] = part_w_arity

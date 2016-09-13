@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-08-24 17:58:59
+# @Last Modified time: 2016-09-13 17:49:17
 import logging
 import os
 import sys
@@ -11,6 +11,9 @@ import sys
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
 import airconics
+import matplotlib.pyplot as plt
+import numpy as np
+import itertools
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +24,11 @@ log.info("GUI backend set to: {0}".format(used_backend))
 
 from OCC.Display.qtDisplay import qtViewer3d
 QtCore, QtGui, QtWidgets, QtOpenGL = get_qt_modules()
+
+from matplotlib.backends.backend_qt4agg import (
+    FigureCanvasQTAgg as FigureCanvas)
+
+from matplotlib_radar import radar_factory, example_data
 
 
 class Airconics_Viewgrid(QtWidgets.QWidget):
@@ -35,6 +43,10 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     """
     select_clicked = QtCore.pyqtSignal()
 
+    data_labels = ['Static Margin', 'Fuel Burn', 'Cost', 'Weight', 'Range', 'Payload']
+
+    colors = itertools.cycle(['b', 'r', 'g', 'm', 'y'])
+
     def __init__(self, Topology=None, *args):
         super(Airconics_Viewgrid, self).__init__()
 
@@ -44,19 +56,41 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         else:
             self._Topology = airconics.Topology()
 
+        # Matplotlib colour character (different for each instance)
+        self.color = next(self.colors)
+
+
         grid = QtGui.QGridLayout(self)
         self.setLayout(grid)
         viewer = qtViewer3d(*args)
 
+        viewer.setMinimumSize(200, 200)
+
         # Set the stretch of the first column (where geometry viewer is)
         # grid.setColumnStretch(0, 1)
+        grid.setSpacing(10)
+        grid.setMargin(10)
 
-        # Add the viewer and some push buttons and text boxes to the grid
-        grid.addWidget(viewer, 0, 0)
+        # Add the viewer spanning 3/4 of the width of the widget
+        grid.addWidget(viewer, 0, 0, 1, 1)
+
+        self.InitDataCanvas()
+
+        # Add the canvas to a new VBox layout with a title
+        data_group = QtGui.QGroupBox("Estimated Performance Metrics")
+        data_box = QtGui.QVBoxLayout(data_group)
+
+        data_box.addWidget(self._data_canvas)
+
+        data_group.setLayout(data_box)
+
+        grid.addWidget(data_group, 0, 1)
+
+
 
         self.select_button = QtGui.QPushButton('Select', self)
 
-        grid.addWidget(self.select_button, 1, 0)
+        grid.addWidget(self.select_button, 1, 0, 1, 2)
 
         self.viewer = viewer
 
@@ -82,6 +116,55 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     def Evolve(self):
         self.viewer._display.EraseAll()
         self.Topology.Display(self.viewer._display)
+
+    def InitDataCanvas(self):
+        """
+        """
+        # Labels
+        # labels = []
+        # outputs = []
+
+        # data_group = QtGui.QGroupBox("Estimated Performance Metrics")
+        # data_gridlayout = QtGui.QVBoxLayout(data_group)
+
+        # for i, lbl_string in enumerate(self.data_box_labels):
+        #     label = QtGui.QLabel(lbl_string)
+        #     labels.append(label)
+
+        #     # output = QtGui.QLineEdit("Nil")
+        #     # output.setReadOnly(True)
+        #     # outputs.append(output)
+
+        #     data_gridlayout.addWidget(label)
+        #     # data_gridlayout.addWidget(output, i, 1)
+
+        # data_group.setLayout(data_gridlayout)
+        Nvars = len(self.data_labels)
+        # Nvars = len(self.data_labels)
+        self.radar_factory = radar_factory(Nvars, frame='polygon')
+
+        # This initialises some data in the radar plot: remove this later!
+        data = np.random.random(Nvars)
+        print(data)
+
+        self._fig = plt.figure(facecolor="white")
+        self._ax = self._fig.add_subplot(111, projection='radar')
+
+        # plt.rgrids([0.2, 0.4, 0.6, 0.8])
+
+        self._ax.plot(self.radar_factory, data, color=self.color)
+        self._ax.fill(self.radar_factory, data, facecolor=self.color,
+                      alpha=0.25)
+        self._ax.set_varlabels(self.data_labels)
+
+        # plt.tight_layout()
+
+        self._data_canvas = FigureCanvas(self._fig)
+        self._data_canvas.setParent(self)
+        self._data_canvas.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        # self._data_canvas.setMinimumSize(200, 200)
+        self._data_canvas.setMaximumSize(200, 200)
 
 
 class MainWindow(QtWidgets.QMainWindow):

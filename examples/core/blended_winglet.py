@@ -2,7 +2,7 @@
 # @Author: pc12g10
 # @Date:   2016-08-11 14:19:53
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-08-25 15:37:24
+# @Last Modified time: 2016-09-12 15:02:47
 
 import numpy as np
 from airconics.primitives import Airfoil
@@ -78,6 +78,13 @@ if __name__ == "__main__":
         )
 
     Wing.Display(display)
+    # for section in Wing.Sections:
+    #     display.DisplayShape(section.Curve, color='BLACK')
+    #     o = section.Curve.GetObject()
+    #     for i in range(1, o.NbPoles()):
+    #         point = o.Pole(i)
+    #         display.DisplayShape(point, color='yellow')
+
     Winglet.Display(display)
 
     # This is just me trying to create a phantom surface:
@@ -136,7 +143,7 @@ if __name__ == "__main__":
 
     geometry = AirconicsCollection(parts={'Wing': Wing, 'Winglet':Winglet, 'CWinglet':Winglet2})
 
-    geometry.Write('C Wing.step')
+    geometry.Write('C_Wing.step')
 
     start_display()
 
