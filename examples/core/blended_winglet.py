@@ -59,7 +59,7 @@ if __name__ == "__main__":
     NSeg = 1
 
     # Instantiate the class
-    ChordFactor = 0.3
+    ChordFactor = 1
     ScaleFactor = 7.951
 
     Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunction,

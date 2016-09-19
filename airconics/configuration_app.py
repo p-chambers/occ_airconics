@@ -43,6 +43,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     """
     select_clicked = QtCore.pyqtSignal()
 
+    # Note: Some of these have a min target, some have max... misleading
     data_labels = ['Static Margin', 'Fuel Burn', 'Cost', 'Weight', 'Range', 'Payload']
 
     colors = itertools.cycle(['b', 'r', 'g', 'm', 'y'])
@@ -65,9 +66,11 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         viewer = qtViewer3d(*args)
 
         viewer.setMinimumSize(200, 200)
-
+        
+        self.viewer = viewer
+        
         # Set the stretch of the first column (where geometry viewer is)
-        # grid.setColumnStretch(0, 1)
+#         grid.setColumnStretch(0, 1)
         grid.setSpacing(10)
         grid.setMargin(10)
 
@@ -87,12 +90,10 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         grid.addWidget(data_group, 0, 1)
 
 
-
         self.select_button = QtGui.QPushButton('Select', self)
 
         grid.addWidget(self.select_button, 1, 0, 1, 2)
 
-        self.viewer = viewer
 
         self.select_clicked.connect(self.Evolve)
 
@@ -116,6 +117,16 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     def Evolve(self):
         self.viewer._display.EraseAll()
         self.Topology.Display(self.viewer._display)
+        
+        # This initialises some data in the radar plot: remove this later!
+        data = np.random.random(Nvars)
+        
+        self._ax.plot(self.radar_factory, data, color=self.color)
+        self._ax.fill(self.radar_factory, data, facecolor=self.color,
+                      alpha=0.25)
+        
+        self._data_canvas.repaint()
+        self._ax.redraw_in_frame()
 
     def InitDataCanvas(self):
         """
@@ -145,12 +156,13 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
         # This initialises some data in the radar plot: remove this later!
         data = np.random.random(Nvars)
-        print(data)
 
         self._fig = plt.figure(facecolor="white")
         self._ax = self._fig.add_subplot(111, projection='radar')
 
-        # plt.rgrids([0.2, 0.4, 0.6, 0.8])
+        self._ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+        self._ax.set_rmin(0.)
+        self._ax.set_rmax(1.)
 
         self._ax.plot(self.radar_factory, data, color=self.color)
         self._ax.fill(self.radar_factory, data, facecolor=self.color,
@@ -207,7 +219,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for position in positions:
             viewer_grid = Airconics_Viewgrid()
             grid.addWidget(viewer_grid, *position)
-            viewer_grid.viewer.InitDriver()
 
             # connect the select button from the viewer grid to the signal
             viewer_grid.select_button.clicked.connect(
@@ -357,7 +368,10 @@ if __name__ == '__main__':
     # For now I'll just make one fully constructed version and copy it
     main_topo = blended_winglet()
 
+    win.show()    
+    
     for viewer_grid in win.viewer_grids:
+        viewer_grid.viewer.InitDriver()
         topo = copy.copy(main_topo)
         print(type(viewer_grid))
         # topo.Display(viewer_grid.viewer._display)
@@ -367,6 +381,5 @@ if __name__ == '__main__':
     # add_function_to_menu('primitives', sphere)
     # add_function_to_menu('primitives', cube)
     # add_function_to_menu('primitives', exit)
-    win.show()
 
-    app.exec_()
+    sys.exit(app.exec_())
