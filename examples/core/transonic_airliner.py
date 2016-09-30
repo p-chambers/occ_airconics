@@ -162,9 +162,6 @@ def transonic_airliner(display=None,
     
         WTBFlength = 1.167*RootChord #787:26
         
-        print("Fairing Paramters:")
-        print(WTBFXCentre, WTBFZ, WTBFlength, WTBFwidth, WTBFheight)
-        
         WBF_shape = act.make_ellipsoid([WTBFXCentre, 0, WTBFZ], WTBFlength,
                                         WTBFwidth, WTBFheight)
         WBF = AirconicsShape(components={'WBF': WBF_shape})

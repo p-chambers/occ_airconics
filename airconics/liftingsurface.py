@@ -18,8 +18,9 @@ from airconics.base import AirconicsShape
 from airconics.primitives import Airfoil
 import AirCONICStools as act
 
-from OCC.gp import gp_Pnt, gp_Vec
+from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir
 from OCC.GeomAbs import GeomAbs_C2
+from OCC.Geom import Geom_Plane
 
 
 def airfoilfunct(ProfileFunct):
@@ -259,6 +260,8 @@ class LiftingSurface(AirconicsShape):
             print("Initialising without geometry construction")
             construct_geometry = False
 
+        self.CreateConstructionGeometry()
+
 #        Initialise the components using base class:
         super(LiftingSurface, self).__init__(components={},
                                              _ApexPoint=ApexPoint,
@@ -270,6 +273,7 @@ class LiftingSurface(AirconicsShape):
                                              _ChordFactor=ChordFactor,
                                              _ScaleFactor=ScaleFactor,
                                              _Sections=[],
+                                             LSP_area=0,
                                              RootChord=None,
                                              OptimizeChordScale=OptimizeChordScale,
                                              LooseSurf=LooseSurf,
@@ -280,8 +284,6 @@ class LiftingSurface(AirconicsShape):
                                              construct_geometry=construct_geometry,
                                              randomize=randomize,
                                              parent=parent)
-
-#        self.CreateConstructionGeometry()
 
     # Properties
     # ----------------------------------------------------------------------
@@ -424,6 +426,13 @@ class LiftingSurface(AirconicsShape):
     #     airconics.primitives.Airfoil
     #     """
     #     for profile in Profile_list:
+
+    def CreateConstructionGeometry(self):
+        """
+        Creates the plane and vector used for projecting wetted area
+        """
+        self.XoY_Plane = Geom_Plane(gp_Ax3(gp_XOY()))
+        self.ProjVectorZ = gp_Dir(0, 0, 1)
 
     def Build(self):
         """Builds the section curves and lifting surface using the current
@@ -581,12 +590,13 @@ class LiftingSurface(AirconicsShape):
         Eps = np.linspace(0, 1, self.NSegments + 1)
 
         for i, eps in enumerate(Eps):
-                self._Sections.append(self.AirfoilFunct(eps,
-                                                        LEPoints[i],
-                                                        self.ChordFunct,
-                                                        self.ChordFactor,
-                                                        self.DihedralFunct,
-                                                        self.TwistFunct))
+            Af = self.AirfoilFunct(Epsilon=eps,
+                                   LEPoint=LEPoints[i],
+                                   ChordFunct=self.ChordFunct,
+                                   ChordFactor=self.ChordFactor,
+                                   DihedralFunct=self.DihedralFunct,
+                                   TwistFunct=self.TwistFunct)
+            self._Sections.append(Af)
 
     def ChordScaleOptimizer(self):
         """
@@ -636,7 +646,8 @@ class LiftingSurface(AirconicsShape):
 
         LS = act.AddSurfaceLoft(self._Sections,
                                 max_degree=self.max_degree,
-                                continuity=self.Cont)
+                                continuity=self.Cont,
+                                solid=False)
 
         # TODO: Optimize chord scale ...
         if self.OptimizeChordScale:
@@ -674,27 +685,11 @@ class LiftingSurface(AirconicsShape):
         #  Update instance components:
         self.AddComponent(LS, 'Surface')
 
-        # TODO: Calculating surface area
-        #        # Calculate projected area
-        #        # In some cases the projected sections cannot all be lofted in one go
-        #        # (it happens when parts of the wing fold back onto themselves), so
-        #        # we loft them section by section and we compute the area as a sum.
-        #        LSP_area = 0
-        #        # Attempt to compute a projected area
-        #        try:
-        #            for i, LEP in enumerate(ProjectedSections):
-        #                if i < len(ProjectedSections)-1:
-        #                    LSPsegment = rs.AddLoftSrf(ProjectedSections[i:i+2])
-        #                    SA = rs.SurfaceArea(LSPsegment)
-        #                    rs.DeleteObject(LSPsegment)
-        #                    LSP_area = LSP_area + SA[0]
-        #        except:
-        #            print "Failed to compute projected area. Using half of surface
-        #                    area instead."
-        #            LS_area = rs.SurfaceArea(LS)
-        #            LSP_area = 0.5*LS_area[0]
+        # Calculate projected area
+        self.LSP_area = self.ProjectedArea()
 
         # TODO: Check bounding box size
+        ActualSemiSpan = self.LEPoints[-1][1]
         #        BB = rs.BoundingBox(LS)
         #        if BB:
         #            ActualSemiSpan = BB[2].Y - BB[0].Y
@@ -711,11 +706,10 @@ class LiftingSurface(AirconicsShape):
         if self.ScaleFactor != 1:
             self.ScaleComponents_Uniformal(self.ScaleFactor)
 
-        # TODO: Calculate key features
-        # ActualSemiSpan = ActualSemiSpan * ScaleFactor
-        # LSP_area = LSP_area * ScaleFactor ** 2.0
+        # Calculate some parameters
+        ActualSemiSpan *= self.ScaleFactor
         RootChord = (self.ChordFunct(0) * self.ChordFactor) * self.ScaleFactor
-        # AR = ((2.0 * ActualSemiSpan) ** 2.0) / (2 * LSP_area)
+        AR = ((2.0 * ActualSemiSpan) ** 2.0) / (2 * self.LSP_area)
 
         self.RootChord = RootChord
 
@@ -723,24 +717,58 @@ class LiftingSurface(AirconicsShape):
         vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)
         self.TranslateComponents(vec)
 
-        print("Lifting Surface complete. Key features (both wings):")
-        # print("Proj.area: %5.4f   Wet.area: %5.4f   Span:%5.4f  Aspect ratio:  %5.4f  Root chord: %5.4f" % (2*LSP_area, 2.0*SA[0], 2.0*ActualSemiSpan, AR, RootChord))
-        print("Root Chord: {}. Remaining params to be implemented".format(
-            RootChord))
+        SA = act.CalculateSurfaceArea(self['Surface'])
+
+        print("Lifting Surface complete. Key features:")
+        print("""   Proj.area: {},
+    Wet.area: {},
+    Span:{},
+    Aspect ratio: {},
+    Root chord: {}\n""".format(self.LSP_area, SA, ActualSemiSpan,
+                             AR, RootChord))
 
         return None
 
-# TODO: CreateConstructionGeometry from rhino plugin needs migrating to OCC?
-#    def CreateConstructionGeometry(self):
-#        self.PCG1 = rs.AddPoint([-100,-100,0])
-#        self.PCG2 = rs.AddPoint([-100,100,0])
-#        self.PCG3 = rs.AddPoint([100,100,0])
-#        self.PCG4 = rs.AddPoint([100,-100,0])
-#        self.XoY_Plane = rs.AddSrfPt([self.PCG1, self.PCG2, self.PCG3,
-#                                      self.PCG4])
-#        self.PCG5 = rs.AddPoint([3,3,0])
-#        self.PCG6 = rs.AddPoint([3,3,100])
-#        self.ProjVectorZ = rs.VectorCreate(self.PCG5, self.PCG6)
+    def ProjectedArea(self):
+        """Calculates the projected area of the current lifting surface
+
+        From Airconics documentation: In some cases the projected section
+        cannot all be lofted in one go (it happens when parts of the wing fold
+        back onto themselves), so we loft them section by section and compute
+        the area as a sum
+        """
+        assert(self['Surface']), 'No wing surface found. Try running Build.'
+
+        # First project the section chords onto the xy plane:
+        ProjectedSections = []
+        for section in self.Sections:
+            ProjectedSections.append(
+                act.project_curve_to_plane(section.ChordLine,
+                                           self.XoY_Plane,
+                                           self.ProjVectorZ)
+            )
+
+        try:
+            LSP_area = 0
+            for i in range(self.NSegments):
+                # Hinbd_crv, Houtbd_crv = ProjectedSections[i: i + 2]
+                # inbd_crv = Hinbd_crv.GetObject()
+                # outbd_crv = Houtbd_crv.GetObject()
+                # LEwire = act.make_wire(inbd_crv.Value(0), outbd_crv.Value())
+                # TEwire = act.make_wire()
+                LSPsegment = act.AddSurfaceLoft(ProjectedSections[i: i + 2],
+                                                close_sections=False)
+                SA = act.CalculateSurfaceArea(LSPsegment)
+                LSP_area += SA
+        except:
+            print("""Failed to compute projected area. Using half of surface
+                area instead.""")
+            LS_area = act.CalculateSurfaceArea(self['Surface'])
+            LSP_area = 0.5 * LS_area
+
+        # Scale the area
+        LSP_area *= self.ScaleFactor ** 2.0
+        return LSP_area
 
     def Fit_BlendedTipDevice(self, rootchord_norm, spanfraction=0.1, cant=40,
                              transition=0.1, sweep=40, taper=0.7):
@@ -824,7 +852,6 @@ class LiftingSurface(AirconicsShape):
         chordfactor = ((self.ChordFunct(1) * self.ChordFactor) /
                        (ChordFunctWinglet(0) * spanfraction)
                        )
-        print(chordfactor)
 
         Winglet = LiftingSurface(ApexPoint=Winglet_apex,
                                  SweepFunct=SweepFunctWinglet,

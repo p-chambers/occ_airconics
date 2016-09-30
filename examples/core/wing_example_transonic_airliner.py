@@ -93,7 +93,8 @@ if __name__ == "__main__":
                                          myTwistFunctionAirliner,
                                          myChordFunctionAirliner,
                                          myAirfoilFunctionAirliner,
-                                         SegmentNo=NSeg)
+                                         SegmentNo=NSeg,
+                                         ScaleFactor=ScaleFactor)
 
     Wing.Display(display)
 

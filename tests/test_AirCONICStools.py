@@ -51,6 +51,38 @@ def test_points_to_bspline_nparray():
     o = spline.GetObject()
 
 
+def test_project_curve_to_plane():
+    # Projects a line of length 1 from above the XOY plane, and tests points
+    # on the resulting line
+    from OCC.Geom import Geom_Plane, Geom_TrimmedCurve
+    from OCC.GC import GC_MakeSegment
+    from OCC.gp import gp_Ax3, gp_XOY, gp_Pnt, gp_Dir
+    XOY = Geom_Plane(gp_Ax3(gp_XOY()))
+    curve = GC_MakeSegment(gp_Pnt(0, 0, 5),
+                           gp_Pnt(1, 0, 5)).Value()
+    direction = gp_Dir(0, 0, 1)
+
+    Hproj_curve = act.project_curve_to_plane(curve, XOY.GetHandle(),
+                                            direction)
+
+    proj_curve = Hproj_curve.GetObject()
+
+    # The start and end points of the curve
+    p1 = proj_curve.Value(0)
+    p2 = proj_curve.Value(1)
+
+    p1_array = np.array([p1.X(), p1.Y(), p1.Z()])
+    p2_array = np.array([p2.X(), p2.Y(), p2.Z()])
+
+    # The expected start and end points
+    start = np.array([0, 0, 0])
+    end = np.array([1, 0, 0])
+
+    # Assert that neither points have a Y or Z component, and that
+    assert((np.all(p1_array == start) and np.all(p2_array == end)) or
+           (np.all(p1_array == end) and np.all(p2_array == start)))
+
+
 def test_project_curve_to_surface():
     """Returning object rather than handle from this function gave bugs
     between 0.16.3 and 0.16.5 - adding test to preempt future oddness"""
@@ -70,6 +102,35 @@ def test_project_curve_to_surface():
 
     # Check that the curve created is not null
     check_valid_object(Hprojected_curve)
+
+
+def test_CalculateSurfaceArea():
+    """Use a few simple shapes to test the surface area function.
+
+    Notes
+    -----
+    This isnt testing the area building algorithm, just that my setup of the
+    function works for a variety of different OCC objects - PChambers
+    """
+    # A flat square edge lengths 1
+    from OCC.BRepBuilderAPI import BRepBuilderAPI_MakePolygon
+    p1 = gp_Pnt(0, 0, 0)
+    p2 = gp_Pnt(1, 0, 0)
+    p3 = gp_Pnt(1, 1, 0)
+    p4 = gp_Pnt(0, 1, 0)
+    surf1 = act.make_face(
+        BRepBuilderAPI_MakePolygon(p1, p2, p3, p4, True).Wire())
+    # The tolerance for difference between output and expected area
+    tol = 1e-12
+    assert(np.abs(act.CalculateSurfaceArea(surf1) - 1) < tol)
+
+    # A sphere with radius 1
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakeSphere
+    r = 1
+    # The tolerance need to be relaxed a bit for this case
+    tol = 1e-04
+    sphere = BRepPrimAPI_MakeSphere(r).Shape()
+    assert(np.abs(act.CalculateSurfaceArea(sphere) - 4 * np.pi * (r**2)) < tol)
 
 
 # Misc functions

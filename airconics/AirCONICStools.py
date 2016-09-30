@@ -64,6 +64,19 @@ from OCC.XCAFDoc import (XCAFDoc_DocumentTool_ShapeTool,
 import numpy as np
 
 
+def coerce_handle(obj):
+    '''
+    coerces an object that has a GetHandle method to call this method and
+    return its handle
+    '''
+    try:
+        handle = obj.GetHandle()
+    except:
+        # If we reach here, assume that the object is already a handle
+        handle = obj
+    return handle
+
+
 class assert_isdone(object):
     '''
     raises an assertion error when IsDone() returns false, with the error
@@ -661,7 +674,7 @@ def AddSurfaceLoft(objs, continuity=GeomAbs_C2, check_compatibility=True,
             crv = obj.GetObject()
             if crv.IsClosed() is False:
                 # Add Finite TE edge
-                TE = make_edge(crv.EndPoint(), crv.StartPoint())
+                TE = make_edge(crv.Value(1), crv.Value(0))
                 edges.append(TE)
 
         generator.AddWire(BRepBuilderAPI_MakeWire(*edges).Wire())
@@ -937,6 +950,26 @@ def make_circle3pt(pt1, pt2, pt3):
     return GC_MakeCircle(pt1, pt2, pt3).Value()
 
 
+def CalculateSurfaceArea(shape):
+    """Calculates the surface area of input shape
+
+    Parameters
+    ----------
+    shape : TopoDS_Shape
+
+    Returns
+    -------
+    Area : scalar
+        Calculated surface area
+    """
+    from OCC.BRepGProp import brepgprop_SurfaceProperties
+    from OCC.GProp import GProp_GProps
+    System = GProp_GProps()
+    brepgprop_SurfaceProperties(shape, System)
+    Area = System.Mass()
+    return Area
+
+
 def PlanarSurf(geomcurve):
     """Adds a planar surface to curve
 
@@ -958,10 +991,40 @@ def PlanarSurf(geomcurve):
     face = make_face(wire)
     return face
 
+def project_curve_to_plane(curve, plane, direction):
+    """
+    Computes and returns the cylindrically projected curve onto input plane
+
+    Parameters
+    ----------
+    curve - geom_Curve
+
+    plane - Geom_Plane
+
+    dir - gp_Dir (default None)
+        The cylindrical projection direction. If None, the project will be
+        normal to the plane
+
+    Returns
+    -------
+    Hproj_curve : Handle_Geom_Curve
+    """
+    from OCC.GeomProjLib import geomprojlib_ProjectOnPlane
+
+    hc = coerce_handle(curve)
+    h_pln = coerce_handle(plane)
+
+    Hproj_curve = geomprojlib_ProjectOnPlane(hc,
+                                      h_pln,
+                                      direction,
+                                      True)
+
+    return Hproj_curve
+
 
 def project_curve_to_surface(curve, surface, dir):
     '''
-    Returns a curve as projected onto the surface shape
+    Returns a curve as cylindrically projected onto the surface shape
 
     Parameters
     ----------
@@ -1200,21 +1263,22 @@ def TrimShapebyPlane(Shape, Plane, pnt=gp_Pnt(0, -10, 0)):
     return trimmed_shape
 
 
-def boolean_cut(shapeToCutFrom, cuttingShape):
+def boolean_cut(shapeToCutFrom, cuttingShape, debug=False):
     """Boolean cut tool from PythonOCC-Utils"""
     try:
         cut = BRepAlgoAPI_Cut(shapeToCutFrom, cuttingShape)
-        print 'can work?', cut.BuilderCanWork()
-        _error = {0: '- Ok',
-                  1: '- The Object is created but Nothing is Done',
-                  2: '- Null source shapes is not allowed',
-                  3: '- Check types of the arguments',
-                  4: '- Can not allocate memory for the DSFiller',
-                  5: '- The Builder can not work with such types of arguments',
-                  6: '- Unknown operation is not allowed',
-                  7: '- Can not allocate memory for the Builder',
-                  }
-        print 'error status:', _error[cut.ErrorStatus()]
+        if debug:
+            print 'can work?', cut.BuilderCanWork()
+            _error = {0: '- Ok',
+                      1: '- The Object is created but Nothing is Done',
+                      2: '- Null source shapes is not allowed',
+                      3: '- Check types of the arguments',
+                      4: '- Can not allocate memory for the DSFiller',
+                      5: '- The Builder can not work with such types of arguments',
+                      6: '- Unknown operation is not allowed',
+                      7: '- Can not allocate memory for the Builder',
+                      }
+            print 'error status:', _error[cut.ErrorStatus()]
 #        cut.RefineEdges()
         shp = cut.Shape()
         cut.Destroy()

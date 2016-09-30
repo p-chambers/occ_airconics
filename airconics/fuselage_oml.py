@@ -343,21 +343,21 @@ class Fuselage(AirconicsShape):
         i_attempt = 0
         while i_attempt < Max_attempt:
             i_attempt = i_attempt + 1
-            print("Surface fit attempt ", i_attempt)
+            print("Surface fit attempt {}".format(i_attempt))
 
             # Construct array of cross section definition frames
             SX0 = 0
-            SX1 = 0.04*NoseEndX
-            SX2 = SX1 + 0.25*NoseEndX
+            SX1 = 0.04 * NoseEndX
+            SX2 = SX1 + 0.25 * NoseEndX
             SX3 = NoseEndX
             SX4 = TailStartX
             SX5 = EndX
 
             Step01, Step12, Step23, Step34, Step45 = \
-                NetworkSrfSettings[i_attempt-1]
+                NetworkSrfSettings[i_attempt - 1]
 
-            print("""Attempting thrusections surface fit with network density
-                setup """, NetworkSrfSettings[i_attempt][:])
+            print("""Attempting loft surface fit with network density
+                setup {}""".format(NetworkSrfSettings[i_attempt][:]))
             Stations01 = np.linspace(SX0, SX1, max([Step01, 2]))
             Stations12 = np.linspace(SX1, SX2, max([Step12, 2]))
             Stations23 = np.linspace(SX2, SX3, max([Step23, 2]))
@@ -433,7 +433,7 @@ class Fuselage(AirconicsShape):
                 OMLSurf = None
 
             if OMLSurf is not None:
-                print("Network surface fit succesful on attempt {}"
+                print("Network surface fit succesful on attempt {}\n"
                       .format(i_attempt))
                 self.AddComponent(OMLSurf, 'OML')
                 return None

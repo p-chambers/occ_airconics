@@ -2,7 +2,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-26 17:37:52
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-07-26 17:50:33
+# @Last Modified time: 2016-09-30 12:23:54
 import numpy as np
 from airconics import primitives
 from airconics import liftingsurface
@@ -36,7 +36,7 @@ def SimpleChordFunction(Epsilon):
 def SimpleAirfoilFunction(Epsilon, LEPoint, ChordFunct, ChordFactor,
                               DihedralFunct, TwistFunct):
     """constant cross section with Epsilon"""
-    AfChord = ChordFunct(Epsilon)
+    AfChord = ChordFunct(Epsilon) * ChordFactor
     Af = primitives.Airfoil(LEPoint, ChordLength=AfChord,
                             Rotation=DihedralFunct(Epsilon),
                             Twist=TwistFunct(Epsilon),
@@ -44,7 +44,7 @@ def SimpleAirfoilFunction(Epsilon, LEPoint, ChordFunct, ChordFactor,
     return Af
 
 
-def SimpleSweepAngleFunction(Epsilon):
+def SimpleSweepFunction(Epsilon):
     """User-defined function describing the variation of sweep angle as a function
     of the leading edge coordinate"""
     return np.ones_like(Epsilon)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     # Af_crm = airconics.primitives.Airfoil([0., 6., 1.], CRMProfile=True, CRM_Epsilon=0.8)
     # display.DisplayShape(Af_crm.Curve, update=True, color='GREEN');
     
-    Wing = liftingsurface.LiftingSurface(P, SimpleSweepAngleFunction, 
+    Wing = liftingsurface.LiftingSurface(P, SimpleSweepFunction, 
         SimpleDihedralFunction, 
         SimpleTwistFunction, 
         SimpleChordFunction, 

@@ -151,17 +151,39 @@ def test_GenerateSectionCurves_NonNumpy_ChordFunct():
     assert(len(wing._Sections) > 0)
 
 
+def test_ProjectedArea_RectangularWing():
+    """For a simple straight wing with known area, calculate the projected
+    area and test the output is equal to the expected value"""
+    from airconics.examples.straight_wing import *
+    wing = LiftingSurface(ChordFunct=SimpleChordFunction,
+                          DihedralFunct=SimpleDihedralFunction,
+                          SweepFunct=SimpleSweepFunction,
+                          AirfoilFunct=SimpleAirfoilFunction,
+                          TwistFunct=SimpleTwistFunction,
+                          ScaleFactor=5,
+                          ChordFactor=0.2)
+    assert(np.abs(wing.ProjectedArea()) - 5 < 1e-5)
+
+
+@pytest.mark.xfail
+def test_ProjectedArea_SweptWing():
+    """For a simple swept wing with known area, calculate the projected
+    area and test the output is equal to the expected value"""
+    wing = LiftingSurface()
+    raise NotImplementedError()
+
+
 def test_update_ApexPoint():
     """Tests that Build is triggered on updating Apex Point"""
     # Create example airliner wing
-    P = (0, 0, 0) 
+    P = (0, 0, 0)
     wing = LiftingSurface(P, mySweepAngleFunctionAirliner,
-                             myDihedralFunctionAirliner,
-                             myTwistFunctionAirliner,
-                             myChordFunctionAirliner,
-                             myAirfoilFunctionAirliner)
+                          myDihedralFunctionAirliner,
+                          myTwistFunctionAirliner,
+                          myChordFunctionAirliner,
+                          myAirfoilFunctionAirliner)
 
-    # By adding a point to the wing, we will see if the move transformation 
+    # By adding a point to the wing, we will see if the move transformation
     # has been performed when the ApexPoint attribute is changed:
     from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
     v = BRepBuilderAPI_MakeVertex(gp_Pnt(0, 0, 0)).Vertex()
