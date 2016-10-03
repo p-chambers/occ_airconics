@@ -248,6 +248,51 @@ class AirconicsShape(AirconicsBase):
         outstring += self.__str__()
         print(outstring)
 
+    def Extents(self, tol=1e-6, as_vec=False):
+        """Returns the extents of the bounding box encapsulating all shapes in
+        self.__Components__
+
+        Parameters
+        ----------
+        tol : scalar (default 1e-6)
+            tolerance of the triangulation used in the bounding box extents
+
+        as_vec : bool (default True)
+            Returns two OCC.gp.gp_Vec objects if True
+
+        Returns
+        -------
+        extents : tuple of scalar or OCC.gp.gp_Vec
+            Type depends on input 'as_vec'. If as_vec is false, this returns
+            a tuple xmin, ymin, zmin, xmax, ymax, zmax; otherwise, the min and
+            max vectors will be returned as OCC types.
+        """
+        return act.ObjectsExtents(self.values(), tol=tol, as_vec=as_vec)
+
+    def DisplayBBox(self, display, single=True):
+        """Displays the bounding box on input display.
+
+        Parameters
+        ----------
+        display : OCC.Display.OCCViewer.Viewer3d
+            Note that this function only currently works with the OCC core
+            viewer as the bounding box is an AIS_Shape handle
+
+        single : bool (default True)
+            If false, separate bounding boxes will be draw for each component
+        """
+        assert(hasattr(display, 'Context')),\
+            "Displaying BBox (AIS_Shape) requires a display Context: only works with OCC viewer"
+        if single:
+            extents = self.Extents()
+            bbox = act.BBox_FromExtents(*extents)
+            display.Context.Display(bbox)
+        else:
+            for name, component in self.items():
+                extents = act.ObjectsExtents(component)
+                bbox = act.BBox_FromExtents(*extents)
+                display.Context.Display(bbox)
+
     def TranslateComponents(self, vec):
         """Apply translation by vec to each component in self
 

@@ -2,7 +2,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-26 17:37:52
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-09-30 12:23:54
+# @Last Modified time: 2016-10-03 12:21:03
 import numpy as np
 from airconics import primitives
 from airconics import liftingsurface
@@ -11,7 +11,7 @@ from airconics import liftingsurface
 def SimpleDihedralFunction(Epsilon):
     """User-defined function describing the variation of dihedral as a function
     of the leading edge coordinate"""
-    return np.ones_like(Epsilon)
+    return np.zeros_like(Epsilon)
 
 
 def SimpleTwistFunction(Epsilon):
@@ -22,7 +22,7 @@ def SimpleTwistFunction(Epsilon):
     Epsilon = 0: twist = 4.24
     Epsilon =0.3: twist = 0.593
     Epsilon = 1: twist = -3.343"""
-    return np.ones_like(Epsilon)
+    return np.zeros_like(Epsilon)
 
 
 
@@ -30,7 +30,6 @@ def SimpleChordFunction(Epsilon):
     """User-defined function describing the variation of chord as a function of
     the leading edge coordinate"""
     return 1
-
 
 
 def SimpleAirfoilFunction(Epsilon, LEPoint, ChordFunct, ChordFactor,
@@ -47,7 +46,7 @@ def SimpleAirfoilFunction(Epsilon, LEPoint, ChordFunct, ChordFactor,
 def SimpleSweepFunction(Epsilon):
     """User-defined function describing the variation of sweep angle as a function
     of the leading edge coordinate"""
-    return np.ones_like(Epsilon)
+    return np.zeros_like(Epsilon)
 
 
 if __name__ == "__main__":

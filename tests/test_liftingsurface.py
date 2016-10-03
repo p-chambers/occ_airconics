@@ -9,51 +9,26 @@ from airconics.liftingsurface import LiftingSurface, airfoilfunct
 from airconics.primitives import Airfoil
 import airconics.AirCONICStools as act
 from airconics.examples.wing_example_transonic_airliner import *
+from airconics.examples.straight_wing import *
+
 from OCC.gp import gp_Pnt
 import pytest
 
 
 @pytest.fixture
 def simple_wing():
-    """Initialises a simple wing class, roughly the shape of the jetstream
-    airconics example"""
-    def myDihedralFunction(Epsilon):
-        return 7
-
-    def myTwistFunction(Epsilon):
-        RootTwist = 0
-        TipTwist  = -2
-        return RootTwist + Epsilon*TipTwist
-
-    myChordFunction = act.Generate_InterpFunction([1, 0.33], [0,1])
-
-    @airfoilfunct
-    def myAirfoilFunction(eps):
-        af_root = Airfoil(SeligProfile='naca63a418')
-        af_tip = Airfoil(SeligProfile='naca63a412')
-
-        profile_dict = {'InterpProfile': True, 'Epsilon': eps, 'Af1': af_root,
-                        'Af2': af_tip, 'Eps1': 0, 'Eps2': 1}
-        return profile_dict
-
-    def mySweepAngleFunction(Epsilon):
-        return 3
-
-    P = (0, 0, 0)
-    NSeg = 1
-
-    # Instantiate the class
-    ChordFactor = 0.3
-    ScaleFactor = 7.951
-    Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunction,
-                                         myDihedralFunction,
-                                         myTwistFunction,
-                                         myChordFunction,
-                                         myAirfoilFunction,
-                                         SegmentNo=NSeg,
-                                         ScaleFactor=ScaleFactor,
-                                         ChordFactor=ChordFactor)
-    return Wing
+    """Initialises a simple wing class, with zero twist, zero sweep, zero taper
+    zero dihedral, AR=5, chord=1"""
+    NSeg = 11
+    wing = LiftingSurface(ChordFunct=SimpleChordFunction,
+                          DihedralFunct=SimpleDihedralFunction,
+                          SweepFunct=SimpleSweepFunction,
+                          AirfoilFunct=SimpleAirfoilFunction,
+                          TwistFunct=SimpleTwistFunction,
+                          ScaleFactor=5,
+                          ChordFactor=0.2,
+                          SegmentNo=NSeg)
+    return wing
 
 
 def test_empty_liftingsurface():
@@ -151,26 +126,89 @@ def test_GenerateSectionCurves_NonNumpy_ChordFunct():
     assert(len(wing._Sections) > 0)
 
 
-def test_ProjectedArea_RectangularWing():
+def test_AspectRatio(simple_wing):
+    """For a simple straight wing with AR 5 and chord 1, calculate the
+    actual aspect ratio and test the output is equal to the expected value"""
+    assert(np.abs(simple_wing.CalculateAspectRatio() - 5) < 1e-5)
+
+
+def test_ProjectedArea(simple_wing):
+    """For a simple straight wing with AR 5 and chord 1, calculate the
+    projected area and test the output is equal to the expected value"""
+    assert(np.abs(simple_wing.CalculateProjectedArea() - 5) < 1e-5)
+
+
+def test_SemiSpan(simple_wing):
+    """For a simple straight wing with AR 5 and chord 1, calculate the
+    semi span and test the output is equal to the expected value"""
+    assert(np.abs(simple_wing.CalculateSemiSpan() - 5) < 1e-5)
+
+
+def test_RectangularWing():
     """For a simple straight wing with known area, calculate the projected
     area and test the output is equal to the expected value"""
-    from airconics.examples.straight_wing import *
+    NSeg = 1
     wing = LiftingSurface(ChordFunct=SimpleChordFunction,
                           DihedralFunct=SimpleDihedralFunction,
                           SweepFunct=SimpleSweepFunction,
                           AirfoilFunct=SimpleAirfoilFunction,
                           TwistFunct=SimpleTwistFunction,
                           ScaleFactor=5,
-                          ChordFactor=0.2)
-    assert(np.abs(wing.ProjectedArea()) - 5 < 1e-5)
+                          ChordFactor=0.2,
+                          SegmentNo=NSeg)
+    # reference values (area and aspect ratio of a 5 by 1 rectangular wing)
+    ex_area = 5
+    ex_AR = 5
+    span = 5
+    # Test that the area and calculated aspect ratio are as expected
+    tol = 1e-5
+    assert(np.abs(wing.LSP_area - ex_area) < tol)
+    assert(np.abs(wing.AR - ex_AR) < tol)
+    assert(np.abs(wing.ActualSemiSpan - span) < tol)
+
+    # Also test that a multiple segment wing gives the same result
+    NSeg = 21
+    wing = LiftingSurface(ChordFunct=SimpleChordFunction,
+                          DihedralFunct=SimpleDihedralFunction,
+                          SweepFunct=SimpleSweepFunction,
+                          AirfoilFunct=SimpleAirfoilFunction,
+                          TwistFunct=SimpleTwistFunction,
+                          ScaleFactor=5,
+                          ChordFactor=0.2,
+                          SegmentNo=NSeg)
+    assert(np.abs(wing.LSP_area - ex_area) < tol)
+    assert(np.abs(wing.AR - ex_AR) < tol)
+    assert(np.abs(wing.ActualSemiSpan - span) < tol)
 
 
-@pytest.mark.xfail
-def test_ProjectedArea_SweptWing():
-    """For a simple swept wing with known area, calculate the projected
-    area and test the output is equal to the expected value"""
-    wing = LiftingSurface()
-    raise NotImplementedError()
+def test_SweptWing():
+    """For a 15 deg swept wing with known area (unit chord, Aspect Ratio 5),
+    calculate the projected area and test the output is equal to the expected
+    value"""
+    NSeg = 1
+    LAMBDA = 15    # uniform sweep, in degrees
+    ScaleFactor = 5
+    ChordFactor = 0.2
+    wing = LiftingSurface(ChordFunct=SimpleChordFunction,
+                          DihedralFunct=SimpleDihedralFunction,
+                          SweepFunct=(lambda eps: np.ones_like(eps) * 15),
+                          AirfoilFunct=SimpleAirfoilFunction,
+                          TwistFunct=SimpleTwistFunction,
+                          ScaleFactor=ScaleFactor,
+                          ChordFactor=ChordFactor,
+                          SegmentNo=NSeg)
+    # expected area = b * h, where b is the wing chord, h is the semi-span
+    LE_length = ScaleFactor     # LE is straight: new length is 1 * ScaleFactor
+    span = LE_length * np.cos(np.radians(LAMBDA))
+    chord = ChordFactor * ScaleFactor
+
+    ex_area = chord * span
+    ex_AR = span / float(chord)
+
+    tol = 1e-5
+    assert(np.abs(wing.LSP_area - ex_area) < tol)
+    assert(np.abs(wing.AR - ex_AR) < tol)
+    assert(np.abs(wing.ActualSemiSpan - span) < tol)
 
 
 def test_update_ApexPoint():
@@ -202,42 +240,6 @@ def test_update_ApexPoint():
     # Check that the vertex was correctly transformed
     xyz = [p.X(), p.Y(), p.Z()]
     assert(xyz == [10, 10, 10])
-
-
-@pytest.mark.xfail
-def test_update_ChordFunct():
-    """Tests that Build is triggered on updating chord function parameter"""
-    raise NotImplementedError
-
-
-@pytest.mark.xfail
-def test_update_SweepFunct():
-    """Tests that Build is triggered on updating Sweep function parameter"""
-    raise NotImplementedError
-
-
-@pytest.mark.xfail
-def test_update_DihedralFunct():
-    """Tests that Build is triggered on updating Dihedral function parameter"""
-    raise NotImplementedError
-
-
-@pytest.mark.xfail
-def test_update_TwistFunct():
-    """Tests that Build is triggered on updating Twist function parameter"""
-    raise NotImplementedError
-
-
-@pytest.mark.xfail
-def test_update_ScalingFactor():
-    """Tests that Build is triggered on updating Scaling function parameter"""
-    raise NotImplementedError
-
-
-@pytest.mark.xfail
-def test_update_ChordFactor():
-    """Tests that Build is triggered on updating chord factor parameter"""
-    raise NotImplementedError
 
 
 # def test_Fit_BlendedTipDevice(simple_wing):

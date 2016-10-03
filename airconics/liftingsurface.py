@@ -274,6 +274,8 @@ class LiftingSurface(AirconicsShape):
                                              _ScaleFactor=ScaleFactor,
                                              _Sections=[],
                                              LSP_area=0,
+                                             AR=0,
+                                             ActualSemiSpan=0,
                                              RootChord=None,
                                              OptimizeChordScale=OptimizeChordScale,
                                              LooseSurf=LooseSurf,
@@ -686,15 +688,7 @@ class LiftingSurface(AirconicsShape):
         self.AddComponent(LS, 'Surface')
 
         # Calculate projected area
-        self.LSP_area = self.ProjectedArea()
-
-        # TODO: Check bounding box size
-        ActualSemiSpan = self.LEPoints[-1][1]
-        #        BB = rs.BoundingBox(LS)
-        #        if BB:
-        #            ActualSemiSpan = BB[2].Y - BB[0].Y
-        #        else:
-        #            ActualSemiSpan = 0.0
+        self.LSP_area = self.CalculateProjectedArea()
 
         if self.TipRequired:
             # TODO: retrieve wing tip
@@ -706,30 +700,28 @@ class LiftingSurface(AirconicsShape):
         if self.ScaleFactor != 1:
             self.ScaleComponents_Uniformal(self.ScaleFactor)
 
-        # Calculate some parameters
-        ActualSemiSpan *= self.ScaleFactor
-        RootChord = (self.ChordFunct(0) * self.ChordFactor) * self.ScaleFactor
-        AR = ((2.0 * ActualSemiSpan) ** 2.0) / (2 * self.LSP_area)
-
-        self.RootChord = RootChord
-
         # Position the Components at the apex:
         vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)
         self.TranslateComponents(vec)
 
-        SA = act.CalculateSurfaceArea(self['Surface'])
+        # Calculate some parameters
+        self.RootChord = (self.ChordFunct(0) * self.ChordFactor *
+                          self.ScaleFactor)
+        self.ActualSemiSpan = self.CalculateSemiSpan()
+        self.AR = self.CalculateAspectRatio()
+        self.SA = act.CalculateSurfaceArea(self['Surface'])
 
         print("Lifting Surface complete. Key features:")
         print("""   Proj.area: {},
     Wet.area: {},
     Span:{},
     Aspect ratio: {},
-    Root chord: {}\n""".format(self.LSP_area, SA, ActualSemiSpan,
-                             AR, RootChord))
+    Root chord: {}\n""".format(self.LSP_area, self.SA, self.ActualSemiSpan,
+                               self.AR, self.RootChord))
 
         return None
 
-    def ProjectedArea(self):
+    def CalculateProjectedArea(self):
         """Calculates the projected area of the current lifting surface
 
         From Airconics documentation: In some cases the projected section
@@ -751,11 +743,7 @@ class LiftingSurface(AirconicsShape):
         try:
             LSP_area = 0
             for i in range(self.NSegments):
-                # Hinbd_crv, Houtbd_crv = ProjectedSections[i: i + 2]
-                # inbd_crv = Hinbd_crv.GetObject()
-                # outbd_crv = Houtbd_crv.GetObject()
-                # LEwire = act.make_wire(inbd_crv.Value(0), outbd_crv.Value())
-                # TEwire = act.make_wire()
+
                 LSPsegment = act.AddSurfaceLoft(ProjectedSections[i: i + 2],
                                                 close_sections=False)
                 SA = act.CalculateSurfaceArea(LSPsegment)
@@ -769,6 +757,36 @@ class LiftingSurface(AirconicsShape):
         # Scale the area
         LSP_area *= self.ScaleFactor ** 2.0
         return LSP_area
+
+    def CalculateSemiSpan(self):
+        """Calculates and returns the span of this lifting surface
+        """
+        # Check bounding box size
+        BB = self.Extents(as_vec=True)
+        if BB:
+            ActualSemiSpan = BB[1].Y() - BB[0].Y()   # max y - min y
+        else:
+            ActualSemiSpan = 0.0
+        return ActualSemiSpan
+
+    def CalculateAspectRatio(self):
+        """Calculates and returns the aspect ratio of this lifting surface
+
+        Uses information about the wings projected area and the current
+        bounding box. If the project area (LSP_Area) is zero, this will be
+        calculated.
+        """
+        if self.LSP_area == 0:
+            LSP_area = self.ProjectedArea()
+        else:
+            LSP_area = self.LSP_area
+
+        if self.ActualSemiSpan == 0:
+            ActualSemiSpan = self.SemiSpan()
+        else:
+            ActualSemiSpan = self.ActualSemiSpan
+        AR = ((ActualSemiSpan) ** 2.0) / (LSP_area)
+        return AR
 
     def Fit_BlendedTipDevice(self, rootchord_norm, spanfraction=0.1, cant=40,
                              transition=0.1, sweep=40, taper=0.7):
@@ -819,14 +837,14 @@ class LiftingSurface(AirconicsShape):
         # No change in washout along the winglet
         Twists = np.ones(3) * self.TwistFunct(1)
         # Normalised chord (will be scaled st root chord = main wing tip chord)
-        Chords = np.array([1, rootchord_norm,  taper * rootchord_norm])
+        Chords = np.array([1, rootchord_norm, taper * rootchord_norm])
 
         # Generating all the interpolated transition functions
         DihedralFunctWinglet = act.Generate_InterpFunction(Dihedrals,
                                                            Eps_Array)
 
         # if linear_TE:
-        #     # If a linear trailing edge is selected, offset the LE from 
+        #     # If a linear trailing edge is selected, offset the LE from
 
         # else:
         SweepFunctWinglet = act.Generate_InterpFunction(Sweeps,
