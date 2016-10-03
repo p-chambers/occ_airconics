@@ -105,15 +105,24 @@ class Engine(AirconicsShape):
         self.BuildTurbofanNacelle()
         return None
 
+    # TODO: Randomize the geometry
     def Randomize(self, parent=None):
-      """Randomizes the parameters which this geometry
-      
-      """
-      HChord=0
-      CentreLocation=[0, 0, 0]
-      ScarfAngle=3
-      HighlightRadius=1.45
-      MeanNacelleLength=5.67
+        """Randomizes the parameters which this geometry is constructed with
+
+        Parameters
+        ----------
+        parent : Fuselage, Engine or LiftingSurface
+            The parent to fit this engine to
+
+        notes
+        -----
+        This function currently does nothing
+        """
+        HChord = 0
+        CentreLocation = [0, 0, 0]
+        ScarfAngle = 3
+        HighlightRadius = 1.45
+        MeanNacelleLength = 5.67
 
     def BuildTurbofanNacelle(self):
         """

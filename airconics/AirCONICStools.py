@@ -462,17 +462,17 @@ def SplitShapeFromProjection(shape, wire, direction, return_section=True):
     splitter = BRepFeat_SplitShape(face)
     splitter.Add(wire, face)
     splitter.Build()
-    
+
     section_list = splitter.DirectLeft()
     iterator = TopTools_ListIteratorOfListOfShape(section_list)
     section = iterator.Value()    # assume here that only 1 section is produced
-    
+
     mod_list = splitter.Modified(face)
     iterator = TopTools_ListIteratorOfListOfShape(mod_list)
     newshape = iterator.Value()
-    
+
     if return_section:
-        return shape, wire
+        return newshape, wire
     else:
         return newshape
 
@@ -487,10 +487,10 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
     ----------
     TransitionPoint : scalar
         Point to transition from cosine to linear distribution in range (0, 1)
-    
+
     NCosPoints : int
         Number of points to space by cosine law between 0 and TransitionPoint
-    
+
     NLinPoints : int
         Number of points to space by linear law between TransitionPoint and 1
 
@@ -498,7 +498,7 @@ def coslin(TransitionPoint, NCosPoints=24, NLinPoints=24):
     -------
     Abscissa : numpy array
         The generated abscissa
-    
+
     NCosPoints : int
         Number of cosine points used (same as input)
     """
@@ -534,7 +534,7 @@ def export_STEPFile(shapes, filename):
     assert(status == IFSelect_RetDone)
     return status
 
-#
+
 #def export_STLFile(AC_Shapes, filename):
 #    """Writes a component stl file for each shape in input AirCONICS shapes"""
 #    try:
@@ -1220,17 +1220,17 @@ def AddCone(BasePoint, Radius, height, direction=gp_Dir(1, 0, 0)):
     ----------
     BasePoint : OCC.gp.gp_Pnt or array length 3
         The centre base point
-    
+
     Radius : scalar
         Cone base radius
-    
+
     height : scalar
         Cone height
 
     direction : OCC.gp.gp_Dir  (default: positive x direction)
         the direction of the cones axis i.e. normal to the base:
         defaults to x axis
-    
+
     Returns
     -------
     shape : TopoDS_Shape

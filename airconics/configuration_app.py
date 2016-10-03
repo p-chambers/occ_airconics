@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-09-13 17:49:17
+# @Last Modified time: 2016-10-03 16:45:36
 import logging
 import os
 import sys
@@ -35,11 +35,20 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     """A simple grid containing both a 3d viewer and a range of performance
     metrics for the geometry contained in the widget
 
+    Inputs
+    ------
+    Topology - airconics.Toplogy (default None)
+        The Topology to display in this widget: see attributes. If no Topology
+        is specified. An empty Topology will be created
+
     Attributes
     ----------
     Topology - airconics.Topology object
         The aircraft topology object which is mapped to this viewer. This is
         intended to not be deleted.
+
+    Notes
+    -----
     """
     select_clicked = QtCore.pyqtSignal()
 
@@ -66,11 +75,9 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         viewer = qtViewer3d(*args)
 
         viewer.setMinimumSize(200, 200)
-        
+
         self.viewer = viewer
-        
-        # Set the stretch of the first column (where geometry viewer is)
-#         grid.setColumnStretch(0, 1)
+
         grid.setSpacing(10)
         grid.setMargin(10)
 
@@ -117,19 +124,25 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     def Evolve(self):
         self.viewer._display.EraseAll()
         self.Topology.Display(self.viewer._display)
-        
+
+        Nvars = len(self.data_labels)
+
         # This initialises some data in the radar plot: remove this later!
         data = np.random.random(Nvars)
-        
+
         self._ax.plot(self.radar_factory, data, color=self.color)
         self._ax.fill(self.radar_factory, data, facecolor=self.color,
                       alpha=0.25)
-        
+
         self._data_canvas.repaint()
         self._ax.redraw_in_frame()
 
     def InitDataCanvas(self):
-        """
+        """Initialises a radar chart in self._data_canvas to be embedded in
+        the parent viewer widget
+
+        The radar chart contains the labels defined at the class level via
+        self.data_labels.
         """
         # Labels
         # labels = []
@@ -180,24 +193,41 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
 
 class MainWindow(QtWidgets.QMainWindow):
+    """The main Aircraft Topology (configuration) App.
 
-        # connect the click event to the global slot:
-    # global_clicked = QtCore.pyqtSignal(int)
+    A number of 3D AirconicsViewgrids (equal to NX * NY) will be created in
+    this mainwindow widget. Select buttons of each widget are connected to
+    a single slot, such that all topologies rebuild (i.e., are 'evolved') from
+    the selected parent.
 
-    # def global_click(self)
-        # """register the global click event"""
+    Selection of visibly 'fit' aircraft models should be based on both the
+    information displayed in the radar chart in the widget, and the users
+    sensible judgement based on manufacturability and feasibility.
+
+    Parameters
+    ----------
+    size : tuple of scalar, length 2 (default 1024 768)
+        The (x, y) size of the main window widget, in pixels
+
+    NX, NY : int
+        The number of widgets (geometry viewers) in the horizontal/vertical
+        direction
+
+    Topologies : list of airconics.Topology
+        The topologies to be used in each of the viewers (default empty list)
+
+    Notes
+    -----
+    This is currently in development, and currently no topology evolution is
+    performed.
+    """
     global_select_clicked = QtCore.pyqtSignal()
 
-    def __init__(self, size=(1024, 768), NX=2, NY=2, Topologies=[], *args):
-        """
-        Parameters
-        ----------
-        NX - int
-            the number of X widgets in the grid
-        NY - int
-            the number of Y widgets in the grid
-        """
-
+    def __init__(self, size=(1024, 768),
+                 NX=2,
+                 NY=2,
+                 Topologies=[],
+                 *args):
         QtWidgets.QMainWindow.__init__(self, *args)
         self.setWindowTitle(
             "occ-airconics aircraft topology app ('%s' backend)" %
@@ -368,8 +398,8 @@ if __name__ == '__main__':
     # For now I'll just make one fully constructed version and copy it
     main_topo = blended_winglet()
 
-    win.show()    
-    
+    win.show()
+
     for viewer_grid in win.viewer_grids:
         viewer_grid.viewer.InitDriver()
         topo = copy.copy(main_topo)

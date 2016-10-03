@@ -83,9 +83,6 @@ def airfoilfunct(ProfileFunct):
         return Af
     return AirfoilFunct
 
-
-# The following functions are the supported preset parameters for a
-# range of geometries
 def make_random_uniform_function(scaling_value):
     """Uniform value function to be used as a preset geometry input for
     either Sweep, Chord, Twist or Dihedral functions to LiftingSurface
@@ -99,12 +96,13 @@ def make_random_uniform_function(scaling_value):
     -------
     uniform_parametric_function : function
         inputs are epsilon (spanwise coordinate, Leading edge attached),
-        outputs are the 
+        outputs are the desired output scalar (sweep, chordlength etc)
     """
     value = np.random.random(size=1) * scaling_value
+
     def uniform_parametric_function(epsilon):
         """Does nothing with spanwise parameter epsilon, but is required for
-        the general definition of shape in the lifting surface class""" 
+        the general definition of shape in the lifting surface class"""
         return value
     return uniform_parametric_function
 
@@ -210,6 +208,17 @@ class LiftingSurface(AirconicsShape):
     RootChord : Scalar
         The length of the Root Chord. Updated by GenerateLiftingSurface
 
+    AR : Scalar
+        The Aspect ratio of the Lifting Surface. Updated on call to Build
+
+    LSP_area : Scalar
+        the projected area of the lifting surface. Updated on call to Build
+
+    SA : Scalar
+        The wetted area of the lifting surface. Updated on call to Build
+
+    ActualSemiSpan : Scalar
+        Calculated semi span of the lifting surface. Updated on call to Build
 
     Notes
     -----
@@ -222,7 +231,6 @@ class LiftingSurface(AirconicsShape):
     --------
     airconics.primitives.Airfoil,
     airconics.examples.wing_example_transonic_airliner
-
     """
 
     # Preset lifting surface options:
@@ -273,10 +281,11 @@ class LiftingSurface(AirconicsShape):
                                              _ChordFactor=ChordFactor,
                                              _ScaleFactor=ScaleFactor,
                                              _Sections=[],
-                                             LSP_area=0,
-                                             AR=0,
-                                             ActualSemiSpan=0,
+                                             LSP_area=None,
+                                             AR=None,
+                                             ActualSemiSpan=None,
                                              RootChord=None,
+                                             SA=None,
                                              OptimizeChordScale=OptimizeChordScale,
                                              LooseSurf=LooseSurf,
                                              _NSegments=SegmentNo,
@@ -400,35 +409,6 @@ class LiftingSurface(AirconicsShape):
         return self._Sections
     # ----------------------------------------------------------------------
 
-    # def SetAirfoilFunct_from_list(self, Profile_list):
-    #     """Creates and returns a functional parameter AirfoilFunct(epsilon),
-    #     where epsilon is the spanwise coordinate, given the input list of
-    #     [(AirfoilProfileType, AirfoilProfile, Epsilon), (...), ....]
-
-    #     Parameters
-    #     ----------
-    #     Profile_list - list of tuples
-    #         Each tuple in Profile_list should be of the form:
-    #             >>> (AirfoilProfileType, AirfoilProfile, Epsilon)
-    #         where AirfoilProfileType is one of the defined Profiles in
-    #         airconics.primitives.Airfoil, e.g., 'Naca4Profile', 'SeligProfile',
-    #         AirfoilProfile is the selected Profile of that type, and Epsilon is
-    #         the spanwise coordinate (0 at root, 1 at tip) at which that airfoil
-    #         exists.
-
-    #     Notes
-    #     -----
-    #     Example:
-
-    #     >>> af = Airfoil()
-    #     >>> af.SetAirfoilFunct_from_list()
-
-    #     See Also
-    #     --------
-    #     airconics.primitives.Airfoil
-    #     """
-    #     for profile in Profile_list:
-
     def CreateConstructionGeometry(self):
         """
         Creates the plane and vector used for projecting wetted area
@@ -445,7 +425,7 @@ class LiftingSurface(AirconicsShape):
 
         Notes
         -----
-        Called on initialisation of a lifting surface class. 
+        Called on initialisation of a lifting surface class.
 
         :Example:
             >>> Wing = liftingsurface.LiftingSurface(P,
@@ -549,17 +529,8 @@ class LiftingSurface(AirconicsShape):
 
 #        Initialise LE coordinate arrays and add first OCC gp_pnt at [0,0,0]:
 #        Note: Might be faster to bypass XLE arrays and use local x only
-#        XLE = np.zeros(self.NSegments + 1)
-#        YLE = np.zeros(self.NSegments + 1)
-#        ZLE = np.zeros(self.NSegments + 1)
-#        LEPoints = [gp_Pnt(XLE[0], YLE[0], ZLE[0])]
         LEPoints = np.zeros((self.NSegments + 1, 3))
 
-#        for i in xrange(self.NSegments):
-#            XLE[i+1] = XLE[i] + DeltaXs[i]
-#            YLE[i+1] = YLE[i] + DeltaYs[i]
-#            ZLE[i+1] = ZLE[i] + DeltaZs[i]
-#            LEPoints[i+1, :] = XLE[i+1], YLE[i+1], ZLE[i+1]
         Deltas = np.vstack([DeltaXs, DeltaYs, DeltaZs]).T
         LEPoints[1:, :] = np.cumsum(Deltas, axis=0)
 
@@ -569,7 +540,7 @@ class LiftingSurface(AirconicsShape):
 
     def GenerateSectionCurves(self):
         """Generates the loft section curves  based on the current
-        functional parameters and ChordFactor of the object. 
+        functional parameters and ChordFactor of the object.
 
         Uses self._AirfoilFunct, _ChordFunct etc. and other attributes to
         update the content of self._Sections.
@@ -583,12 +554,6 @@ class LiftingSurface(AirconicsShape):
 
         LEPoints = self.GenerateLeadingEdge()
 
-        # TODO: These lists are used for when the curve has been smoothed or
-        # the loft has failed, neither of which have been implemented yet
-#        ProjectedSections = []
-#        TEPoints_u = []
-#        TEPoints_l = []
-
         Eps = np.linspace(0, 1, self.NSegments + 1)
 
         for i, eps in enumerate(Eps):
@@ -600,10 +565,10 @@ class LiftingSurface(AirconicsShape):
                                    TwistFunct=self.TwistFunct)
             self._Sections.append(Af)
 
-    def ChordScaleOptimizer(self):
-        """
-        """
-        raise NotImplementedError
+    # def ChordScaleOptimizer(self):
+    #     """
+    #     """
+    #     raise NotImplementedError
         # TODO
 #                self._CheckOptParCorrectlySpec()
 #                self._NormaliseWeightings()
@@ -652,37 +617,15 @@ class LiftingSurface(AirconicsShape):
                                 solid=False)
 
         # TODO: Optimize chord scale ...
-        if self.OptimizeChordScale:
-            self.ChordScaleOptimizer()
+        # if self.OptimizeChordScale:
+            # self.ChordScaleOptimizer()
 
         if LS is None:
             raise ValueError("Failed to generate Lofted Surface")
-###############################################################################
+        #######################################################################
             # TODO: backup surface loft is not yet implemented for OCC
             # Version of Airconics (this is legacy from the Rhino plugin)
-
-#            Failed to fit loft surface. Try another fitting algorithm
-#            TECurve_u = rs.AddInterpCurve(TEPoints_u)
-#            TECurve_l = rs.AddInterpCurve(TEPoints_l)
-#
-#            rails = []
-#            list.append(rails, TECurve_u)
-#            list.append(rails, TECurve_l)
-#
-#            # Are the first and last curves identical?
-#            # AddSweep fails if they are, so if that is the case, one is
-#                skipped
-#            CDev = rs.CurveDeviation(Sections[0],Sections[-1])
-#            if CDev==None:
-#                shapes = Sections
-#                LS = rs.AddSweep2(rails, shapes, False)
-#            else:
-#                shapes = Sections[:-1]
-#                LS = rs.AddSweep2(rails, shapes, True)
-#
-#            rs.DeleteObjects(rails)
-#            rs.DeleteObjects([TECurve_u, TECurve_l])
-###############################################################################
+        #######################################################################
 
         #  Update instance components:
         self.AddComponent(LS, 'Surface')
@@ -727,7 +670,7 @@ class LiftingSurface(AirconicsShape):
         From Airconics documentation: In some cases the projected section
         cannot all be lofted in one go (it happens when parts of the wing fold
         back onto themselves), so we loft them section by section and compute
-        the area as a sum
+        the area as a sum.
         """
         assert(self['Surface']), 'No wing surface found. Try running Build.'
 
@@ -737,10 +680,10 @@ class LiftingSurface(AirconicsShape):
             ProjectedSections.append(
                 act.project_curve_to_plane(section.ChordLine,
                                            self.XoY_Plane,
-                                           self.ProjVectorZ)
-            )
+                                           self.ProjVectorZ))
 
         try:
+            # Loft a section for each projected segment and get its area
             LSP_area = 0
             for i in range(self.NSegments):
 
@@ -759,7 +702,13 @@ class LiftingSurface(AirconicsShape):
         return LSP_area
 
     def CalculateSemiSpan(self):
-        """Calculates and returns the span of this lifting surface
+        """Calculates and returns the span of this lifting surface.
+
+        Uses the OCC bounding box algorithm.
+
+        Returns
+        -------
+        ActualSemiSpan : Scalar
         """
         # Check bounding box size
         BB = self.Extents(as_vec=True)
@@ -775,14 +724,25 @@ class LiftingSurface(AirconicsShape):
         Uses information about the wings projected area and the current
         bounding box. If the project area (LSP_Area) is zero, this will be
         calculated.
+
+        Returns
+        -------
+        AR : Scalar
+            Aspect ratio, calculated by b^2 / A, where b is the semi span and
+            A is the project area of this lifting surface
+
+        See Also
+        --------
+        airconics.LiftingSurface.ProjectedArea,
+        airconics.LiftingSurface.SemiSpan
         """
-        if self.LSP_area == 0:
-            LSP_area = self.ProjectedArea()
+        if not self.LSP_area:
+            LSP_area = self.CalculateProjectedArea()
         else:
             LSP_area = self.LSP_area
 
-        if self.ActualSemiSpan == 0:
-            ActualSemiSpan = self.SemiSpan()
+        if not self.ActualSemiSpan:
+            ActualSemiSpan = self.CalculateSemiSpan()
         else:
             ActualSemiSpan = self.ActualSemiSpan
         AR = ((ActualSemiSpan) ** 2.0) / (LSP_area)
@@ -794,8 +754,6 @@ class LiftingSurface(AirconicsShape):
 
         Parameters
         ----------
-        chordlength
-
         rootchord_norm : scalar
             The root chord of the straight part of the winglet, normalised by
             the tip chord of this lifting surface.
@@ -803,27 +761,20 @@ class LiftingSurface(AirconicsShape):
         spanfraction : scalar
             span of the winglet normalised by the span of the main wing
 
-        cant : scalar
+        cant : scalar (default 40)
             Angle (deg) of the wing tip from vertical
 
-        orientation : scalar
-            The angle of orientation of this device measured from a positive
-            normal plane to the plane formed by chordlines of this shape
+        transition : scalar
+            The percentage along the span at which the transition to a straight
+            segment is located
+        
+        sweep : scalar
+            Sweep angle of the wing tip (uniform along the straight section)
 
-        radius : scalar
-            The radius of the bend joining this wing to the TipLS
+        taper : scalar
+            ratio of the tip chord to the root chord of the straight segment
 
-
-        kwargs : optional
-            if TipLS is none, any additional keyword arguments will be passed
-            to the construction of
-
-        Notes
-        -----
-        Might eventually specifically add the tip section here rather than
-        recreating a copy.
-
-        References
+         References
         ----------
         [1] L. B. Gratzer, "Blended winglet," Google Patents, 1994
         """
@@ -881,45 +832,3 @@ class LiftingSurface(AirconicsShape):
                                  ChordFactor=chordfactor)
 
         return Winglet
-
-
-    def Fit_Winglet(self, rootchord_norm, spanfraction=0.1, cant=40,
-                             sweep=40, taper=0.7, location=1):
-        """Fits a non blended (fenced type) winglet.
-
-        Note that the geometry is not fused with a boolean operation here,
-        however this should be a simple addition with BRepAlgoAPI_Fuse
-
-        Parameters
-        ----------
-        chordlength
-
-        span : scalar
-            The percentage of the full wings span used by the winglet
-
-        TipLS :
-            The Lifting surface to fit as the tip device. Behaviour depends on
-            the selected dev_type:
-            If dev_type is 'Blended' and a TipLS is provided, a blended section
-            will be used to fit the device. If no TipLS is defined, a surface
-            will be created using additional keyword arguments passed to this
-            function
-
-        orientation : scalar
-            The angle of orientation of this device measured from a positive
-            normal plane to the plane formed by chordlines of this shape
-
-
-        kwargs : optional
-            if TipLS is none, any additional keyword arguments will be passed
-            to the construction of
-
-        Notes
-        -----
-        Might eventually specifically add the tip section here rather than
-        recreating a copy.
-
-        References
-        ----------
-        """
-        raise NotImplementedError

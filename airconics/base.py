@@ -282,7 +282,7 @@ class AirconicsShape(AirconicsBase):
             If false, separate bounding boxes will be draw for each component
         """
         assert(hasattr(display, 'Context')),\
-            "Displaying BBox (AIS_Shape) requires a display Context: only works with OCC viewer"
+            "Displaying BBox (AIS_Shape) requires a display Context: see OCC viewer"
         if single:
             extents = self.Extents()
             bbox = act.BBox_FromExtents(*extents)
@@ -424,7 +424,7 @@ class AirconicsShape(AirconicsBase):
             the BASE.ext name of the file e.g. 'airliner.stp'.
             Note the Component name will be prepended to the base name of each
             output file
-        
+
         single_export : bool
             Writes a single output file if true, otherwise writes one file
             per component

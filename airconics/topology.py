@@ -30,147 +30,25 @@ FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
 SHAPES = {'E': 'ellipse',
           'L': 'box',
           'P': 'hexagon',
-          '|': ''}                  # NB: M does not have a node shape
+          '|': ''}                  # Note: M does not have a node shape
 
 
-def generate_population(size, max_recursion):
-    """
-    Parameters
-    ----------
-    size : int
-        The size of the population
-
-    max_recursion : int
-        The maximum number of levels of recursion for each member in the
-        population
-    """
-    population = []
-    for i in range(size):
-        topo = Topology()
-
-
-
-        population.append(topo)
-
-
-# def _parallel_evolve(n_programs, parents, X, y, sample_weight, seeds, params):
-#     """Function used to build a batch of 'programs' within a job.
-
-#     Edited from GPLearn to 
-
-#     References
-#     ----------
-#     [1] GPLearn, http://gplearn.readthedocs.io/
+# def generate_population(size, max_recursion):
 #     """
-#     n_samples, n_features = X.shape
-#     # Unpack parameters
-#     tournament_size = params['tournament_size']
-#     function_set = params['function_set']
-#     arities = params['arities']
-#     init_depth = params['init_depth']
-#     init_method = params['init_method']
-#     const_range = params['const_range']
-#     metric = params['metric']
-#     parsimony_coefficient = params['parsimony_coefficient']
-#     method_probs = params['method_probs']
-#     p_point_replace = params['p_point_replace']
-#     max_samples = params['max_samples']
+#     Parameters
+#     ----------
+#     size : int
+#         The size of the population
 
-#     max_samples = int(max_samples * n_samples)
+#     max_recursion : int
+#         The maximum number of levels of recursion for each member in the
+#         population
+#     """
+#     population = []
+#     for i in range(size):
+#         topo = Topology()
 
-#     def _tournament():
-#         """Find the fittest individual from a sub-population."""
-#         contenders = random_state.randint(0, len(parents), tournament_size)
-#         fitness = [parents[p].fitness_ for p in contenders]
-#         if metric in ('pearson', 'spearman'):
-#             parent_index = contenders[np.argmax(fitness)]
-#         else:
-#             parent_index = contenders[np.argmin(fitness)]
-#         return parents[parent_index], parent_index
-
-#     # Build programs
-#     programs = []
-
-#     for i in range(n_programs):
-
-#         random_state = check_random_state(seeds[i])
-
-#         if parents is None:
-#             program = None
-#             genome = None
-#         else:
-#             method = random_state.uniform()
-#             parent, parent_index = _tournament()
-
-#             if method < method_probs[0]:
-#                 # crossover
-#                 donor, donor_index = _tournament()
-#                 program, removed, remains = parent.crossover(donor.program,
-#                                                              random_state)
-#                 genome = {'method': 'Crossover',
-#                           'parent_idx': parent_index,
-#                           'parent_nodes': removed,
-#                           'donor_idx': donor_index,
-#                           'donor_nodes': remains}
-#             elif method < method_probs[1]:
-#                 # subtree_mutation
-#                 program, removed, _ = parent.subtree_mutation(random_state)
-#                 genome = {'method': 'Subtree Mutation',
-#                           'parent_idx': parent_index,
-#                           'parent_nodes': removed}
-#             elif method < method_probs[2]:
-#                 # hoist_mutation
-#                 program, removed = parent.hoist_mutation(random_state)
-#                 genome = {'method': 'Hoist Mutation',
-#                           'parent_idx': parent_index,
-#                           'parent_nodes': removed}
-#             elif method < method_probs[3]:
-#                 # point_mutation
-#                 program, mutated = parent.point_mutation(random_state)
-#                 genome = {'method': 'Point Mutation',
-#                           'parent_idx': parent_index,
-#                           'parent_nodes': mutated}
-#             else:
-#                 # reproduction
-#                 program = parent.reproduce()
-#                 genome = {'method': 'Reproduction',
-#                           'parent_idx': parent_index,
-#                           'parent_nodes': []}
-
-#         program = _Program(function_set=function_set,
-#                            arities=arities,
-#                            init_depth=init_depth,
-#                            init_method=init_method,
-#                            n_features=n_features,
-#                            metric=metric,
-#                            const_range=const_range,
-#                            p_point_replace=p_point_replace,
-#                            parsimony_coefficient=parsimony_coefficient,
-#                            random_state=random_state,
-#                            program=program)
-
-#         program.parents = genome
-
-#         # Draw samples, using sample weights, and then fit
-#         if sample_weight is None:
-#             curr_sample_weight = np.ones((n_samples,))
-#         else:
-#             curr_sample_weight = sample_weight.copy()
-
-#         not_indices = sample_without_replacement(
-#             n_samples,
-#             n_samples - max_samples,
-#             random_state=random_state)
-#         sample_counts = np.bincount(not_indices, minlength=n_samples)
-#         indices = np.where(sample_counts == 0)[0]
-#         curr_sample_weight[not_indices] = 0
-
-#         program.raw_fitness_ = program.raw_fitness(X, y, curr_sample_weight)
-#         program.indices_ = indices
-
-#         programs.append(program)
-
-#     return programs
+#         population.append(topo)
 
 
 class TreeNode(object):
@@ -224,12 +102,15 @@ class Topology(AirconicsCollection):
     parts - dictionary
         Should contain the following,
             {name: (Part, arity)}
+
         i.e. the string 'name' values are presented as a tuple or list of:
             Part - TopoDS_Shape
                 The shape
+
             arity - int
                 the arity (number of descendant nodes) attached to part
-        A warning is raised if afinities are not provided, in which case
+
+        A warning is raised if arities are not provided, in which case
         arity is assumed to be zero
 
     Attributes
@@ -263,8 +144,6 @@ class Topology(AirconicsCollection):
         jan 2014.
     """
     def __init__(self, parts={},
-                 max_recursion=5,
-                 max_arity=5,
                  construct_geometry=False):
 
         self._Tree = []
@@ -272,9 +151,7 @@ class Topology(AirconicsCollection):
         # the for loop of self[name] = XXX below (__setitem__ calls the base)
         # AirconicsCollection __setitem__, which adds part to self._Parts)
         super(Topology, self).__init__(parts={},
-                                       construct_geometry=construct_geometry,
-                                       max_recursion=max_recursion,
-                                       max_arity=max_arity)
+                                       construct_geometry=construct_geometry)
 
         for name, part_w_arity in parts.items():
             self[name] = part_w_arity
@@ -288,9 +165,8 @@ class Topology(AirconicsCollection):
         ----------
         name - string
         part_w_arity - tuple
-            (Airconics class, int), eg:
-                (Fuselage, 2) is a Fuselage shape with 2 descendents in
-                its topological tree
+            (Airconics class, int), eg: (Fuselage, 2) is a Fuselage shape with
+            2 descendents in its topological tree
 
         Notes
         -----
@@ -345,17 +221,6 @@ class Topology(AirconicsCollection):
                     output += ', '
         return output
 
-#    def _Levels(self):
-#        """Calculates the number of levels of recursion of the current
-#        topological tree
-#        """
-#        n_level = 1             # A program must have at least 1 level
-#        for node in self._Tree:
-#            func, arity = node
-#            if arity > 0:
-#                n_level += 1
-#        return depth
-
     def Build(self):
         """Recursively builds all sub components in the current topology tree
         if self.construct_geometry is true. Will also mirror components
@@ -372,7 +237,6 @@ class Topology(AirconicsCollection):
                 part.Build()
 
         self.MirrorSubtree()
-
 
     def MirrorSubtree(self):
         """Mirrors the geometry where required, based on the current topology
@@ -406,12 +270,12 @@ class Topology(AirconicsCollection):
         -----
         This function is originally from GPLearns _Program class, but has been
         modified. Can be visualised with pydot,
-        
+
         :Example:
             >>> topo = Topology()     # Add some parts with topo.addPart
             >>> graph = pydot.graph_from_dot_data(topo.export_graphviz())
             >>> Image(graph.create_png())
-        
+
         May add a dependency on GPLearn later and overload the appropriate
         class methods.
         """
@@ -471,30 +335,30 @@ class Topology(AirconicsCollection):
 
         # We should never get here
         return None
-        
+
     def AddPart(self, part, name, arity=0):
         """Overloads the AddPart method of AirconicsCollection base class
         to append the arity of the input topology node
-        
+
         Parameters
         ----------
         part - LiftingSurface, Engine or Fuselage class instance
             the part to be added to the tree
-        
+
         name - string
             name of the part (will be used to look up this part in
             self.aircraft)
-        
+
         arity - int
             The number of terminals attached to this part; this will be
             randomized at a later stage
-        
+
         Notes
         -----
         This method is expected to be used recursively, therefore
-        the order in which parts are added dictates the tree topology. 
+        the order in which parts are added dictates the tree topology.
         The first item added will be the top of the tree.
-        
+
         See also: AirconicsCollection.AddPart
         """
         self.__setitem__(name, (part, arity))
