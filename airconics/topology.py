@@ -33,24 +33,6 @@ SHAPES = {'E': 'ellipse',
           '|': ''}                  # Note: M does not have a node shape
 
 
-# def generate_population(size, max_recursion):
-#     """
-#     Parameters
-#     ----------
-#     size : int
-#         The size of the population
-
-#     max_recursion : int
-#         The maximum number of levels of recursion for each member in the
-#         population
-#     """
-#     population = []
-#     for i in range(size):
-#         topo = Topology()
-
-#         population.append(topo)
-
-
 class TreeNode(object):
     def __init__(self, part, name, arity):
         """Basic type to define node elements in the topology tree. To be used

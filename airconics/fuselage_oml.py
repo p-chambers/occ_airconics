@@ -56,10 +56,6 @@ class Fuselage(AirconicsShape):
     construct_geometry : bool
         If true, Build method will be called on construction
 
-    randomize : bool
-        If true, a random set of inputs will be selected. See also:
-        airconics.Fuselage.Randomize
-
     Notes
     -----
     Geometry building is done on initialisation of a Fuselage instance.
@@ -75,8 +71,7 @@ class Fuselage(AirconicsShape):
                  SimplificationReqd=False,
                  Maxi_attempt=5,
                  construct_geometry=True,
-                 randomize=False,
-                 parent=None):
+                 ):
 
         # Keywords args passed to super's init are added as attributes, except
         # construct geometry
@@ -87,9 +82,7 @@ class Fuselage(AirconicsShape):
                                        CylindricalMidSection=CylindricalMidSection,
                                        SimplificationReqd=SimplificationReqd,
                                        Max_attempt=Maxi_attempt,
-                                       construct_geometry=construct_geometry,
-                                       randomize=randomize,
-                                       parent=parent)
+                                       construct_geometry=construct_geometry)
 
 
     def Build(self):
@@ -100,34 +93,6 @@ class Fuselage(AirconicsShape):
         super(Fuselage, self).Build()
         self.BuildFuselageOML(self.Max_attempt)
         self.TransformOML()
-
-    def Randomize(self, parent=None):
-        """Creates a randomized fuselage object, either free standing or with
-        some reference to a 'parent' node to which it is attached.
-
-        Randomizes the Nose coordinates and scaling of this Fuselage. If parent
-        is None (default), a standard random number is used for
-        NoseLengthRatio, TailLengthRatio, Scaling and Nosecoordinates. If
-        parent is defined as another Fuselage, Engine or lifting surface class,
-        the location and scaling are fitted to that shape accordingly.
-
-        Parameters
-        ----------
-        parent : Fuselage, LiftingSurface or Engine (default : None)
-          The parent shape to which this randomised fuselage will be fitted
-
-        Notes
-        -----
-        This method can be called on initialisation of the class using the flag
-        'randomize' as True, e.g.
-
-        >>> random_fuselage = Fuselage(randomize=True)
-
-        See Also
-        --------
-        airconics.topology.Topology
-        """
-        raise NotImplementedError("TODO: Fuselage randomize function")
 
     def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
         """Internal function. Defines the control
