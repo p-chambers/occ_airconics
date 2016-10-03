@@ -10,3 +10,4 @@ doc/_build/
 cache/
 /airconics/optimize/
 /doc/interact/*.py
+/airconics/examples/elliptic_wing.py
