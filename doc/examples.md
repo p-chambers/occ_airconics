@@ -349,17 +349,24 @@ display(renderer)
 [Interactive x3dom Airliner](_interact/x3domairliner.html)
 
 
-### Topology model
+# Development
 
-This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [2]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
+## Topology model
 
-The mirror line is also not yet included in this representation, however should exist between central objects (Fuselage, Fin) and the mirrored objects (Tail Plane, Wing, Engine).
+This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [1]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
+
+The mirror line is also not yet included in this representation, however should exist between central objects (Fuselage, Fin) and the mirror objects (Tail Plane, Wing, Engine).
 
 
 ```python
-from airconics.topology import Topology
+from airconics import Topology
 from IPython.display import Image
 import pydot
+```
+
+
+```python
+topo_renderer = TornadoWebRenderer()
 
 topo = Topology()
 
@@ -367,11 +374,13 @@ topo = Topology()
 #  it is the users responsibility to input correct affinities
 topo.AddPart(Fus, 'Fuselage', 3)
 topo.AddPart(Fin, 'Fin', 0)
+# Need to add a mirror plane here, affinity zero
+from OCC.gp import gp_Ax2, gp_Dir, gp_Pnt
+xz_pln = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0))
+topo.AddPart(xz_pln, 'Mirror', 0)
 topo.AddPart(TP, 'Tail Plane', 0)
 topo.AddPart(Wing, 'Wing', 1)
 topo.AddPart(eng, 'Engine', 0)
-
-topo.Display(renderer)
 
 # print the Topology (resembles a LISP tree)
 print(topo)
@@ -381,24 +390,240 @@ graph = pydot.graph_from_dot_data(topo.export_graphviz())
 Image(graph.create_png())
 ```
 
-    E(L, L, L(P))
+    Skipping geometry construction for Topology
+    E(L, |L, L(P))
 
 
 
-![Airliner Topology LISP tree](Images/notebook_examples_25_1.png)
+
+
+![png](Images/notebook_examples_files/notebook_examples_26_1.png)
 
 
 
-## References
 
-[1] Sobester, A. and Forrester, A. I. J., Aircraft Aerodynamic Design:
-	Geometry and Optimization, Wiley, 2014.
+```python
+# This line will mirror geometry 'under' (added after) the mirror plane
+topo.Build()
 
-[2] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
+topo.Display(topo_renderer)
+display(topo_renderer)
+```
+
+    <class 'OCC.gp.gp_Ax2'>
+    Note: MirrorComponents currently mirrors only the shape
+    components, other attributes will not be mirrored
+    
+    Skipping geometry construction for AirconicsShape
+    <class 'OCC.gp.gp_Ax2'>
+    Note: MirrorComponents currently mirrors only the shape
+    components, other attributes will not be mirrored
+    
+    Skipping geometry construction for AirconicsShape
+    <class 'OCC.gp.gp_Ax2'>
+    Note: MirrorComponents currently mirrors only the shape
+    components, other attributes will not be mirrored
+    
+    Skipping geometry construction for AirconicsShape
+    Could not display shape type <class 'OCC.gp.gp_Ax2'>: skipping
+
+
+
+Let's try some further tests to the topology class representation using some other examples. For now, these are empty geometries as the relative geometries and inputs to the `Fuselage`, `LiftingSurface` and `Engine` classes are not yet included in the `Topology` tree.
+
+### Predator UAV
+![Predator UAV](Images/predator.jpg)
+**Photo source: US Air Force**
+
+
+```python
+# Setup
+# Create mock components, without generating any geometry
+fus = Fuselage(construct_geometry=False)
+engine = Engine(construct_geometry=False)
+fin = LiftingSurface(construct_geometry=False)
+mirror_pln = gp_Ax2()
+wing = LiftingSurface(construct_geometry=False)
+Vfin = LiftingSurface(construct_geometry=False)
+
+# For now we must manually add parts and affinities
+topo = Topology()
+topo.AddPart(fus, 'Fuselage', 4)
+topo.AddPart(engine, 'engine', 0)
+topo.AddPart(fin, 'fin', 0)
+topo.AddPart(mirror_pln, 'mirror_pln', 0)
+topo.AddPart(wing, 'wing', 0)
+topo.AddPart(Vfin, 'V-Fin', 0)
+
+print(topo)
+
+graph = pydot.graph_from_dot_data(topo.export_graphviz())
+Image(graph.create_png())
+```
+
+    Skipping geometry construction for Fuselage
+    No HChord specified to fit engine to: creating default
+    Skipping geometry construction for Engine
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Skipping geometry construction for Topology
+    E(P, L, |L, L)
+
+
+
+
+
+![png](Images/notebook_examples_files/notebook_examples_30_1.png)
+
+
+
+### Fairchild Republic A-10 Thunderbolt
+![Tunderbolt aircraft](Images/thunderbolt.jpg)
+**Photo source: Airman Magazine 1999**
+
+
+```python
+# Setup
+# Create mock components, without generating any geometry
+fus = Fuselage(construct_geometry=False)
+mirror_pln = gp_Ax2()
+engine = Engine(construct_geometry=False)
+wing = LiftingSurface(construct_geometry=False)
+tailplane = LiftingSurface(construct_geometry=False)
+tail_fin = LiftingSurface(construct_geometry=False)
+
+topo = Topology()
+topo.AddPart(fus, 'Fuselage', 3)
+topo.AddPart(mirror_pln, 'mirror', 0)
+topo.AddPart(engine, 'powerplant', 0)
+topo.AddPart(tailplane, 'Tailplane', 1)
+topo.AddPart(tail_fin, "Tail fin", 0)
+topo.AddPart(wing, "wing", 0)
+
+print(topo)
+
+graph = pydot.graph_from_dot_data(topo.export_graphviz())
+Image(graph.create_png())
+```
+
+    Skipping geometry construction for Fuselage
+    No HChord specified to fit engine to: creating default
+    Skipping geometry construction for Engine
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Skipping geometry construction for Topology
+    E(|P, L(L), L)
+
+
+
+
+
+![png](Images/notebook_examples_files/notebook_examples_32_1.png)
+
+
+
+### Scaled Composites Proteus
+![SC Proteus aircraft](Images/Proteus.jpg)
+**Photo source: NASA**
+
+
+```python
+# Setup
+# Create mock components, without generating any geometry
+fus = Fuselage(construct_geometry=False)
+mirror_pln = gp_Ax2()
+engine = Engine(construct_geometry=False)
+wing_in = LiftingSurface(construct_geometry=False)
+tailplane = LiftingSurface(construct_geometry=False)
+pod = Fuselage(construct_geometry=False)
+finup = LiftingSurface(construct_geometry=False)
+findown = LiftingSurface(construct_geometry=False)
+wing_out = LiftingSurface(construct_geometry=False)
+
+
+topo = Topology()
+topo.AddPart(fus, 'Fuselage', 3)
+topo.AddPart(mirror_pln, 'mirror', 0)
+topo.AddPart(engine, 'powerplant', 0)
+topo.AddPart(wing, "wing", 0)
+topo.AddPart(wing_in, "TP/inbbd wing", 1)
+topo.AddPart(pod, 'Pod/tail boom', 3)
+topo.AddPart(wing_out, "outbd wing", 0)
+topo.AddPart(finup, "Fin (up)", 0)        
+topo.AddPart(findown, "Fin (down)", 0)
+
+for node in topo._Tree:
+    print(node)
+
+    
+graph = pydot.graph_from_dot_data(topo.export_graphviz())
+Image(graph.create_png())
+```
+
+    Skipping geometry construction for Fuselage
+    No HChord specified to fit engine to: creating default
+    Skipping geometry construction for Engine
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Skipping geometry construction for Fuselage
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Lifting Surface functional parameters not defined:
+    Initialising without geometry construction
+    Skipping geometry construction for LiftingSurface
+    Skipping geometry construction for Topology
+    (Fuselage, E, 3)
+    (mirror, |, 0)
+    (powerplant, P, 0)
+    (wing, L, 0)
+    (TP/inbbd wing, L, 1)
+    (Pod/tail boom, E, 3)
+    (outbd wing, L, 0)
+    (Fin (up), L, 0)
+    (Fin (down), L, 0)
+
+
+
+
+
+![png](Images/notebook_examples_files/notebook_examples_34_1.png)
+
+
+
+### References
+
+[1] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
     10th AIAA Multidisciplinary Design Optimization Conference,
     AIAA SciTech, American Institute of Aeronautics and Astronautics,
     jan 2014.
     
-[3] Sobester, A., “Self-Designing Parametric Geometries,” 56th AIAA/ASCE/AH-
+[2] Sobester, A., “Self-Designing Parametric Geometries,” 56th AIAA/ASCE/AH-
     S/ASC Structures, Structural Dynamics, and Materials Conference, AIAA
     SciTech, American Institute of Aeronautics and Astronautics, jan 2015.
+
+
+```python
+
+```
