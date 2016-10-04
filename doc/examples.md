@@ -349,13 +349,19 @@ display(renderer)
 [Interactive x3dom Airliner](_interact/x3domairliner.html)
 
 
-# Development
-
 ## Topology model
 
 This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [1]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
 
-The mirror line is also not yet included in this representation, however should exist between central objects (Fuselage, Fin) and the mirror objects (Tail Plane, Wing, Engine).
+### Transonic Airliner
+
+First, we'll try to add the previously created [transonic airliner](#transonic-airliner) components to a `Topology`, including the number of descendant nodes that will be attached to each, and then display the resulting tree graph. The LISP representation of this tree could be described as 
+
+**Fuselage(Fin, Mirror[ (TailPlane, Wing(Engine))]**, 
+
+where opening brackets indicate that the following component is to be `atttached' to the preceeding shape. Using the shorthand described in [1], this is equivalent to \\(E(L, \|L, L(P))\\), where \\(E\\) is an enclosure/fuselage object, \\(L\\) is a lifting surface, \\(|\\) is a mirror plane and \\(P\\) is a propulsion unit [1]. Study the Airliner model above and recursively work through the components, starting from the fuselage, and think about the sub-components are attached to them to assert that this is true.
+
+The \\(xz\\) mirror plane is included in this representation, between central objects (Fuselage, Fin) and the mirrored objects (Tail Plane, Wing, Engine). Notice that the dotted line box surrounds the entities that will be mirrored when `Topology.Build()` is called.
 
 
 ```python
@@ -371,13 +377,15 @@ topo_renderer = TornadoWebRenderer()
 topo = Topology()
 
 # Note: no checks are done on the validity of the tree yet,
-#  it is the users responsibility to input correct affinities
 topo.AddPart(Fus, 'Fuselage', 3)
 topo.AddPart(Fin, 'Fin', 0)
-# Need to add a mirror plane here, affinity zero
+
+# Need to add a mirror plane here, arity zero
 from OCC.gp import gp_Ax2, gp_Dir, gp_Pnt
 xz_pln = gp_Ax2(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0))
 topo.AddPart(xz_pln, 'Mirror', 0)
+
+# These are the mirrored entities, with their arities
 topo.AddPart(TP, 'Tail Plane', 0)
 topo.AddPart(Wing, 'Wing', 1)
 topo.AddPart(eng, 'Engine', 0)
@@ -394,12 +402,7 @@ Image(graph.create_png())
     E(L, |L, L(P))
 
 
-
-
-
 ![png](Images/notebook_examples_files/notebook_examples_26_1.png)
-
-
 
 
 ```python
@@ -428,8 +431,12 @@ display(topo_renderer)
     Could not display shape type <class 'OCC.gp.gp_Ax2'>: skipping
 
 
+[![occ_airconics Airliner rendering](Images/Airliner.png)](_interact/x3domairliner.html)
 
-Let's try some further tests to the topology class representation using some other examples. For now, these are empty geometries as the relative geometries and inputs to the `Fuselage`, `LiftingSurface` and `Engine` classes are not yet included in the `Topology` tree.
+[Interactive x3dom Airliner](_interact/x3domairliner.html)
+
+
+Let's try some further tests to the topology class representation using some other examples. For now, these are empty geometries, and inputs to the `Fuselage`, `LiftingSurface` and `Engine` classes are not yet included in the `Topology` tree.
 
 ### Predator UAV
 ![Predator UAV](Images/predator.jpg)
@@ -612,7 +619,7 @@ Image(graph.create_png())
 
 
 
-### References
+## References
 
 [1] Sobester, A., “Four Suggestions for Better Parametric Geometries,”
     10th AIAA Multidisciplinary Design Optimization Conference,
