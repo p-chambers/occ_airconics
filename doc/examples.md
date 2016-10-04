@@ -353,7 +353,7 @@ display(renderer)
 
 This is a work in progress towards a topologically flexible model based on the tree-type definition described in Sobester [1]. Note the geometry is not currently defined by the tree however, the tree is simply stored as a result of adding components - this is for demonstration only, and the process is yet to be automated.
 
-### Transonic Airliner
+### Transonic Airliner Topology
 
 First, we'll try to add the previously created [transonic airliner](#transonic-airliner) components to a `Topology`, including the number of descendant nodes that will be attached to each, and then display the resulting tree graph. The LISP representation of this tree could be described as 
 
