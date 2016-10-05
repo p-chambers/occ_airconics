@@ -1,0 +1,24 @@
+!#groovy
+// NOTE : This file is not yet suitable for build automation
+
+node {
+	git url: 'https://github.com/p-chambers/occ_airconics'
+	def v = version()
+
+
+	stage "Checkout"
+
+
+
+
+	stage "Install"
+
+	stage "Run tests"
+
+	stage "Conda build"
+
+	stage "Clean"
+}
+def version() {
+	def matcher = readFile('setup.py')
+}

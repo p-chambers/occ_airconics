@@ -1,0 +1,25 @@
+package:
+  name: airconics
+  version: 0.1
+
+source:
+  git_url: git://github.com/p-chambers/OCC_AirCONICS.git
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - pythonocc-core
+    - numpy
+  run:
+    - python
+    - pythonocc-core
+    - numpy
+
+test:
+  imports:
+    - airconics
+
+about:
+  home: https://github.com/p-chambers/OCC_AirCONICS/
+  summary: "Scripted Aircraft Geometry Module based on Python-OCC"
