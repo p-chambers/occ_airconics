@@ -5,10 +5,10 @@
 
 # Set environment variable for pkg version using setuptools_scm functions,
 # incrementing latest tag by 0.1
-pwd
-python ./ci/conda/set_pkg_version.py
 
-echo 'Building occ_airconics version {$OCC_AIRCONICS_VERSION}'
+# GIT_DESCRIBE_TAG="$(git describe --tags --abbrev=0 | tr -d 'v')"
+
+# echo "Building occ_airconics version $GIT_DESCRIBE_TAG"
 
 $PYTHON setup.py install
 

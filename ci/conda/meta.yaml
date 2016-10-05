@@ -1,9 +1,9 @@
 package:
   name: occ_airconics
-  version: '{{ environ.get("OCC_AIRCONICS_VERSION") }}'
+  version: {{  environ.get('GIT_DESCRIBE_TAG', '').replace('v', '') }}
 
 source:
-  git_url: https://github.com/p-chambers/occ_airconics
+  git_url: ../../
   git_tag: release0.2
 
 requirements:
@@ -21,6 +21,10 @@ requirements:
 test:
   imports:
     - airconics
+
+build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0)}}
+
 
 about:
   home: https://github.com/p-chambers/occ_airconics/
