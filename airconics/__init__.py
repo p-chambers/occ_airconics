@@ -8,6 +8,9 @@ Created on Fri Dec  4 16:30:02 2015
 __all__ = ['base', 'primitives', 'AirCONICStools', 'liftingsurface',
            'fuselage_oml', 'engine', 'topology']
 
+import pkg_resources
+__version__ = pkg_resources.require("airconics")[0].version
+
 from . import base
 from . import primitives
 from . import AirCONICStools

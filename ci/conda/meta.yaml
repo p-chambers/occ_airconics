@@ -1,9 +1,10 @@
 package:
   name: occ_airconics
-  version: 0.1.2
+  version: '{{ environ.get("OCC_AIRCONICS_VERSION") }}'
 
 source:
-  git_url: git://github.com/p-chambers/occ_airconics.git
+  git_url: https://github.com/p-chambers/occ_airconics
+  git_tag: release0.2
 
 requirements:
   build:
@@ -11,6 +12,7 @@ requirements:
     - setuptools
     - pythonocc-core
     - numpy
+    - setuptools_scm
   run:
     - python
     - pythonocc-core
