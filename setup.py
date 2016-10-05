@@ -12,7 +12,7 @@ import subprocess
 # exactly equal to the latest git tag (releasing a new tag updates the version,
 # which will in turn be uploaded to anaconda)
 git_tag_cmd = "git describe --tags --abbrev=0 | tr -d 'v'"
-comm = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+comm = subprocess.Popen(git_tag_cmd, shell=True, stdout=subprocess.PIPE)
 version = comm.communicate()[0].strip()
 
 
