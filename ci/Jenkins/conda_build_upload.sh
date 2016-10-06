@@ -1,3 +1,4 @@
+#!/bin/bash
 # @Author: p-chambers
 # @Date:   2016-10-05 18:11:19
 # 
@@ -6,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-06 13:55:55
+# @Last Modified time: 2016-10-06 14:36:14
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -25,9 +26,12 @@ conda install --name occ_airconics_build -c https://conda.anaconda.org/dlr-sc py
 # Build the conda module (note: uses ~/anacondaX/conda-bld/work)
 conda build ./ci/conda
 
+# Dont know if it will build on anaconda 2 or 3 so just get path with 'which'
+CONDA_PREFIX=$(dirname $(dirname $(which python))/..)
+
 CONDA_BUILD_DIR=${CONDA_PREFIX}/conda-bld
 
-PKG_OUTPUT_DIR = ./conda-output
+PKG_OUTPUT_DIR=./conda-output
 
 mkdir $PKG_OUTPUT_DIR
 
@@ -35,18 +39,18 @@ mkdir $PKG_OUTPUT_DIR
 GIT_DESCRIBE_TAG="$(git describe --tags --abbrev=0 | tr -d 'v')"
 
 # CHANGE THIS TO THE PLATFORM RUNNING ON JENKINS SERVER
-JEKINS_PLATFORM=linux-64
+JEKINS_PLATFORM="linux-64"
 
 # My jenkins is currently running on linux-64, so get the appropriate file:
-CONDA_PKG_NAME = $CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ-airconics{$GIT_DESCRIBE_TAG}*.tar.bz
+CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}*.tar.bz2
 
 # Install and test
-conda install --use-local CONDA_PKG_NAME
+conda install --use-local $CONDA_PKG_NAME
 
 py.test -v --junitxml=pytest-report.xml
 
 # Convert to all platforms and output in the current folder
-conda convert --platform all CONDA_PKG_NAME -o $PKG_OUTPUT_DIR
+conda convert --platform all $CONDA_PKG_NAME -o $PKG_OUTPUT_DIR
 
 
 # Clean the Conda test/build environment
