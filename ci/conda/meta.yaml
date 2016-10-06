@@ -4,7 +4,6 @@ package:
 
 source:
   git_url: ../../
-  git_tag: master
 
 requirements:
   build:
