@@ -2,7 +2,7 @@
 # @Author: pc12g10
 # @Date:   2016-08-11 14:19:53
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-09-30 12:52:18
+# @Last Modified time: 2016-10-06 15:51:08
 
 import numpy as np
 from airconics.primitives import Airfoil
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     NSeg = 1
 
     # Instantiate the class
-    ChordFactor = 1
+    ChordFactor = 0.6
     ScaleFactor = 7.951
 
     Wing = liftingsurface.LiftingSurface(P, mySweepAngleFunction,
@@ -71,71 +71,18 @@ if __name__ == "__main__":
                                          ScaleFactor=ScaleFactor,
                                          ChordFactor=ChordFactor)
 
-    Winglet = Wing.Fit_BlendedTipDevice(
-        0.8,
+    Winglet = Wing.Fit_BlendedTipDevice(rootchord_norm=0.8, spanfraction=0.15,
         cant=15,
-        transition=0.3
+        transition=0.4
         )
 
     Wing.Display(display)
-    # for section in Wing.Sections:
-    #     display.DisplayShape(section.Curve, color='BLACK')
-    #     o = section.Curve.GetObject()
-    #     for i in range(1, o.NbPoles()):
-    #         point = o.Pole(i)
-    #         display.DisplayShape(point, color='yellow')
 
     Winglet.Display(display)
 
-    # This is just me trying to create a phantom surface:
-    shapelist = Wing.values() + Winglet.values()
-
-    # Method 1: Quilting
-    # from OCC.BRepTools import BRepTools_Quilt
-    # from OCC.TopExp import TopExp_Explorer
-    # from OCC.TopAbs import TopAbs_FACE
-    # from OCC.TopoDS import topods_Face    
-    # quilt = BRepTools_Quilt()
-    # for shape in shapelist:
-    #     quilt.Add(shape)
-    
-    # # quilt.Bind()
-    # shells = quilt.Shells()
-    # display.DisplayShape(shells)
-
-    # import airconics.AirCONICStools as act
-    # act.export_STEPFile([shells], 'shells.step')
-
-
-    # Method 2: Sewing
-    # from OCC.TopExp import TopExp_Explorer
-    # from OCC.TopAbs import TopAbs_FACE
-    # from OCC.TopoDS import topods_Face
-    # from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
-
-    # sewing = BRepBuilderAPI_Sewing()
-    # for shape in shapelist:
-    #     exp = TopExp_Explorer(shape, TopAbs_FACE)
-    #     while exp.More():
-    #         face = topods_Face(exp.Current())
-    #         sewing.Add(face)
-    #         exp.Next()
-
-    # sewing.Perform()
-    # sewed_shape = sewing.SewedShape()
-    # print(type(sewed_shape))
-    # act.export_STEPFile([sewed_shape], 'sewing.step')
-
-    # display.DisplayShape(sewed_shape)
-    # for section in Wing.Sections:
-    #     display.DisplayShape(section.Curve)
-    # for section in Winglet.Sections:
-    #     display.DisplayShape(section.Curve)    
-
-
     # Why not also try a C wing made from two recursively added winglets?
-    Winglet2 = Winglet.Fit_BlendedTipDevice(1, spanfraction=1, transition=0.2,
-        cant=-90, sweep=10, taper=0.9)
+    Winglet2 = Winglet.Fit_BlendedTipDevice(rootchord_norm=0.8, spanfraction=1,
+        transition=0.35, cant=-90, sweep=20, taper=0.8)
 
     Winglet2.Display(display)
 

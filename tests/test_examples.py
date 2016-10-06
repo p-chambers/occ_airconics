@@ -24,9 +24,9 @@ def test_examples():
     * This test can be skipped by py.test if necessary
     """
     import airconics
-    src_path = os.path.dirname(inspect.getfile(airconics))
+    # pytest runs test files in ./__pycache__: need to go up two levels
     example_dir = os.path.abspath(
-        os.path.join(src_path, '..', 'examples', 'core'))
+        os.path.join(__file__, '..', '..', 'examples', 'core'))
     example_scripts = os.listdir(example_dir)
     for script in example_scripts:
         if script.endswith('.py'):

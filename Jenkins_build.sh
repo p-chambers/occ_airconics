@@ -2,7 +2,7 @@
 # @Author: pchambers
 # @Date:   2016-01-08 17:35:49
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-01-12 15:54:05
+# @Last Modified time: 2016-10-06 15:39:16
 
 # Create the Conda test environment (note that pytest is required, otherwise wrong
 # python is used and the module is not found!)
@@ -15,6 +15,7 @@ conda install --name occ_airconics_test -c https://conda.anaconda.org/dlr-sc pyt
 # Install and Test the module, saving report as junitxml for jenkins
 pip install ./
 py.test -v --junitxml=pytest-report.xml
+
 
 # Clean the Conda test environment
 source deactivate
