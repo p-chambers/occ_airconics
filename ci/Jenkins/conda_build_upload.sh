@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-06 14:36:14
+# @Last Modified time: 2016-10-06 14:50:55
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -26,8 +26,8 @@ conda install --name occ_airconics_build -c https://conda.anaconda.org/dlr-sc py
 # Build the conda module (note: uses ~/anacondaX/conda-bld/work)
 conda build ./ci/conda
 
-# Dont know if it will build on anaconda 2 or 3 so just get path with 'which'
-CONDA_PREFIX=$(dirname $(dirname $(which python))/..)
+# UPDATE THIS TO THE PATH OF ANACONDA ON JENKINS SERVER
+CONDA_PREFIX=~/anaconda2
 
 CONDA_BUILD_DIR=${CONDA_PREFIX}/conda-bld
 
@@ -39,10 +39,10 @@ mkdir $PKG_OUTPUT_DIR
 GIT_DESCRIBE_TAG="$(git describe --tags --abbrev=0 | tr -d 'v')"
 
 # CHANGE THIS TO THE PLATFORM RUNNING ON JENKINS SERVER
-JEKINS_PLATFORM="linux-64"
+JEKINS_PLATFORM=linux-64
 
 # My jenkins is currently running on linux-64, so get the appropriate file:
-CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}*.tar.bz2
+CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}*
 
 # Install and test
 conda install --use-local $CONDA_PKG_NAME
@@ -56,3 +56,6 @@ conda convert --platform all $CONDA_PKG_NAME -o $PKG_OUTPUT_DIR
 # Clean the Conda test/build environment
 source deactivate
 conda env remove -n occ_airconics_build
+
+# clean conda build directories
+conda build purge
