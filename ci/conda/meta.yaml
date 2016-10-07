@@ -9,7 +9,6 @@ requirements:
   build:
     - python
     - setuptools
-    - pythonocc-core
     - numpy
   run:
     - python
