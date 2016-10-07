@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 15:54:38
+# @Last Modified time: 2016-10-07 15:57:25
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -46,7 +46,7 @@ GIT_DESCRIBE_TAG="$(git describe --tags --abbrev=0 | tr -d 'v')"
 JEKINS_PLATFORM=linux-64
 
 # The conda build flag for specifying python versions to build for:
-CONDA_PYVERSION_FLAGS="--py 2.7 --py 3.4"
+CONDA_PYVERSION_FLAGS="--py 2.7 --py 3.5"
 
 # My jenkins is currently running on linux-64, so get the appropriate file:
 CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}*
