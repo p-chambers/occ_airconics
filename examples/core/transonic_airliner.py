@@ -96,7 +96,7 @@ def transonic_airliner(display=None,
                                     Scaling=FuselageScaling,
                                     NoseCoordinates=[0, 0, 0])
     except:
-        print "Fuselage fitting failed - stopping."
+        print("Fuselage fitting failed - stopping.")
         return None
 
     FuselageHeight = FuselageScaling[2]*0.105
@@ -104,7 +104,7 @@ def transonic_airliner(display=None,
     FuselageWidth  = FuselageScaling[1]*0.106
 
     if Fus['OML'] is None:
-        print "Failed to fit fuselage surface, stopping."
+        print("Failed to fit fuselage surface, stopping.")
         return None
 
 #    FSurf = rs.CopyObject(FuselageOMLSurf)

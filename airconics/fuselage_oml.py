@@ -16,9 +16,10 @@ Created on Mon Jan 18 11:27:08 2016
 # Andras Sobester, 2015.
 # Bug reports to a.sobester@soton.ac.uk or @ASobester please.
 # ==============================================================================
-import AirCONICStools as act
+from six.moves import range
+from . import AirCONICStools as act
 import numpy as np
-from airconics.base import AirconicsShape
+from .base import AirconicsShape
 
 from OCC.gp import gp_Pnt, gp_Vec, gp_Pln, gp_Dir, gp_Ax2
 from OCC.Geom import Handle_Geom_BSplineCurve, Geom_Plane
@@ -357,7 +358,7 @@ class Fuselage(AirconicsShape):
                 PseudoDiameter = abs(IPoint4.Z()-IPoint2.Z())
                 if self.CylindricalMidSection and\
                         NoseEndX < XStation < TailStartX:
-                    print "Enforcing circularity in the central section..."
+                    print("Enforcing circularity in the central section...")
                     if FirstTime:
                         PseudoRadius = PseudoDiameter / 2.
                         FirstTime = False

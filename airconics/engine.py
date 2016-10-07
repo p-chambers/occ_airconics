@@ -6,11 +6,11 @@ Created on Wed Feb 10 16:38:47 2016
 
 @author: pchambers
 """
-from airconics import primitives, AirCONICStools as act
-from airconics.liftingsurface import LiftingSurface
-from airconics.base import AirconicsShape
+from . import primitives, AirCONICStools as act
+from .liftingsurface import LiftingSurface
+from .base import AirconicsShape
 import numpy as np
-import airconics.examples.wing_example_transonic_airliner as wingex
+from .examples import wing_example_transonic_airliner as wingex
 from OCC.gp import gp_Pnt, gp_Vec, gp_OY, gp_Dir
 from OCC.Geom import Handle_Geom_Circle
 from OCC.GC import GC_MakeSegment

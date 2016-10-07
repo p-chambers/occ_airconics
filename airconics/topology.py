@@ -8,9 +8,9 @@ Created on Fri Apr 15 12:24:32 2016
 @author: pchambers
 """
 from .base import AirconicsCollection
-from airconics.liftingsurface import LiftingSurface
-from airconics.fuselage_oml import Fuselage
-from airconics.engine import Engine
+from .liftingsurface import LiftingSurface
+from .fuselage_oml import Fuselage
+from .engine import Engine
 from OCC.gp import gp_Ax2
 # import copy
 # import numpy as np

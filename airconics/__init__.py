@@ -22,8 +22,8 @@ from . import topology
 #from . import aircraft
 
 # Also allow module level imports for the primary classes (neater API)
-from fuselage_oml import Fuselage
-from liftingsurface import LiftingSurface
-from topology import Topology
-from engine import Engine
-from primitives import Airfoil
+from .fuselage_oml import Fuselage
+from .liftingsurface import LiftingSurface
+from .topology import Topology
+from .engine import Engine
+from .primitives import Airfoil

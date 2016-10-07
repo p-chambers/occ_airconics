@@ -61,6 +61,7 @@ from OCC.XCAFDoc import (XCAFDoc_DocumentTool_ShapeTool,
                          XCAFDoc_DocumentTool_MaterialTool)
 
 # Standard Python libraries
+from six.moves import range
 import numpy as np
 
 
@@ -275,12 +276,23 @@ def points_to_bspline(pnts, deg=3, periodic=False, tangents=None,
         if tangents is not None:
             N = tangents.shape[0]
             if N == 2:
-                interp.Load(gp_Vec(*tangents[0,:]), gp_Vec(*tangents[1,:]),
-                            scale)
+                try:
+                    interp.Load(gp_Vec(*tangents[0, :]), gp_Vec(*tangents[1, :]),
+                                scale)
+                except:
+                    # Python 3 issue: using * on numpy array breaks gp_Vec
+                        interp.Load(gp_Vec(*tangents[0, :].tolist()),
+                                    gp_Vec(*tangents[1, :].tolist()),
+                                    scale)
             else:
                 tan_array = TColgp_Array1OfVec(1, N)
-                for i in xrange(1, N+1):
-                    tan_array.SetValue(i, gp_Vec(*tangents[i-1,:]))
+                for i in range(1, N + 1):
+                    try:
+                        tan_array.SetValue(i, gp_Vec(*tangents[i-1, :]))
+                    except TypeError:
+                        # Python 3 issue: using * on numpy array breaks gp_Vec
+                        tan_array.SetValue(i, gp_Vec(*tangents[i-1,:].tolist()))
+
                 tan_flags = TColStd_HArray1OfBoolean(1, N)
                 tan_flags.Init(True)   #Set all true i.e. enforce all tangents
                 interp.Load(tan_array, tan_flags.GetHandle(), scale)
@@ -763,7 +775,7 @@ def Uniform_Points_on_Curve(curve, NPoints):
         # Allow the algorithm to deal with TopoDS_Edge and Wire shapes:
         adapt = BRepAdaptor_Curve(curve)
     absc = GCPnts_UniformAbscissa(adapt, NPoints)
-    return [adapt.Value(absc.Parameter(i)) for i in xrange(1, NPoints+1)]
+    return [adapt.Value(absc.Parameter(i)) for i in range(1, NPoints+1)]
 
 def rotate(brep, axe, degree, copy=False):
     """Rotates the brep
@@ -1268,7 +1280,7 @@ def boolean_cut(shapeToCutFrom, cuttingShape, debug=False):
     try:
         cut = BRepAlgoAPI_Cut(shapeToCutFrom, cuttingShape)
         if debug:
-            print 'can work?', cut.BuilderCanWork()
+            print('can work?'), cut.BuilderCanWork()
             _error = {0: '- Ok',
                       1: '- The Object is created but Nothing is Done',
                       2: '- Null source shapes is not allowed',
@@ -1278,11 +1290,11 @@ def boolean_cut(shapeToCutFrom, cuttingShape, debug=False):
                       6: '- Unknown operation is not allowed',
                       7: '- Can not allocate memory for the Builder',
                       }
-            print 'error status:', _error[cut.ErrorStatus()]
+            print('error status:'), _error[cut.ErrorStatus()]
 #        cut.RefineEdges()
         shp = cut.Shape()
         cut.Destroy()
         return shp
     except:
-        print 'FAILED TO BOOLEAN CUT'
+        print('FAILED TO BOOLEAN CUT')
         return shapeToCutFrom

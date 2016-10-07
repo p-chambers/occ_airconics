@@ -13,7 +13,7 @@ import subprocess
 # which will in turn be uploaded to anaconda)
 git_tag_cmd = "git describe --tags --abbrev=0 | tr -d 'v'"
 comm = subprocess.Popen(git_tag_cmd, shell=True, stdout=subprocess.PIPE)
-version = comm.communicate()[0].strip()
+version = comm.communicate()[0].strip().decode("utf-8")
 
 
 setup(

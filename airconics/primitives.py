@@ -9,8 +9,8 @@ Created on Fri Dec  4 13:31:35 2015
 from OCC.GC import GC_MakeSegment
 from OCC.gp import gp_Pnt, gp_Vec, gp_OX, gp_OY
 
-import CRMfoil
-import airconics.AirCONICStools as act
+from . import CRMfoil
+from . import AirCONICStools as act
 from pkg_resources import resource_string, resource_exists
 import numpy as np
 
@@ -213,7 +213,7 @@ class Airfoil(object):
             "Airfoil database for {} not found.".format(SeligProfile)
 
         data = resource_string(res_pkg, SeligProfile)
-        data = data.split('\r\n')[1:-1]
+        data = data.split(b'\r\n')[1:-1]
         N = len(data)
         x = np.zeros(N)
         z = np.zeros(N)

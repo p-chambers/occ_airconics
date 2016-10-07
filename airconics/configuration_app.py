@@ -3,14 +3,14 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-03 16:45:36
+# @Last Modified time: 2016-10-07 15:05:47
 import logging
 import os
 import sys
 
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
-import airconics
+from . import Topology
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
@@ -28,7 +28,7 @@ QtCore, QtGui, QtWidgets, QtOpenGL = get_qt_modules()
 from matplotlib.backends.backend_qt4agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-from matplotlib_radar import radar_factory, example_data
+from .matplotlib_radar import radar_factory, example_data
 
 
 class Airconics_Viewgrid(QtWidgets.QWidget):
@@ -64,7 +64,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         if Topology:
             self._Topology = Topology
         else:
-            self._Topology = airconics.Topology()
+            self._Topology = Topology()
 
         # Matplotlib colour character (different for each instance)
         self.color = next(self.colors)
@@ -340,9 +340,9 @@ if __name__ == '__main__':
     win.raise_()  # make the application float to the top
 
     # Add some stuff to test the app
-    from airconics import LiftingSurface, Topology, Airfoil
-    import airconics.AirCONICStools as act
-    from airconics.liftingsurface import airfoilfunct
+    from . import LiftingSurface, Topology, Airfoil
+    from . import AirCONICStools as act
+    from .liftingsurface import airfoilfunct
     import copy
 
     def blended_winglet():

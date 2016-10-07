@@ -13,7 +13,7 @@ Created on Mon Apr 18 10:26:22 2016
 from abc import abstractmethod
 from collections import MutableMapping
 import os
-import AirCONICStools as act
+from . import AirCONICStools as act
 from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
 from OCC.TopoDS import TopoDS_Shape
 from OCC.StlAPI import StlAPI_Writer

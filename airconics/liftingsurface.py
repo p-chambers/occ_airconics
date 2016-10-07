@@ -13,10 +13,11 @@ Created on Fri Dec 18 15:52:58 2015
 
 @author: pchambers
 """
+from six.moves import range
 import numpy as np
-from airconics.base import AirconicsShape
-from airconics.primitives import Airfoil
-import AirCONICStools as act
+from .base import AirconicsShape
+from .primitives import Airfoil
+from . import AirCONICStools as act
 
 from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir
 from OCC.GeomAbs import GeomAbs_C2
