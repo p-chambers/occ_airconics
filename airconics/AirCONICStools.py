@@ -212,13 +212,13 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
         N = np.shape(array)[0]
         pt_arr = _type(1, N)
         for i, pt in enumerate(array):
-            pt_arr.SetValue(i+1, gp_Pnt(*pt))
+            pt_arr.SetValue(i + 1, gp_Pnt(*pt.tolist()))
     except:
         # Input pnts are likely to be a list of gp_Pnt:
         N = len(array)
         pt_arr = _type(1, N)
         for i, pt in enumerate(array):
-            pt_arr.SetValue(i+1, pt)
+            pt_arr.SetValue(i + 1, pt)
     return pt_arr
 
 

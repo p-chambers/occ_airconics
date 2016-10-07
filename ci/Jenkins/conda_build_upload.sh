@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 16:41:10
+# @Last Modified time: 2016-10-07 17:22:06
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -24,7 +24,7 @@ conda install --name occ_airconics_build -c https://conda.anaconda.org/dlr-sc py
 ##############################################################################
 
 # The conda build flag for specifying python versions to build for:
-CONDA_PYVERSION_FLAGS="--py 2.7 --py 3.5"
+CONDA_PYVERSION_FLAGS="--python 2.7"
 
 # Build the conda module (note: uses ~/anacondaX/conda-bld/work)
 conda build $CONDA_PYVERSION_FLAGS ./ci/conda 
@@ -50,7 +50,7 @@ JEKINS_PLATFORM=linux-64
 # My jenkins is currently running on linux-64, so get the appropriate file:
 CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}-py27*
 
-echo "Making package ${CONDA_PKG_NAME_}"
+echo "Installing package ${CONDA_PKG_NAME}"
 
 # Install and test
 conda install --use-local $CONDA_PKG_NAME
@@ -71,11 +71,14 @@ conda build purge
 
 
 # Also test the package on python 3:
-conda create --name occ_airconics_py3build python=3 pytest numpy six
+conda create --name occ_airconics_py3build python=3.5 pytest numpy six
 source activate occ_airconics_py3build
 
 # Install the python-occ precompiled binary from DLR-SC with Conda
 conda install --name occ_airconics_py3build -c https://conda.anaconda.org/dlr-sc pythonocc-core
+
+CONDA_PYVERSION_FLAGS="--python 3.5"
+conda build $CONDA_PYVERSION_FLAGS ./ci/conda 
 
 CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}-py35*
 

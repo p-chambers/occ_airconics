@@ -2,12 +2,11 @@
 # @Author: p-chambers
 # @Date:   2016-07-14 16:38:17
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-07-19 16:03:37
+# @Last Modified time: 2016-10-07 17:23:24
 import pytest
 from airconics.fuselage_oml import Fuselage
 import airconics.AirCONICStools as act
 import numpy as np
-import cPickle
 import os
 
 
