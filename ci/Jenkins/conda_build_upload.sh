@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 16:27:00
+# @Last Modified time: 2016-10-07 16:32:43
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -15,7 +15,7 @@
 ##############################################################################
 # Create the Conda test environment (note that pytest is required, otherwise
 # wrong python is used and the module is not found!)
-conda create --name occ_airconics_build python=2 pytest
+conda create --name occ_airconics_build python=2 pytest numpy
 source activate occ_airconics_build
 
 # Install the python-occ precompiled binary from DLR-SC with Conda
@@ -72,7 +72,7 @@ conda build purge
 
 
 # Also test the package on python 3:
-conda create --name occ_airconics_py3build python=3 pytest
+conda create --name occ_airconics_py3build python=3 pytest numpy
 source activate occ_airconics_py3build
 
 # Install the python-occ precompiled binary from DLR-SC with Conda
