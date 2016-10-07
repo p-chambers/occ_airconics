@@ -11,7 +11,6 @@ requirements:
     - setuptools
     - pythonocc-core
     - numpy
-    - setuptools_scm
   run:
     - python
     - pythonocc-core

@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-06 14:50:55
+# @Last Modified time: 2016-10-07 11:37:17
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -23,13 +23,17 @@ conda install --name occ_airconics_build -c https://conda.anaconda.org/dlr-sc py
 
 ##############################################################################
 
+conda list
+
 # Build the conda module (note: uses ~/anacondaX/conda-bld/work)
 conda build ./ci/conda
 
 # UPDATE THIS TO THE PATH OF ANACONDA ON JENKINS SERVER
 CONDA_PREFIX=~/anaconda2
+echo 'Anaconda path: ${CONDA_PREFIX}'
 
 CONDA_BUILD_DIR=${CONDA_PREFIX}/conda-bld
+echo 'Conda build path: ${CONDA_BUILD_DIR}'
 
 PKG_OUTPUT_DIR=./conda-output
 
@@ -44,12 +48,16 @@ JEKINS_PLATFORM=linux-64
 # My jenkins is currently running on linux-64, so get the appropriate file:
 CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_TAG}*
 
+echo 'Making package ${CONDA_PKG_NAME_}'
+
 # Install and test
 conda install --use-local $CONDA_PKG_NAME
 
+echo 'Preparing to run tests'
 py.test -v --junitxml=pytest-report.xml
 
 # Convert to all platforms and output in the current folder
+
 conda convert --platform all $CONDA_PKG_NAME -o $PKG_OUTPUT_DIR
 
 
