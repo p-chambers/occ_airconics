@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 16:12:52
+# @Last Modified time: 2016-10-07 16:27:00
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -84,7 +84,7 @@ CONDA_PKG_NAME=$CONDA_BUILD_DIR/${JEKINS_PLATFORM}/occ_airconics-${GIT_DESCRIBE_
 conda install --use-local $CONDA_PKG_NAME
 
 echo 'Preparing to run tests'
-py.test -v --junitxml=pytest-report.xml
+py.test -v --junitxml=pytest-report_py3.xml
 
 # Convert to all platforms and output in the current folder
 conda convert --platform all $CONDA_PKG_NAME -o $PKG_OUTPUT_DIR
