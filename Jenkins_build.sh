@@ -2,11 +2,11 @@
 # @Author: pchambers
 # @Date:   2016-01-08 17:35:49
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 16:12:44
+# @Last Modified time: 2016-10-07 16:33:49
 
 # Create the Conda test environment (note that pytest is required, otherwise wrong
 # python is used and the module is not found!)
-conda create --name occ_airconics_test python=2 pytest
+conda create --name occ_airconics_test python=2 pytest numpy
 source activate occ_airconics_test
 
 # Install the python-occ precompiled binary from DLR-SC with Conda
