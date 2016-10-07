@@ -7,7 +7,7 @@
 # a new tag is released in master. 
 #
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 12:30:08
+# @Last Modified time: 2016-10-07 12:31:43
 
 ##############################################################################
 ## THIS PART IS THE SAME AS JENKINS_BUILD.SH, BUT IS INCLUDED HERE RATHER THAN
@@ -29,7 +29,7 @@ conda list
 conda build ./ci/conda
 
 # UPDATE THIS TO THE PATH OF ANACONDA ON JENKINS SERVER: should be home
-CONDA_PREFIX=~/
+CONDA_PREFIX=~
 echo "Anaconda path: ${CONDA_PREFIX}"
 
 CONDA_BUILD_DIR=${CONDA_PREFIX}/conda-bld
