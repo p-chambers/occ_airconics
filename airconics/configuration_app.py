@@ -3,14 +3,14 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 15:05:47
+# @Last Modified time: 2016-10-14 17:00:29
 import logging
 import os
 import sys
 
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
-from . import Topology
+from airconics import Topology
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
@@ -28,7 +28,7 @@ QtCore, QtGui, QtWidgets, QtOpenGL = get_qt_modules()
 from matplotlib.backends.backend_qt4agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-from .matplotlib_radar import radar_factory, example_data
+from airconics.matplotlib_radar import radar_factory, example_data
 
 
 class Airconics_Viewgrid(QtWidgets.QWidget):
@@ -57,12 +57,12 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
     colors = itertools.cycle(['b', 'r', 'g', 'm', 'y'])
 
-    def __init__(self, Topology=None, *args):
+    def __init__(self, topology=None, *args):
         super(Airconics_Viewgrid, self).__init__()
 
         # Create a blank topology object if one has not been provided
-        if Topology:
-            self._Topology = Topology
+        if topology:
+            self._Topology = topology
         else:
             self._Topology = Topology()
 
@@ -340,9 +340,9 @@ if __name__ == '__main__':
     win.raise_()  # make the application float to the top
 
     # Add some stuff to test the app
-    from . import LiftingSurface, Topology, Airfoil
-    from . import AirCONICStools as act
-    from .liftingsurface import airfoilfunct
+    from airconics import LiftingSurface, Topology, Airfoil
+    from airconics import AirCONICStools as act
+    from airconics.liftingsurface import airfoilfunct
     import copy
 
     def blended_winglet():

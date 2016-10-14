@@ -138,7 +138,8 @@ def ObjectsExtents(breps, tol=1e-6, as_vec=False):
     Returns
     -------
     xmin, ymin, zmin, xmax, ymax, zmax : scalar
-        the min and max points of bbox (returned if as_vec=False)
+        the min and max points of bbox (returned if as_vec=False). Function
+        Returns False is the bounding box is void
     
     ( gp_Vec(xmin, ymin, zmin), gp_Vec(xmax, ymax, zmax) ) : tuple of gp_Vec
         the min and max points of bbox (returned in as_vec=True)
@@ -160,7 +161,12 @@ def ObjectsExtents(breps, tol=1e-6, as_vec=False):
         # Assume not iterable:
         brepbndlib_Add(breps, bbox, True)
 
-    xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+    try:
+        xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+    except RuntimeError:
+        # Bounding Box is probably void if we reach here
+        return False
+
     if as_vec is False:
         return xmin, ymin, zmin, xmax, ymax, zmax
     else:

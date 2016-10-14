@@ -676,14 +676,13 @@ class AirconicsCollection(AirconicsBase):
             a tuple xmin, ymin, zmin, xmax, ymax, zmax; otherwise, the min and
             max vectors will be returned as OCC types.
         """
-        import itertools
         shape_list = []
-        for name, component in topo.items():
+        for name, component in self.items():
             try:
                 for part in component.values():
                     shape_list.append(part)
             except AttributeError:
                 # This will probably happen for mirror object
                 pass
-        shape_list = list(itertools.chain.from_iterable(shape_list))
         return act.ObjectsExtents(shape_list, tol=tol, as_vec=as_vec)
+
