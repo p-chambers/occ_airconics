@@ -12,6 +12,7 @@ Created on Mon Apr 18 10:26:22 2016
 """
 from abc import abstractmethod
 from collections import MutableMapping
+import itertools
 import os
 from . import AirCONICStools as act
 from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
@@ -655,3 +656,34 @@ class AirconicsCollection(AirconicsBase):
             # set a default name:
             name = 'untitled_' + str(len(self))
         self.__setitem__(name, part)
+
+    def Extents(self, tol=1e-6, as_vec=False):
+        """Returns the extents of the bounding box encapsulating all shapes in
+        self.__Components__
+
+        Parameters
+        ----------
+        tol : scalar (default 1e-6)
+            tolerance of the triangulation used in the bounding box extents
+
+        as_vec : bool (default True)
+            Returns two OCC.gp.gp_Vec objects if True
+
+        Returns
+        -------
+        extents : tuple of scalar or OCC.gp.gp_Vec
+            Type depends on input 'as_vec'. If as_vec is false, this returns
+            a tuple xmin, ymin, zmin, xmax, ymax, zmax; otherwise, the min and
+            max vectors will be returned as OCC types.
+        """
+        import itertools
+        shape_list = []
+        for name, component in topo.items():
+            try:
+                for part in component.values():
+                    shape_list.append(part)
+            except AttributeError:
+                # This will probably happen for mirror object
+                pass
+        shape_list = list(itertools.chain.from_iterable(shape_list))
+        return act.ObjectsExtents(shape_list, tol=tol, as_vec=as_vec)
