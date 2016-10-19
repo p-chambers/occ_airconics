@@ -228,7 +228,11 @@ class Fuselage(AirconicsShape):
         LSPort = act.make_pipe_shell(spine, [section1, section2])
         self._LSPort = LSPort
 
-#        # Project the plan view onto the mean surface
+       # Project the plan view onto the mean surface: had to move the
+       #  Port curve here as projection was not working for certain inputs
+        print("hello")
+        PlanPortCurve.GetObject().Translate(gp_Vec(0, 0, -10))
+
         HPortCurve = act.project_curve_to_surface(PlanPortCurve, LSPort,
                                                   gp_Dir(0, 0, 100))
         PortCurve = HPortCurve.GetObject()

@@ -219,7 +219,7 @@ def point_array_to_TColgp_PntArrayType(array, _type=TColgp_Array1OfPnt):
         pt_arr = _type(1, N)
         for i, pt in enumerate(array):
             pt_arr.SetValue(i + 1, gp_Pnt(*pt.tolist()))
-    except:
+    except IndexError:
         # Input pnts are likely to be a list of gp_Pnt:
         N = len(array)
         pt_arr = _type(1, N)
