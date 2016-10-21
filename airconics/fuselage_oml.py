@@ -230,7 +230,6 @@ class Fuselage(AirconicsShape):
 
        # Project the plan view onto the mean surface: had to move the
        #  Port curve here as projection was not working for certain inputs
-        print("hello")
         PlanPortCurve.GetObject().Translate(gp_Vec(0, 0, -10))
 
         HPortCurve = act.project_curve_to_surface(PlanPortCurve, LSPort,
