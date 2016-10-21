@@ -950,7 +950,17 @@ def make_vertex(*args):
 
 
 def make_ellipsoid(centre_pt, dx, dy, dz):
-    """Creates an ellipsoid from non-uniformly scaled unit sphere"""
+    """Creates an ellipsoid from non-uniformly scaled unit sphere
+
+    Parameters
+    ----------
+    centre_pnt : list or array-like
+        The center point of the ellipsoid
+
+    dx, dy, dz: scalar
+        Principle axis length in the x, y and z axis respectively
+
+    """
     sphere = BRepPrimAPI_MakeSphere(gp_Pnt(0, 0, 0), 0.5)
     ellipsoid = transform_nonuniformal(sphere.Shape(), [dx, dy, dz],
                                        vec=centre_pt)

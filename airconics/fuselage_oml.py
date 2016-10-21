@@ -25,6 +25,7 @@ from OCC.gp import gp_Pnt, gp_Vec, gp_Pln, gp_Dir, gp_Ax2
 from OCC.Geom import Handle_Geom_BSplineCurve, Geom_Plane
 from OCC.GeomAbs import GeomAbs_C2
 from OCC.TopoDS import topods
+from OCC.GC import GC_MakeCircle
 
 
 class Fuselage(AirconicsShape):
@@ -49,7 +50,10 @@ class Fuselage(AirconicsShape):
         If True, fuselage will have a cylindrical midsection
 
     SimplificationReqd : bool
-        TODO
+        If true, the geometry will be significantly simplified using a
+        truncated ellipsoid nose, cylinder body and tail cone. This is slightly
+        different to the behaviour in airconics, as this will be used by
+        default if True, rather than as a backup if the bspline fitting failed.
 
     MaxFittingAtempts : integer
         Maximum number of times to attempt to fit surface to guide curves
@@ -85,14 +89,16 @@ class Fuselage(AirconicsShape):
                                        Max_attempt=Maxi_attempt,
                                        construct_geometry=construct_geometry)
 
-
     def Build(self):
         """Overrides the AirconicsShape empty Build method.
 
         Calls BuildFuselageOML, which has been maintained for older versions.
         """
         super(Fuselage, self).Build()
-        self.BuildFuselageOML(self.Max_attempt)
+        if self.SimplificationReqd:
+            self.BuildFuselageSimplified()
+        else:
+            self.BuildFuselageOML(self.Max_attempt)
         self.TransformOML()
 
     def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
@@ -102,24 +108,24 @@ class Fuselage(AirconicsShape):
         kN = NoseLengthRatio / 0.182
         tN = TailLengthRatio / 0.293
 
-        PlanPort = np.array([[0,                  0,     0],
-                             [0*kN,              -0.1,   0],
-                             [0.332*kN,          -0.395, 0],
-                             [1.250*kN,          -0.810, 0],
-                             [2.517*kN,          -1.074, 0],
-                             [4*kN,              -1.15,  0],
-                             [4*kN,              -1.15,  0],
+        PlanPort = np.array([[0, 0, 0],
+                             [0 * kN, -0.1, 0],
+                             [0.332 * kN, -0.395, 0],
+                             [1.250 * kN, -0.810, 0],
+                             [2.517 * kN, -1.074, 0],
+                             [4 * kN, -1.15, 0],
+                             [4 * kN, -1.15, 0],
                              # Parallel sided section here
-                             [22-(22-15.55)*tN,  -1.15,   0],
-                             [22-(22-15.55)*tN,  -1.15,   0],
-                             [22-(22-16.428)*tN, -1.126,  0],
-                             [22-(22-20.3362)*tN,-0.483,  0],
-                             [22,                -0.0987, 0]])
+                             [22 - (22 - 15.55) * tN, -1.15, 0],
+                             [22 - (22 - 15.55) * tN, -1.15, 0],
+                             [22 - (22 - 16.428) * tN, -1.126, 0],
+                             [22 - (22 - 20.3362) * tN, -0.483, 0],
+                             [22, -0.0987, 0]])
 #        Scale:
         PlanPort *= 2.541
 
-        NoseEndX = 4*kN*2.541
-        TailStartX = (22-(22-15.55)*tN)*2.541
+        NoseEndX = 4 * kN * 2.541
+        TailStartX = (22 - (22 - 15.55) * tN) * 2.541
 
         return PlanPort, NoseEndX, TailStartX
 
@@ -131,43 +137,43 @@ class Fuselage(AirconicsShape):
 
         # The upper contour control points
         # of the fuselage in side view
-        AFSVUpper = np.array([[0,                 0, 0],
-                              [0,                 0, 0.3],
-                              [1.395*kN,          0, 1.547],
-                              [4*kN,              0, 1.686],
-                              [4*kN,              0, 1.686],
+        AFSVUpper = np.array([[0, 0, 0],
+                              [0, 0, 0.3],
+                              [1.395 * kN, 0, 1.547],
+                              [4 * kN, 0, 1.686],
+                              [4 * kN, 0, 1.686],
                               # parallel section here
-                              [22-(22-15.55)*tN,  0, 1.686],
-                              [22-(22-15.55)*tN,  0, 1.686],
-                              [22-(22-19.195)*tN, 0, 1.549],
-                              [22,                0, 0.904]])
+                              [22 - (22 - 15.55) * tN, 0, 1.686],
+                              [22 - (22 - 15.55) * tN, 0, 1.686],
+                              [22 - (22 - 19.195) * tN, 0, 1.549],
+                              [22, 0, 0.904]])
 #        Scale:
         AFSVUpper *= 2.541
 
         # The lower contour control points
         # of the fuselage in side view
-        AFSVLower = np.array([[0,                0,  0],
-                              [0,                0, -0.3],
-                              [0.947*kN,         0, -0.517],
-                              [4*kN,             0, -0.654],
-                              [4*kN,             0, -0.654],
+        AFSVLower = np.array([[0, 0, 0],
+                              [0, 0, -0.3],
+                              [0.947 * kN, 0, -0.517],
+                              [4 * kN, 0, -0.654],
+                              [4 * kN, 0, -0.654],
                               # Parallel sides section
-                              [22-(22-15.55)*tN, 0, -0.654],
-                              [22-(22-15.55)*tN, 0, -0.654],
+                              [22 - (22 - 15.55) * tN, 0, -0.654],
+                              [22 - (22 - 15.55) * tN, 0, -0.654],
                               # Tailstrike slope section
-                              [22-(22-18.787)*tN,0, -0.256],
-                              [22,               0,  0.694]])
+                              [22 - (22 - 18.787) * tN, 0, -0.256],
+                              [22, 0, 0.694]])
         AFSVLower *= 2.541
 
         return AFSVUpper, AFSVLower
 
     def FuselageLongitudinalGuideCurves(self, NoseLengthRatio,
-                                         TailLengthRatio):
+                                        TailLengthRatio):
         """Internal function. Defines the four longitudinal curves that outline
         the fuselage (outer mould line)."""
 
         FSVU, FSVL = self.AirlinerFuselageSideView(NoseLengthRatio,
-                                                    TailLengthRatio)
+                                                   TailLengthRatio)
         FSVUCurve = act.points_to_BezierCurve(FSVU)
         FSVLCurve = act.points_to_BezierCurve(FSVL)
 
@@ -196,21 +202,21 @@ class Fuselage(AirconicsShape):
 #        ParallelLoftEdgePort      = rs.CopyObject(FSVMeanCurve,(0,-1.1*abs(Ymax-Ymin),0))
 #        LSPort      = rs.AddSweep2((FSVMeanCurve,ParallelLoftEdgePort     ),(RuleLinePort,     AftLoftEdgePort     ))
 #
-#       Mean Curve: This is wrong! But no mean curve found in OCC
-        FSVMean = (FSVU+FSVL)/2.
+        FSVMean = (FSVU + FSVL) / 2.
 
         FSVMeanCurve = act.points_to_BezierCurve(FSVMean)
         FSVMeanEdge = act.make_edge(FSVMeanCurve.GetHandle())
         self._MeanEdge = FSVMeanEdge
         RuleLinePort = act.make_edge(gp_Pnt(0., 0., 0.),
-                                     gp_Pnt(0., -1.1*abs(Ymax-Ymin), 0.))
+                                     gp_Pnt(0., -1.1 * abs(Ymax - Ymin), 0.))
         FSVMCEP = FSVMeanCurve.EndPoint()
         MoveVec = gp_Vec(gp_Pnt(0, 0, 0), FSVMCEP)
         AftLoftEdgePort = topods.Edge(
             act.translate_topods_from_vector(RuleLinePort, MoveVec, copy=True))
 
 #         Make copy of the mean curve
-        MoveVec = gp_Vec(gp_Pnt(0, 0, 0), gp_Pnt(0, -1.1*abs(Ymax-Ymin), 0))
+        MoveVec = gp_Vec(gp_Pnt(0, 0, 0),
+                         gp_Pnt(0, - 1.1 * abs(Ymax - Ymin), 0))
 
 #          Didnt need this to construct Port Edge of the loft surface in OCC
 #         (Legacy from Rhino) - may experiment with this behaviour later:
@@ -228,8 +234,8 @@ class Fuselage(AirconicsShape):
         LSPort = act.make_pipe_shell(spine, [section1, section2])
         self._LSPort = LSPort
 
-       # Project the plan view onto the mean surface: had to move the
-       #  Port curve here as projection was not working for certain inputs
+        # Project the plan view onto the mean surface: had to move the
+        # Port curve here as projection was not working for certain inputs
         PlanPortCurve.GetObject().Translate(gp_Vec(0, 0, -10))
 
         HPortCurve = act.project_curve_to_surface(PlanPortCurve, LSPort,
@@ -275,6 +281,128 @@ class Fuselage(AirconicsShape):
         return (HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve,
                 FSVMeanCurve, NoseEndX, TailStartX, EndX)
 
+    def BuildFuselageSimplified(self):
+        """Builds the Fuselage outer mould line
+        Notes
+        -----
+        It is not expected that users will interact with this directly. Use
+        the Fuslage class initialisation fuction instead
+        """
+        NetworkSrfSettings = np.array([5, 5, 5, 2, 2])
+
+        FSVU, FSVL = self.AirlinerFuselageSideView(self.NoseLengthRatio,
+                                                   self.TailLengthRatio)
+        FSVUCurve = act.points_to_BezierCurve(FSVU)
+        FSVLCurve = act.points_to_BezierCurve(FSVL)
+
+        FSVMean = (FSVU + FSVL) / 2.
+
+        FSVMeanCurve = act.points_to_BezierCurve(FSVMean)
+
+        kN = self.NoseLengthRatio / 0.182
+        tN = self.TailLengthRatio / 0.293
+
+        NoseEndX = 4 * kN * 2.541
+        TailStartX = (22 - (22 - 15.55) * tN) * 2.541
+        EndX = FSVMeanCurve.EndPoint().X()
+
+        # Compute the stern point coordinates of the fuselage
+        Pu = FSVUCurve.EndPoint()
+        Pl = FSVLCurve.EndPoint()
+        self.SternPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5 * (Pu.Z() + Pl.Z()))
+        Pu = FSVUCurve.StartPoint()
+        Pl = FSVLCurve.StartPoint()
+        self.BowPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5 * (Pu.Z() + Pl.Z()))
+
+        # Construct array of cross section definition frames
+        SX0 = 0
+        SX1 = 0.04 * NoseEndX
+        SX2 = SX1 + 0.25 * NoseEndX
+        SX3 = NoseEndX
+        SX4 = TailStartX
+        SX5 = EndX
+
+        Step01, Step12, Step23, Step34, Step45 = \
+            NetworkSrfSettings
+
+        Stations01 = np.linspace(SX0, SX1, Step01)
+        Stations12 = np.linspace(SX1, SX2, Step12)
+        Stations23 = np.linspace(SX2, SX3, Step23)
+        Stations34 = np.linspace(SX3, SX4, Step34)
+        Stations45 = np.linspace(SX4, SX5, Step45)
+
+        # StationRange = np.hstack([Stations01[:-1], Stations12[:-1],
+        #                           Stations23[:-1], Stations34[:-1],
+        #                           Stations45])
+        # Make the part from several lofts and fuse them later
+        Surfaces = []
+
+        for npart, station in enumerate([Stations01[1:], Stations12, Stations23, Stations34, Stations45]):
+            C = []
+
+            for i, XStation in enumerate(station):
+                # Create plane normal to x direction
+                P = Geom_Plane(gp_Pln(gp_Pnt(XStation, 0, 0),
+                                      gp_Dir(gp_Vec(1, 0, 0))))
+
+                IPoint2 = act.points_from_intersection(P, FSVUCurve)
+                IPoint3 = act.points_from_intersection(P, FSVLCurve)
+    #
+                IPointCentre = act.points_from_intersection(P,
+                                                            FSVMeanCurve)
+
+                PseudoDiameter = abs(IPoint3.Z() - IPoint2.Z())
+
+                PseudoRadius = PseudoDiameter / 2.
+                # Note: Add Circle with radius PseudoRadius at Pc
+                c = GC_MakeCircle(gp_Ax2(IPointCentre, gp_Dir(1, 0, 0)),
+                                  PseudoRadius).Value()
+                C.append(c)
+
+            if npart == 0:
+                # Need to add the leading edge on the first lofted section
+                partial_oml = act.AddSurfaceLoft(C, continuity=GeomAbs_C2,
+                                                 first_vertex=act.make_vertex(self.BowPoint),
+                                                 solid=False)
+            else:
+                partial_oml = act.AddSurfaceLoft(C, continuity=GeomAbs_C2, solid=False)
+            Surfaces.append(partial_oml)
+            # self['surf' + str(npart)] = partial_oml
+
+        from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
+        sewing = BRepBuilderAPI_Sewing()
+        for surface in Surfaces:
+            sewing.Add(surface)
+        sewing.Perform()
+        self['OML'] = sewing.SewedShape()
+        # self['OML'] = BRepAlgoAPI_Fuse(*Surfaces)
+        return None
+
+    #     """Builds a fuselage shell from primitive shapes
+
+    #     The nose cone will be a truncated ellipsoid, followed by a cylindrical
+    #     body, and finally a truncated tail cone.
+
+    #     Notes
+    #     -----
+    #     Adds the fused shell as a single shape named 'OML' i.e. fuselage['OML']
+    #     """
+    #     self.BowPoint = gp_Pnt(*self.NoseCoordinates)
+
+    #     kN = self.NoseLengthRatio / 0.182
+    #     tN = self.TailLengthRatio / 0.293
+
+    #     NoseEndX = 4 * kN * 2.541
+    #     TailStartX = (22 - (22 - 15.55) * tN) * 2.541
+
+    #     NPnt = np.array(self.NoseCoordinates)
+    #     # Center of the nose ellipse (full untruncated shape) is the end of the
+    #     # Nose section, i.e. at NoseEndX, with no change in y z.
+    #     Nose_center = np.array([NoseEndX, NPnt[1], NPnt[2]])
+
+    #     dx, dy, dz = np.subtract(Nose_center - NPnt) * 2
+    #     nose = act.make_ellipsoid(Nose_center, dx, dy, dz)
+
     def BuildFuselageOML(self, Max_attempt=5):
         """Builds the Fuselage outer mould line
         Notes
@@ -293,21 +421,21 @@ class Fuselage(AirconicsShape):
         HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve, FSVMeanCurve, \
             NoseEndX, TailStartX, EndX =                               \
             self.FuselageLongitudinalGuideCurves(self.NoseLengthRatio,
-                                                  self.TailLengthRatio)
-        
+                                                 self.TailLengthRatio)
+
         # Returning the PortCurve and StarboardCurve as Geom_BSplineCurve
         # makes kernel freeze in pythonocc 0.16.5, so needed to carry around a
         # handle instead - very strange bug!
         PortCurve = HPortCurve .GetObject()
         StarboardCurve = HStarboardCurve.GetObject()
-        
+
         # Compute the stern point coordinates of the fuselage
         Pu = FSVUCurve.EndPoint()
         Pl = FSVLCurve.EndPoint()
-        self.SternPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5*(Pu.Z()+Pl.Z()))
+        self.SternPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5 * (Pu.Z() + Pl.Z()))
         Pu = FSVUCurve.StartPoint()
         Pl = FSVLCurve.StartPoint()
-        self.BowPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5*(Pu.Z()+Pl.Z()))
+        self.BowPoint = gp_Pnt(Pu.X(), Pu.Y(), 0.5 * (Pu.Z() + Pl.Z()))
 
         i_attempt = 0
         while i_attempt < Max_attempt:
@@ -334,8 +462,8 @@ class Fuselage(AirconicsShape):
             Stations45 = np.linspace(SX4, SX5, max([Step45, 2]))
 
             StationRange = np.hstack([Stations01[:-1], Stations12[:-1],
-                                     Stations23[:-1], Stations34[:-1],
-                                     Stations45])
+                                      Stations23[:-1], Stations34[:-1],
+                                      Stations45])
             C = []
             FirstTime = True
 
@@ -358,7 +486,7 @@ class Fuselage(AirconicsShape):
                     print("Skipping this plane location")
                     continue
 
-                PseudoDiameter = abs(IPoint4.Z()-IPoint2.Z())
+                PseudoDiameter = abs(IPoint4.Z() - IPoint2.Z())
                 if self.CylindricalMidSection and\
                         NoseEndX < XStation < TailStartX:
                     print("Enforcing circularity in the central section...")
@@ -375,10 +503,10 @@ class Fuselage(AirconicsShape):
                     # Set the tangents at each point for interpolation:
                     # assume that these are solely in 1 axis as points lie
                     # extremities of an elliptical shape
-                    tangents = np.array([[0, -1,  0],
-                                         [0,  0, -1],
-                                         [0,  1,  0],
-                                         [0,  0,  1]])
+                    tangents = np.array([[0, -1, 0],
+                                         [0, 0, -1],
+                                         [0, 1, 0],
+                                         [0, 0, 1]])
                     c = act.points_to_bspline(
                         [IPoint2, IPoint3, IPoint4, IPoint1],
                         periodic=True, scale=False,
@@ -421,22 +549,6 @@ class Fuselage(AirconicsShape):
             except:
                 raise(RuntimeError, "Could not produce a valid OML surface")
 
-#    Note: The following is the last resort surface fit from Rhino Airconics
-#                And currently is not available in OCC Airconics:
-
-#            SimplificationReqd = True # Enforce simplification
-#            if not(FuselageOMLSurf):
-#                print "Alternative fitting method failed too. Out of ideas."
-#
-#        if FuselageOMLSurf and SimplificationReqd:
-#            rs.UnselectAllObjects()
-#            rs.SelectObject(FuselageOMLSurf)
-#            ToleranceStr = str(0.0005*EndX)
-#            print "Smoothing..."
-#            rs.Command("FitSrf " + ToleranceStr)
-#            rs.UnselectAllObjects()
-#
-
         # Shouldnt get here
         return None
 
@@ -461,7 +573,6 @@ class Fuselage(AirconicsShape):
 #        SternPoint[1] = SternPoint[1]+NoseCoordinates[1]
 #        SternPoint[2] = SternPoint[2]+NoseCoordinates[2]
 
-
     def CockpitWindowContours(self, Height=1.620, Depth=5):
         """
         This function is currently not tested
@@ -479,47 +590,44 @@ class Fuselage(AirconicsShape):
 
         wire = act.make_wire([edge1, edge2, edge3, edge4])
 
-        face_inner = act.make_face(wire)   #The inner cockpit window
+        face_inner = act.make_face(wire)  # The inner cockpit window
 
         filleted_face = act.FilletFaceCorners(face_inner, 0.08)
-        
+
 #        exp = TopExp_Explorer
-#        CWC1 = 
-    
+#        CWC1 =
+
         # The outer cockpit window
-        P1 = [0.000,0.951,Height-1.620+2.289]
-        P2 = [0.000,1.343,Height-1.620+2.224]
-        P3 = [0.000,1.634,Height-1.620+1.773]
-        P4 = [0.000,1.557,Height-1.620+1.588]
-        P5 = [0.000,1.027,Height-1.620+1.671]
+        P1 = [0.000, 0.951, Height - 1.620 + 2.289]
+        P2 = [0.000, 1.343, Height - 1.620 + 2.224]
+        P3 = [0.000, 1.634, Height - 1.620 + 1.773]
+        P4 = [0.000, 1.557, Height - 1.620 + 1.588]
+        P5 = [0.000, 1.027, Height - 1.620 + 1.671]
         edge1 = act.make_edge(gp_Pnt(*P1), gp_Pnt(*P2))
         edge2 = act.make_edge(gp_Pnt(*P2), gp_Pnt(*P3))
         edge3 = act.make_edge(gp_Pnt(*P3), gp_Pnt(*P4))
         edge4 = act.make_edge(gp_Pnt(*P4), gp_Pnt(*P5))
         edge5 = act.make_edge(gp_Pnt(*P5), gp_Pnt(*P1))
 
-        
         wire = act.make_wire([edge1, edge2, edge3, edge4, edge5])
-        
-        face_outer = act.make_face(wire)   #The inner cockpit window
-        
+
+        face_outer = act.make_face(wire)  # The inner cockpit window
+
         CWC2 = act.FilletFaceCorners(face_outer, 0.08)
-            
-    
+
         CWC3 = act.mirror(CWC1, plane='xz', copy=True)
         CWC4 = act.mirror(CWC2, plane='xz', copy=True)
-    
-        return CWC1, CWC2, CWC3, CWC4
 
+        return CWC1, CWC2, CWC3, CWC4
 
     def WindowContour(self, WinCenter):
         """Creates and returns the contour of the window at WinCenter
-        
+
         Parameters
         ----------
         WinCenter : list or array, length 2
             The [X, Z] coordinate of the center of the window
-        
+
         Returns
         -------
         W_wire : TopoDS_Wire
@@ -527,32 +635,31 @@ class Fuselage(AirconicsShape):
         """
         raise NotImplementedError(
             "This function is in development, and its output is untested")
-        P1 = gp_Pnt(WinCenter[0], 0, WinCenter[1] + 0.468/2.)
-        P2 = gp_Pnt(WinCenter[0] + 0.272/2., 0, WinCenter[1])
-        P3 = gp_Pnt(WinCenter[0], 0, WinCenter[1] - 0.468/2.)
-        P4 = gp_Pnt(WinCenter[0] - 0.272/2., 0, WinCenter[1])
-    
-        tangents = np.array([[0,    0,  2.5],
-                            [0,    0, -2.5]])
-    
+        P1 = gp_Pnt(WinCenter[0], 0, WinCenter[1] + 0.468 / 2.)
+        P2 = gp_Pnt(WinCenter[0] + 0.272 / 2., 0, WinCenter[1])
+        P3 = gp_Pnt(WinCenter[0], 0, WinCenter[1] - 0.468 / 2.)
+        P4 = gp_Pnt(WinCenter[0] - 0.272 / 2., 0, WinCenter[1])
+
+        tangents = np.array([[0, 0, 2.5],
+                             [0, 0, -2.5]])
+
         WCurveU = act.points_to_bspline([P4, P1, P2], tangents=tangents)
         # Need to reverse the tangents for the following shape:
-        WCurveL =  act.points_to_bspline([P2, P3, P4], tangents=tangents[::-1])
-        
+        WCurveL = act.points_to_bspline([P2, P3, P4], tangents=tangents[::-1])
+
         edgeU = act.make_edge(WCurveU)
         edgeL = act.make_edge(WCurveL)
-        
+
 #        W_face= act.make_face(act.make_wire([edgeU, edgeL]))
         W_wire = act.make_wire([edgeU, edgeL])
         return W_wire
-
 
     def MakeWindow(self, Xwc, Zwc):
         """Makes at Window centered at Wxc Zwc using the bspline wire returned
         by WindowContour
 
         THIS FUNCTION IS IN DEVELOPMENT AND NOT YET TESTED FULLY        
-        
+
         Parameters
         ----------
         Xwc : scalar
@@ -583,10 +690,10 @@ class Fuselage(AirconicsShape):
         ExtPathPort = gp_Dir(gp_Vec(0, -10, 0))
 
         self['OML'], WinStbd = act.SplitShapeFromProjection(self['OML'], W_wire,
-            direction=ExtPathStbd)
+                                                            direction=ExtPathStbd)
 
         self['OML'], WinPort = act.SplitShapeFromProjection(self['OML'], W_wire,
-            direction=ExtPathPort)
+                                                            direction=ExtPathPort)
 
         return WinStbd, WinPort
 
