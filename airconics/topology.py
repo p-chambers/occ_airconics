@@ -8,29 +8,57 @@ Created on Fri Apr 15 12:24:32 2016
 @author: pchambers
 """
 from .base import AirconicsCollection
-from .liftingsurface import LiftingSurface
 from .fuselage_oml import Fuselage
+from .liftingsurface import LiftingSurface
 from .engine import Engine
-from OCC.gp import gp_Ax2
-# import copy
-# import numpy as np
+from . import AirCONICStools as act
+from .examples.wing_example_transonic_airliner import *
+from .examples.tailplane_example_transonic_airliner import *
+from .examples.straight_wing import *
+from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt
 
+import types
+import functools
+from functools import partial
+import pydot
+from collections import OrderedDict
+import numbers
+import numpy as np
+from deap import algorithms
+from deap import base
+from deap import creator
+from deap import tools
+from deap import gp
 
 # This dictionary will be used for topology tree formatting
 FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              'L': LiftingSurface,   # L = Lifting Surface
              'P': Engine,           # P = Propulsion
-             '|': gp_Ax2}           # M = Mirror Plane
+             '|': gp_Ax2,           # M = Mirror Plane
+             '': None}
 
 # Reversed dictionary for manually adding shapes, i.e. converting
 #  a class instance to a string
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
 
 # The shapes of nodes in the exported graph from Topo class:
-SHAPES = {'E': 'ellipse',
-          'L': 'box',
-          'P': 'hexagon',
-          '|': ''}                  # Note: M does not have a node shape
+NODE_PROPERTIES = {'fuselage': {'shape': 'ellipse', 'fillcolor': '#136ed4', 'fontcolor': "white"},
+                   'liftingsurface': {'shape': 'box', 'fillcolor': '#136ed4', 'fontcolor': "white"},
+                   'engine': {'shape': 'hexagon', 'fillcolor': '#136ed4', 'fontcolor': "white"},
+                   'mirror': {'shape': 'box', 'fillcolor': '#136ed4', 'fontcolor': "white"},
+                   'number': {'shape': 'ellipse'},
+                   'rand': {'shape': 'ellipse'},
+                   'None': {'shape': 'point'},
+                   }
+
+
+# Use a wrapper to convert boxN, sphereN etc. to another function that
+# returns a callable
+def wrap_shapeN(shapeN):
+    @functools.wraps(shapeN)
+    def wrapped_shapeN(*args, **kwargs):
+        return partial(shapeN, *args)
+    return wrapped_shapeN
 
 
 class TreeNode(object):
@@ -65,7 +93,7 @@ class TreeNode(object):
 
         if type(part) not in FUNCTIONS.values():
             raise TypeError("Not a recognised part type: {}. Should be {}"
-                .format(type(part), FUNCTIONS.values()))
+                            .format(type(part), FUNCTIONS.values()))
         else:
             func_str = FUNCTIONS_INV[type(part)]
         self.func = func_str
@@ -103,7 +131,7 @@ class Topology(AirconicsCollection):
 
     Notes
     -----
-    - warning will be raised if no affinities are provided
+    - warning will be raised if no arities are provided
 
     example:
         # (Wing is an airconics Lifting Surface instace):
@@ -125,15 +153,36 @@ class Topology(AirconicsCollection):
         AIAA SciTech, American Institute of Aeronautics and Astronautics,
         jan 2014.
     """
+
     def __init__(self, parts={},
-                 construct_geometry=False):
+                 ComponentTypes=[LiftingSurface, Fuselage],
+                 MaxAttachments=2,
+                 ArgTypes={Fuselage: [float] * 7,
+                           LiftingSurface: [float] * 4},
+                 construct_geometry=True):
 
         self._Tree = []
         # Start with an empty parts list, as all parts will be added using
         # the for loop of self[name] = XXX below (__setitem__ calls the base)
         # AirconicsCollection __setitem__, which adds part to self._Parts)
-        super(Topology, self).__init__(parts={},
-                                       construct_geometry=construct_geometry)
+        super(Topology, self).__init__(parts=parts,
+                                       MaxAttachments=MaxAttachments,
+                                       ComponentTypes=ComponentTypes,
+                                       ArgTypes=ArgTypes,
+                                       mirror=False
+                                       )
+
+        # Carry around the tree for visualisation purposes:
+        self._Tree = []
+        self._deap_Tree = None   # This will be populated when
+
+        # Start with a simple box
+        self.nparts = 0
+        self.routine = None
+
+        # This will allow components to track what they should be attached to
+        # (Needs to be ordered so that the final entries can be removed)
+        self.parent_nodes = OrderedDict()
 
         for name, part_w_arity in parts.items():
             self[name] = part_w_arity
@@ -164,6 +213,16 @@ class Topology(AirconicsCollection):
         node = TreeNode(part, name, arity)
 
         self._Tree.append(node)
+
+        if len(self.parent_nodes) > 0:
+            if self.parent_nodes.values()[-1] > 1:
+                self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
+            else:
+                while self.parent_nodes.values()[-1] < 1:
+                    self.parent_nodes.popitem()
+
+        self.parent_nodes[name] = arity
+
         super(Topology, self).__setitem__(name, part)
 
     def __str__(self):
@@ -182,8 +241,8 @@ class Topology(AirconicsCollection):
         output = ''
 
         for i, node in enumerate(self._Tree):
-#            If node has a non zero arity, there is some nested printing
-#            required, otherwise node is a terminal:
+            #       If node has a non zero arity, there is some nested printing
+            #            required, otherwise node is a terminal:
             if node.func == '|':
                 # Mirror lines are a special case: simply put a line an skip
                 # to next iteration
@@ -203,6 +262,60 @@ class Topology(AirconicsCollection):
                     output += ', '
         return output
 
+    def _reset(self):
+        self._Parts = {}
+        self._Tree = []
+        self._deap_Tree = None
+        self.parent_nodes.clear()
+        self.nparts = 0
+        self.mirror = False
+
+    def run(self, tree, pset):
+        self._reset()
+        routine = gp.compile(tree, pset)
+        self._deap_Tree = tree
+        routine()
+
+    def fit_to_parent(self, oldscaling, oldposition):
+        """Given an old scaling and old position (this will be a random number
+        between 0 and 1 using the DEAP tree I have set up elsewhere), a new
+        scaling and position is returned allowing the resulting shape to 'fit'
+        to its parent"""
+        # Need to get a scaling from the parent of arbitrary type:
+        # using a try-except to work for any parent type ... could probably
+        # do better here
+        parent = self[self.parent_nodes.keys()[-1]]
+        scalingrange = (0.6, 1)
+
+        # Ensure that the oldscaled and oldposition fractions does give
+        # something invisibly small:
+        oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
+        try:
+            # The LiftingSurface branch (could probably do better here)
+            parentscalefactor = parent.ScaleFactor
+
+        except AttributeError:
+            # The Fuselage branch
+            parentscalefactor = parent.Scaling[0]
+
+        try:
+            # The LiftingSurface branch (could probably do better here)
+            parent_x = parent.ApexPoint.X()
+            xlength = parent.ScaleFactor * parent.ChordFactor
+
+        except AttributeError:
+            # The Fuselage branch
+            parent_x = parent.NoseCoordinates[0]
+            xlength = (parent.SternPoint.X() - parent.BowPoint.X()
+                       ) * (parentscalefactor / 55.902)
+        # The scaling is some percentage of parent (assumes components get
+        # smaller)
+        newscaling = oldscaling * parentscalefactor
+
+        newx = parent_x + xlength * oldposition
+
+        return newscaling, newx
+
     def Build(self):
         """Recursively builds all sub components in the current topology tree
         if self.construct_geometry is true. Will also mirror components
@@ -220,28 +333,267 @@ class Topology(AirconicsCollection):
 
         self.MirrorSubtree()
 
-    def MirrorSubtree(self):
-        """Mirrors the geometry where required, based on the current topology
-        tree.
+    @wrap_shapeN
+    def mirror_subcomponentsN(self, *args):
+        self.mirror = True
+        for arg in args:
+            arg()
 
-        Does nothing is no mirror plane has been added
+        self.mirror = False
+
+    @wrap_shapeN
+    def fuselageN(self, NoseX, NoseY, NoseZ, ScalingX, NoseLengthRatio,
+                  TailLengthRatio, FinenessRatio, *args):
+        """Parameter descriptions can be found from the airconics.Fuselage
+        class, all are floats"""
+        # Need to add constraints here so that the Fuselage has a good chance
+        # of successful lofting: any out of range values will be moved to the
+        # nearest boundary:
+        arglimits = {NoseLengthRatio: (0.18, 0.19),
+                     TailLengthRatio: (0.29, 0.295),
+                     ScalingX: (0.5, 5),
+                     FinenessRatio: (0.5, 2)}
+
+        # NoseLengthRatio = np.interp(NoseLengthRatio, [0,1], arglimits[NoseLengthRatio])
+        # TailLengthRatio = np.interp(TailLengthRatio, [0,1], arglimits[TailLengthRatio])
+
+        # For now, I'm fixing these values to avoid errors (curve projection
+        # seems to fail)
+        NoseLengthRatio = 0.182
+        TailLengthRatio = 0.293
+
+        # Essentially this checks if the current shape is being fitted to a
+        # parent
+        if len(self.parent_nodes) > 0:
+            ScalingX, NoseX = self.fit_to_parent(ScalingX, NoseX)
+        else:
+            ScalingX = np.interp(ScalingX, [0, 1], arglimits[ScalingX])
+        print(ScalingX, NoseX)
+
+        FinenessRatio = np.interp(
+            FinenessRatio, [0, 1], arglimits[FinenessRatio])
+
+        ScalingYZ = ScalingX / FinenessRatio
+
+        NoseY = NoseZ = 0
+
+#         print(NoseLengthRatio, TailLengthRatio, Scaling)
+        # Fits N new components to this box layout
+        fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
+                       TailLengthRatio=TailLengthRatio,
+                       Scaling=[ScalingX, ScalingYZ, ScalingYZ],
+                       NoseCoordinates=[NoseX, NoseY, NoseZ],
+                       #                        SimplificationReqd=True
+                       )
+        # Do no be confused between the numbering of boxes and the number of
+        # descendent nodes: Each box needs a unique ID, so naming a box0
+        # function "box0" replaces other shapes in this layout that are also
+        # named box0
+        name = 'fuselage{}_{}'.format(len(args), len(self))
+        self[name] = fus, len(args)
+
+        if self.mirror:
+            super(Topology, self).__setitem__(
+                name + '_mirror', fus.MirrorComponents(plane='xz'))
+
+        for arg in args:
+            arg()
+
+        return None
+
+    @wrap_shapeN
+    def liftingsurfaceN(self, ApexX, ApexY, ApexZ, ScaleFactor, *args):
+
+        # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
+        ChordFactor = 1
+
+        # Class definition
+        NSeg = 10
+
+        Functionals_dict = {  # 'AirlinerWing':
+            # {'SweepFunct':mySweepAngleFunctionAirliner,
+            #  'DihedralFunct': myDihedralFunctionAirliner,
+            #  'ChordFunct': myChordFunctionAirliner,
+            #  'TwistFunct': myTwistFunctionAirliner,
+            #  'AirfoilFunct': myAirfoilFunctionAirliner
+            # },
+            'AirlinerTP':
+                {'SweepFunct': mySweepAngleFunctionTP,
+                 'DihedralFunct': myDihedralFunctionTP,
+                 'ChordFunct': myChordFunctionTP,
+                 'TwistFunct': myTwistFunctionTP,
+                 'AirfoilFunct': myAirfoilFunctionTP
+                 },
+            'AirlinerFin':
+                {'SweepFunct': mySweepAngleFunctionFin,
+                 'DihedralFunct': myDihedralFunctionFin,
+                 'ChordFunct': myChordFunctionFin,
+                 'TwistFunct': myTwistFunctionFin,
+                 'AirfoilFunct': myAirfoilFunctionFin
+                 },
+            # 'StraightWing':
+            #     {'SweepFunct':SimpleSweepFunction,
+            #      'DihedralFunct': SimpleDihedralFunction,
+            #      'ChordFunct': SimpleChordFunction,
+            #      'TwistFunct': SimpleTwistFunction,
+            #      'AirfoilFunct': SimpleAirfoilFunction
+            #     }
+        }
+
+        surfacetype = np.random.choice(Functionals_dict.keys())
+
+        # Essentially this checks if the current shape is being fitted to a
+        # parent
+        if len(self.parent_nodes) > 0:
+            ScaleFactor, ApexX = self.fit_to_parent(ScaleFactor, ApexX)
+            print(ScaleFactor, ApexX)
+        else:
+            ApexX = 0
+
+        ApexZ = ApexY = 0
+        P = (ApexX, ApexY, ApexZ)
+
+        # Instantiate the class
+        wing = liftingsurface.LiftingSurface(P,
+                                             SegmentNo=NSeg,
+                                             ScaleFactor=ScaleFactor,
+                                             ChordFactor=ChordFactor,
+                                             **Functionals_dict[surfacetype])
+
+        # Rotate the component if necessary:
+        if surfacetype in ['AirlinerFin', 'StraightWing']:
+            # , 90]) # V tail or vertical fin
+            rotation = np.random.choice([0, 32.5])
+            RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+            wing.RotateComponents(RotAx, rotation)
+
+        self['liftingsurface{}_{}'.format(
+            len(args), len(self))] = wing, len(args)
+
+        if self.mirror:
+            super(Topology, self).__setitem__(
+                'liftingsurface{}_{}_mirror'.format(
+                    len(args), len(self) - 1), wing.MirrorComponents(plane='xz'))
+
+        for arg in args:
+            arg()
+
+        return None
+
+    def pydot_graph(self):
+        """Returns a pydot Graph for visualizing the topology tree.
+
+        Currently only set up to allow a single mirror terminal
+
+        Returns
+        -------
+        output : pydot.Dot
+            The pydot object containing a tree representation of the program.
+
+        Notes
+        -----
+        Can be visualised with pydot,
+
+        :Example:
+            >>> topo = Topology()     # Add some parts with topo.addPart
+            >>> graph = topo.pydot_graph()
+            >>> Image(graph.create_png())
+
+        May add a dependency on GPLearn later and overload the appropriate
+        class methods.
         """
-        mirror_plane = False
-        for node in self._Tree:
-            if mirror_plane:
-                print(type(mirror_plane))
-                mirrored = self[node.name].MirrorComponents(axe2=mirror_plane)
-                # Store the mirrored part, without adding it to self._Tree:
-                name_str = node.name + '_mirror'
-                super(Topology, self).__setitem__(name_str, mirrored)
-            if node.func == '|':
-                'Mirroring around plane {}'.format(node.name)
-                mirror_plane = self[node.name]
+        # Use the _deap_Tree if one is available (stored on calling run(tree,
+        # pset)):
+        if self._deap_Tree:
+            # Note: ns below is a simple range list for every edge/label
+            nodes, edges, labels = gp.graph(self._deap_Tree)
+        else:
+            raise AttributeError(
+                "No DEAP GP tree was found: see Box_Layout.run(tree, pset)")
+
+        mirror_flag = False
+
+        graph = pydot.Dot(ranksep='0.1', nodesep='0.1')
+        graph.set_node_defaults(style='filled')
+        graph.set_edge_defaults(arrowhead='none')
+
+        cluster_1 = pydot.Cluster('standard', color='invis')
+        graph.add_subgraph(cluster_1)
+
+        funct_list = [funct_name for funct_name in labels.values() if isinstance(funct_name, str)]
+        N_mirrored = 0
+
+        # Add a sub cluster for mirrored objects (does nothing if empty)
+        cluster_2 = pydot.Cluster('mirrored', style='dashed')
+
+        # i is used to increment the number of Geometric parts that have been
+        # found in the main loop (required as component names are prepended
+        # with their ordinal component number, and component names need to be
+        # matched with the _deap_tree)
+        i = 0
+
+        # use a boolean flag to decide if subclusters should be added to 
+        # the cluster of mirrored components (clutser_2)
+        mirror_flag = False
+
+        for node in nodes:
+            # note: this only works because the node number is manually added
+            # to the label by boxn:
+
+            label = labels[node]
+
+            # Not very pythonic, but try except here makes no sense:
+            try:
+                # if label is a string, get the name of the function (remove
+                # arity value at the end of the string)
+                nodetype = label.rstrip('0123456789')
+                # print(nodetype)
+
+                if (nodetype == 'mirror'):
+                    # Need to expect some direct subcomponents to be added to
+                    # the cluster_2
+                    arity = label.lstrip(nodetype)
+                    N_mirrored += int(arity)
+                elif (N_mirrored > 0):
+                    # If direct subcomponents have further levels of recursion,
+                    # need to add the next <arity> number of components to
+                    # cluser_2
+                    arity = label.lstrip(nodetype)
+                    N_mirrored += int(arity) - 1
+                    mirror_flag = True
+
+            except AttributeError:
+                if isinstance(label, float):
+                    # Assume the value is a float
+                    label = "{:.4f}".format(label)
+                nodetype = 'number'
+
+            pydot_node = pydot.Node(
+                node, label=label, **NODE_PROPERTIES[nodetype])
+
+            if mirror_flag:
+                cluster_2.add_node(pydot_node)
+
+            else:
+                cluster_1.add_node(pydot_node)
+
+            if N_mirrored == 0:
+                mirror_flag = False
+
+        graph.add_subgraph(cluster_2)
+
+        for edge in edges:
+            src, dest = edge
+            pydot_edge = pydot.Edge(src, dest)
+            graph.add_edge(pydot_edge)
+
+        return graph
 
     def export_graphviz(self):
         """Returns a string, Graphviz script for visualizing the topology tree.
 
-        Currently only set up to allow a single mirror terminal
+        This function is included for legacy purposes. The preferred method is
+        to use Topology.pydot_graph.
 
         Returns
         -------
@@ -250,73 +602,22 @@ class Topology(AirconicsCollection):
 
         Notes
         -----
-        This function is originally from GPLearns _Program class, but has been
-        modified. Can be visualised with pydot,
+        Can be visualised with pydot,
 
         :Example:
             >>> topo = Topology()     # Add some parts with topo.addPart
             >>> graph = pydot.graph_from_dot_data(topo.export_graphviz())
             >>> Image(graph.create_png())
 
+        See also
+        --------
+        Topology.pydot_graph
+
         May add a dependency on GPLearn later and overload the appropriate
         class methods.
         """
-        terminals = []
-        # Assume the geometry is not mirrored at first
-        mirror_flag = False
-        output = """digraph program {
-        splines=ortho;
-        ranksep="0.1";
-        node [style=filled]
-        edge [arrowhead=none];
-
-        # Start the primary cluster (assume only one mirror exists, leading
-        # to two clusters)
-        subgraph cluster_0 {
-            color=invis;
-        """
-        for i, node in enumerate(self._Tree):
-            if node.func == '|':
-                # Mirror node branch
-                output += '}\n'     # Close the primary cluster
-                output += 'subgraph cluster_1{\nstyle=dashed\n'
-                mirror_flag = True
-
-            else:
-                # All other functions, e.g., Enclosure, LiftingSurface,
-                # Propulsion
-                fill = "#136ed4"
-                if node.arity > 0:
-                    terminals.append([node.arity, i])
-                    output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
-                               % (i, node.name, fill, SHAPES[node.func]))
-                    # Add a point below to allow orthogonal branching in graphs
-                    output += ('p%d [shape=point, color=none];\n' %(i))
-                    output += ('%d -> p%d;\n' %(i, i))
-                else:
-                    output += ('%d [label="%s", fillcolor="%s", shape="%s"] ;\n'
-                               % (i, node.name, fill, SHAPES[node.func]))
-                    if i == 0:
-                        # A degenerative program of only one node
-                        return output + "}"
-                    terminals[-1][0] -= 1
-                    terminals[-1].append(i)
-                    while terminals[-1][0] == 0:
-                        output += 'p%d -> %d ;\n' % (terminals[-1][1],
-                                                     terminals[-1][-1])
-                        terminals[-1].pop()
-                        if len(terminals[-1]) == 2:
-                            parent = terminals[-1][-1]
-                            terminals.pop()
-                            if len(terminals) == 0:
-                                # close current cluster and end digraph
-                                return output + "}\n}"
-
-                            terminals[-1].append(parent)
-                            terminals[-1][0] -= 1
-
-        # We should never get here
-        return None
+        graph = self.pydot_graph()
+        return graph.create_dot()
 
     def AddPart(self, part, name, arity=0):
         """Overloads the AddPart method of AirconicsCollection base class
