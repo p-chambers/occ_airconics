@@ -23,6 +23,8 @@ from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir
 from OCC.GeomAbs import GeomAbs_C2
 from OCC.Geom import Geom_Plane
 
+import logging
+log = logging.getLogger(__name__)
 
 def airfoilfunct(ProfileFunct):
     """Decorator function : creates and returns a functional parameter
@@ -221,8 +223,8 @@ class LiftingSurface(AirconicsShape):
 
         if not (SweepFunct or DihedralFunct or TwistFunct or ChordFunct or
                 AirfoilFunct):
-            print("Lifting Surface functional parameters not defined:")
-            print("Initialising without geometry construction")
+            log.info("Lifting Surface functional parameters not defined:")
+            log.info("Initialising without geometry construction")
             construct_geometry = False
 
         self.CreateConstructionGeometry()
@@ -555,7 +557,7 @@ class LiftingSurface(AirconicsShape):
 
         if self.TipRequired:
             # TODO: retrieve wing tip
-            print("Warning: Tip Required currently does nothing")
+            log.warning("Tip Required currently does nothing")
             WingTip = None
             # self["Tip"] = WingTip
 
@@ -574,8 +576,8 @@ class LiftingSurface(AirconicsShape):
         self.AR = self.CalculateAspectRatio()
         self.SA = act.CalculateSurfaceArea(self['Surface'])
 
-        print("Lifting Surface complete. Key features:")
-        print("""   Proj.area: {},
+        log.info("Lifting Surface complete. Key features:")
+        log.info("""   Proj.area: {},
     Wet.area: {},
     Span:{},
     Aspect ratio: {},
@@ -612,7 +614,7 @@ class LiftingSurface(AirconicsShape):
                 SA = act.CalculateSurfaceArea(LSPsegment)
                 LSP_area += SA
         except:
-            print("""Failed to compute projected area. Using half of surface
+            log.warning("""Failed to compute projected area. Using half of surface
                 area instead.""")
             LS_area = act.CalculateSurfaceArea(self['Surface'])
             LSP_area = 0.5 * LS_area

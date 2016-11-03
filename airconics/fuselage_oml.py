@@ -27,6 +27,9 @@ from OCC.GeomAbs import GeomAbs_C2
 from OCC.TopoDS import topods
 from OCC.GC import GC_MakeCircle
 
+import logging
+log = logging.getLogger(__name__)
+
 
 class Fuselage(AirconicsShape):
     """AirCONICS Fuselage class: builds a parameterised instance of
@@ -440,7 +443,7 @@ class Fuselage(AirconicsShape):
         i_attempt = 0
         while i_attempt < Max_attempt:
             i_attempt = i_attempt + 1
-            print("Surface fit attempt {}".format(i_attempt))
+            log.info("Surface fit attempt {}".format(i_attempt))
 
             # Construct array of cross section definition frames
             SX0 = 0
@@ -453,7 +456,7 @@ class Fuselage(AirconicsShape):
             Step01, Step12, Step23, Step34, Step45 = \
                 NetworkSrfSettings[i_attempt - 1]
 
-            print("""Attempting loft surface fit with network density
+            log.info("""Attempting loft surface fit with network density
                 setup {}""".format(NetworkSrfSettings[i_attempt][:]))
             Stations01 = np.linspace(SX0, SX1, max([Step01, 2]))
             Stations12 = np.linspace(SX1, SX2, max([Step12, 2]))
@@ -481,15 +484,15 @@ class Fuselage(AirconicsShape):
                     IPointCentre = act.points_from_intersection(P,
                                                                 FSVMeanCurve)
                 except RuntimeError:
-                    print("Intersection Points at Section X={} Not Found"
+                    log.warning("Intersection Points at Section X={} Not Found"
                           .format(XStation))
-                    print("Skipping this plane location")
+                    log.warning("Skipping this plane location")
                     continue
 
                 PseudoDiameter = abs(IPoint4.Z() - IPoint2.Z())
                 if self.CylindricalMidSection and\
                         NoseEndX < XStation < TailStartX:
-                    print("Enforcing circularity in the central section...")
+                    log.info("Enforcing circularity in the central section...")
                     if FirstTime:
                         PseudoRadius = PseudoDiameter / 2.
                         FirstTime = False
@@ -530,7 +533,7 @@ class Fuselage(AirconicsShape):
                 OMLSurf = None
 
             if OMLSurf is not None:
-                print("Network surface fit succesful on attempt {}\n"
+                log.info("Network surface fit succesful on attempt {}\n"
                       .format(i_attempt))
                 self.AddComponent(OMLSurf, 'OML')
                 return None
@@ -538,9 +541,9 @@ class Fuselage(AirconicsShape):
 #         If all attempts at fitting a network surface failed, we attempt a
 #            Pipe Shell:
         if OMLSurf is None:
-            print("""Failed to fit network surface to the external shape of the
+            log.warning("""Failed to fit network surface to the external shape of the
                 fuselage""")
-            print("""Attempting alternative fitting method, quality likely to
+            log.warning("""Attempting alternative fitting method, quality likely to
                 be low...""")
 
             try:

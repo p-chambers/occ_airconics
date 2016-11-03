@@ -30,6 +30,9 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+import logging
+log = logging.getLogger(__name__)
+
 # This dictionary will be used for topology tree formatting
 FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              'L': LiftingSurface,   # L = Lifting Surface
@@ -59,6 +62,28 @@ def wrap_shapeN(shapeN):
     def wrapped_shapeN(*args, **kwargs):
         return partial(shapeN, *args)
     return wrapped_shapeN
+
+
+def default_fitness(topology):
+    """The default fitness function used by the Topology class
+
+    Parameters
+    ----------
+    topology - Topology object
+        The topology containing the geometry and component hierarchy
+        information for which to calculate the 'current' fitness
+
+    Notes
+    -----
+    Until I come with a better fitness function, this fitness function simply
+    tries to maximise the volume of the bounding box
+    """
+    try:
+        xmin, ymin, zmin, xmax, ymax, zmax = topology.Extents()
+    except:
+        # Bounding Box was probably void
+        return 0
+    return (xmax - xmin) * (ymax - ymin) * (zmax - zmin)
 
 
 class TreeNode(object):
@@ -153,28 +178,32 @@ class Topology(AirconicsCollection):
         AIAA SciTech, American Institute of Aeronautics and Astronautics,
         jan 2014.
     """
+    ComponentTypes = {"fuselage": [float] * 7,
+                      "liftingsurface": [float] * 4}
 
     def __init__(self, parts={},
-                 ComponentTypes=[LiftingSurface, Fuselage],
                  MaxAttachments=2,
-                 ArgTypes={Fuselage: [float] * 7,
-                           LiftingSurface: [float] * 4},
-                 construct_geometry=True):
+                 construct_geometry=True,
+                 SimplificationReqd=True,
+                 fitness_funct=default_fitness,
+                 min_levels=2,
+                 max_levels=4,
+                 pset_name="MAIN"
+                 ):
 
-        self._Tree = []
         # Start with an empty parts list, as all parts will be added using
         # the for loop of self[name] = XXX below (__setitem__ calls the base)
         # AirconicsCollection __setitem__, which adds part to self._Parts)
         super(Topology, self).__init__(parts=parts,
                                        MaxAttachments=MaxAttachments,
-                                       ComponentTypes=ComponentTypes,
-                                       ArgTypes=ArgTypes,
-                                       mirror=False
+                                       mirror=False,
+                                       _pset=None,
+                                       _toolbox=None,
+                                       SimplificationReqd=SimplificationReqd,
                                        )
 
         # Carry around the tree for visualisation purposes:
-        self._Tree = []
-        self._deap_Tree = None   # This will be populated when
+        self._deap_tree = None   # This will be populated when
 
         # Start with a simple box
         self.nparts = 0
@@ -183,6 +212,12 @@ class Topology(AirconicsCollection):
         # This will allow components to track what they should be attached to
         # (Needs to be ordered so that the final entries can be removed)
         self.parent_nodes = OrderedDict()
+
+        # Need to bind the fitness function to the object here:
+        self.fitness_funct = types.MethodType(fitness_funct, self)
+
+        self._pset = self.create_pset(name=pset_name)
+        self._toolbox = self.create_toolbox(min_levels, max_levels)
 
         for name, part_w_arity in parts.items():
             self[name] = part_w_arity
@@ -206,13 +241,9 @@ class Topology(AirconicsCollection):
         try:
             part, arity = part_w_arity
         except:
-            print("Warning: no arity set. Treating as zero")
+            log.warning("no arity set. Treating as zero")
             part = part_w_arity
             arity = 0
-
-        node = TreeNode(part, name, arity)
-
-        self._Tree.append(node)
 
         if len(self.parent_nodes) > 0:
             if self.parent_nodes.values()[-1] > 1:
@@ -233,48 +264,205 @@ class Topology(AirconicsCollection):
 
         Notes
         -----
-        This follows a similar format to GPLearn program representation
 
-        See also: self.__init__ notes
+        See also:
         """
-        terminals = [0]
-        output = ''
-
-        for i, node in enumerate(self._Tree):
-            #       If node has a non zero arity, there is some nested printing
-            #            required, otherwise node is a terminal:
-            if node.func == '|':
-                # Mirror lines are a special case: simply put a line an skip
-                # to next iteration
-                output += '|'
-                continue
-            if node.arity > 0:
-                terminals.append(node.arity)
-                output += node.func + '('
-            else:
-                output += node.func
-                terminals[-1] -= 1
-                while terminals[-1] == 0:
-                    terminals.pop()
-                    terminals[-1] -= 1   # This stops the while loop on last it
-                    output += ')'
-                if i != len(self) - 1:
-                    output += ', '
-        return output
+        return str(self._deap_tree)
 
     def _reset(self):
         self._Parts = {}
-        self._Tree = []
-        self._deap_Tree = None
+        self._deap_tree = None
         self.parent_nodes.clear()
         self.nparts = 0
         self.mirror = False
 
-    def run(self, tree, pset):
+    def run(self, tree):
         self._reset()
-        routine = gp.compile(tree, pset)
-        self._deap_Tree = tree
+        routine = gp.compile(tree, self._pset)
+        self._deap_tree = tree
         routine()
+
+    def create_pset(self, name="MAIN"):
+        """Creates the primitive set to be used for compiling topology 'programs'
+
+        Parameters
+        ----------
+        names : string
+            The name of the primitive set (unique identifer for this primitive
+            set, should be different between objects)
+
+        Returns
+        -------
+        pset : gp.PrimitiveSetTyped
+            The set of primitive functions and terminals by which a gp program
+            tree can be created
+
+        See Also
+        --------
+        deap.gp.PrimitiveSetTyped
+        """
+        pset = gp.PrimitiveSetTyped(name, [], types.NoneType)
+
+        # Automatically add primitive for each type with integer numbers of
+        # 'attached' subcomponents up to MaxAttachments (__init__ argument)
+        for comptype, argtypes in self.ComponentTypes.items():
+            for i in range(self.MaxAttachments + 1):
+                name = comptype
+                # get Number of inputs of the basic method e.g. fuselageN, and
+                # add N (-1 due to self) float arguments to the typed
+                # primitive
+                argtypes = argtypes + [types.NoneType] * i
+                pset.addPrimitive(getattr(self, name + 'N'),
+                                  argtypes, types.NoneType, name=name + str(i))
+
+        # mirroring primitives (need to start from mirror1 to avoid bloat)
+        for i in range(1, self.MaxAttachments + 1):
+            name = 'mirror' + str(i)
+
+            pset.addPrimitive(self.mirrorN, [types.NoneType] * i, types.NoneType, name=name)
+
+        # Add some miscellaneous functions and terminals
+        def useless_None():
+            """This is workaround function: deap gp tree compilation fails if
+            it tries to add a component with subattachments, e.g., fuselage2,
+            as the lowest level operator (i.e., it looks for a NoneType
+            terminal, but one does not exist without this function)"""
+            return None
+
+        pset.addTerminal(useless_None, types.NoneType)
+
+        pset.addPrimitive(np.random.rand, [], float)
+
+        pset.addEphemeralConstant('rand', np.random.rand, float)
+
+        return pset
+
+    def create_toolbox(self, fitness_method='max', min_=2, max_=4,
+                       tournsize=7):
+        """
+
+        Parameters
+        ----------
+        min, max : int
+            The minimum and maximum numbers of levels of recursion
+
+        tournsize : int
+            Number of individuals to enter tournament selection
+
+        See Also
+        --------
+        deap.gp.tools, deap.base.Toolbox
+        """
+        if not self._pset:
+            self._pset = self.create_pset()
+
+        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        creator.create("Individual", gp.PrimitiveTree,
+                       fitness=creator.FitnessMax)
+
+        toolbox = base.Toolbox()
+
+        # Attribute generator
+        toolbox.register("expr_init", gp.genFull,
+                         pset=self._pset, min_=min_, max_=max_)
+
+        # Structure initializers
+        toolbox.register("individual", tools.initIterate,
+                         creator.Individual, toolbox.expr_init)
+        toolbox.register("population", tools.initRepeat,
+                         list, toolbox.individual)
+
+        # The evolutionary operators
+        toolbox.register("evaluate", self.evalTopology)
+        toolbox.register("select", tools.selTournament, tournsize=tournsize)
+        toolbox.register("mate", gp.cxOnePoint)
+        toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
+        toolbox.register("mutate", gp.mutUniform,
+                         expr=toolbox.expr_mut, pset=self._pset)
+
+        return toolbox
+
+    def randomize(self):
+        """Generates a new aircraft topology (configuration), using a
+        randomized component hierarchy
+
+        See Also
+        --------
+        Topology._toolbox.individual
+        """
+        tree = self._toolbox.individual()
+        self.run(tree)
+
+    def from_string(self, config_string):
+        """Generates a new aircraft topology from a parsed input string.
+
+        The arities of each function passed in the input string must not
+        be larger than the maximum number of components (MaxAttachments)
+        passed to the class on contruction.
+
+        Parameters
+        ----------
+        config_string : string
+            The recursive parse string of components and inputs
+
+        Notes
+        -----
+        An error will be raised if the number or type of inputs is not correct.
+        See the primitive functions documentation for inputs and types.
+
+        See Also
+        --------
+        Topology.fuselageN, Topology.liftingsurfaceN, Topology.mirrorN
+        """
+        tree = gp.PrimitiveTree.from_string(config_string, self._pset)
+        self.run(tree)
+
+    def evalTopology(self, individual):
+        self.run(individual, self._pset)
+        return self.fitness_funct(), 
+
+    def optimize(self, n=30, cxpd=0.5, mutpd=0.2, ngen=20):
+        """
+        Parameters
+        ----------
+        n : int
+            The population size
+
+        cxpd : scalar
+            Probably of mating two individuals
+
+        mutpd : scalar
+            Probability of mutation an individual
+
+        ngen : int
+            Number of generations
+
+        Returns
+        -------
+
+
+        See Also
+        --------
+        deap.algorithms.eaSimple
+        """
+        np.random.seed(69)
+        pop = toolbox.population(n)
+        hof = tools.HallOfFame(1)
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        stats.register("avg", np.mean)
+        stats.register("std", np.std)
+        stats.register("min", np.min)
+        stats.register("max", np.max)
+
+        algorithms.eaSimple(pop, self._toolbox, 0.5, 0.2,
+                            20, stats, halloffame=hof)
+
+        # get the best individual and rerun it:
+        best = hof[0]
+
+        self.run(best)
+
+        return pop, hof, stats
 
     def fit_to_parent(self, oldscaling, oldposition):
         """Given an old scaling and old position (this will be a random number
@@ -327,19 +515,20 @@ class Topology(AirconicsCollection):
         work correctly.
         """
         if self.construct_geometry:
-            print("Building all geometries from Topology object")
+            log.info("Building all geometries from Topology object")
             for name, part in self.items():
                 part.Build()
 
         self.MirrorSubtree()
 
     @wrap_shapeN
-    def mirror_subcomponentsN(self, *args):
+    def mirrorN(self, *args):
         self.mirror = True
         for arg in args:
             arg()
 
         self.mirror = False
+        return None
 
     @wrap_shapeN
     def fuselageN(self, NoseX, NoseY, NoseZ, ScalingX, NoseLengthRatio,
@@ -368,7 +557,6 @@ class Topology(AirconicsCollection):
             ScalingX, NoseX = self.fit_to_parent(ScalingX, NoseX)
         else:
             ScalingX = np.interp(ScalingX, [0, 1], arglimits[ScalingX])
-        print(ScalingX, NoseX)
 
         FinenessRatio = np.interp(
             FinenessRatio, [0, 1], arglimits[FinenessRatio])
@@ -383,7 +571,7 @@ class Topology(AirconicsCollection):
                        TailLengthRatio=TailLengthRatio,
                        Scaling=[ScalingX, ScalingYZ, ScalingYZ],
                        NoseCoordinates=[NoseX, NoseY, NoseZ],
-                       #                        SimplificationReqd=True
+                       SimplificationReqd=self.SimplificationReqd
                        )
         # Do no be confused between the numbering of boxes and the number of
         # descendent nodes: Each box needs a unique ID, so naming a box0
@@ -446,7 +634,6 @@ class Topology(AirconicsCollection):
         # parent
         if len(self.parent_nodes) > 0:
             ScaleFactor, ApexX = self.fit_to_parent(ScaleFactor, ApexX)
-            print(ScaleFactor, ApexX)
         else:
             ApexX = 0
 
@@ -504,9 +691,9 @@ class Topology(AirconicsCollection):
         """
         # Use the _deap_Tree if one is available (stored on calling run(tree,
         # pset)):
-        if self._deap_Tree:
+        if self._deap_tree:
             # Note: ns below is a simple range list for every edge/label
-            nodes, edges, labels = gp.graph(self._deap_Tree)
+            nodes, edges, labels = gp.graph(self._deap_tree)
         else:
             raise AttributeError(
                 "No DEAP GP tree was found: see Box_Layout.run(tree, pset)")
@@ -520,7 +707,6 @@ class Topology(AirconicsCollection):
         cluster_1 = pydot.Cluster('standard', color='invis')
         graph.add_subgraph(cluster_1)
 
-        funct_list = [funct_name for funct_name in labels.values() if isinstance(funct_name, str)]
         N_mirrored = 0
 
         # Add a sub cluster for mirrored objects (does nothing if empty)
@@ -532,7 +718,7 @@ class Topology(AirconicsCollection):
         # matched with the _deap_tree)
         i = 0
 
-        # use a boolean flag to decide if subclusters should be added to 
+        # use a boolean flag to decide if subclusters should be added to
         # the cluster of mirrored components (clutser_2)
         mirror_flag = False
 
@@ -542,7 +728,6 @@ class Topology(AirconicsCollection):
 
             label = labels[node]
 
-            # Not very pythonic, but try except here makes no sense:
             try:
                 # if label is a string, get the name of the function (remove
                 # arity value at the end of the string)
@@ -554,13 +739,13 @@ class Topology(AirconicsCollection):
                     # the cluster_2
                     arity = label.lstrip(nodetype)
                     N_mirrored += int(arity)
+
                 elif (N_mirrored > 0):
                     # If direct subcomponents have further levels of recursion,
                     # need to add the next <arity> number of components to
                     # cluser_2
                     arity = label.lstrip(nodetype)
-                    N_mirrored += int(arity) - 1
-                    mirror_flag = True
+                    N_mirrored += int(arity) + len(self.ComponentTypes[nodetype]) - 1
 
             except AttributeError:
                 if isinstance(label, float):
@@ -573,11 +758,12 @@ class Topology(AirconicsCollection):
 
             if mirror_flag:
                 cluster_2.add_node(pydot_node)
-
             else:
                 cluster_1.add_node(pydot_node)
 
-            if N_mirrored == 0:
+            if nodetype == "mirror":
+                mirror_flag = True
+            elif N_mirrored == 0:
                 mirror_flag = False
 
         graph.add_subgraph(cluster_2)

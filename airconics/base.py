@@ -12,7 +12,6 @@ Created on Mon Apr 18 10:26:22 2016
 """
 from abc import abstractmethod
 from collections import MutableMapping
-import itertools
 import os
 from . import AirCONICStools as act
 from OCC.Graphic3d import Graphic3d_NOM_ALUMINIUM
@@ -20,6 +19,9 @@ from OCC.TopoDS import TopoDS_Shape
 from OCC.StlAPI import StlAPI_Writer
 from OCC.AIS import AIS_Shape
 from OCC.gp import gp_Pnt
+
+import logging
+log = logging.getLogger(__name__)
 
 
 class AirconicsBase(MutableMapping, object):
@@ -159,7 +161,7 @@ class AirconicsShape(AirconicsBase):
         if self.construct_geometry:
             self.Build()
         else:
-            print("Skipping geometry construction for {}".format(
+            log.info("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -198,7 +200,7 @@ class AirconicsShape(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        print("Attempting to construct {} geometry...".format(
+        log.info("Attempting to construct {} geometry...".format(
             type(self).__name__))
 
     def AddComponent(self, component, name=None):
@@ -386,8 +388,8 @@ class AirconicsShape(AirconicsBase):
         be required or meaningful after mirroring, however this behaviour
         may change in future versions
         """
-        print("Note: MirrorComponents currently mirrors only the shape")
-        print("components, other attributes will not be mirrored\n")
+        log.info("MirrorComponents currently mirrors only the shape")
+        log.info("components, other attributes will not be mirrored\n")
         mirrored = AirconicsShape()
         for name, component in self.items():
             mirrored[name] = act.mirror(component,
@@ -517,7 +519,7 @@ class AirconicsCollection(AirconicsBase):
         if self.construct_geometry:
             self.Build()
         else:
-            print("Skipping geometry construction for {}".format(
+            log.info("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -618,7 +620,7 @@ class AirconicsCollection(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        print("Attempting to construct {} geometry...".format(
+        log.info("Attempting to construct {} geometry...".format(
             type(self).__name__))
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):
@@ -640,7 +642,7 @@ class AirconicsCollection(AirconicsBase):
                 try:
                     context.DisplayShape(component)
                 except:
-                    print("Could not display shape type {}: skipping".format(
+                    log.warning("Could not display shape type {}: skipping".format(
                         type(component)))
 
     def AddPart(self, part, name=None):
