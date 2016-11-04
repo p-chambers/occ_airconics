@@ -161,7 +161,7 @@ class AirconicsShape(AirconicsBase):
         if self.construct_geometry:
             self.Build()
         else:
-            log.info("Skipping geometry construction for {}".format(
+            log.debug("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -200,7 +200,7 @@ class AirconicsShape(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        log.info("Attempting to construct {} geometry...".format(
+        log.debug("Attempting to construct {} geometry...".format(
             type(self).__name__))
 
     def AddComponent(self, component, name=None):
@@ -388,8 +388,6 @@ class AirconicsShape(AirconicsBase):
         be required or meaningful after mirroring, however this behaviour
         may change in future versions
         """
-        log.info("MirrorComponents currently mirrors only the shape")
-        log.info("components, other attributes will not be mirrored\n")
         mirrored = AirconicsShape()
         for name, component in self.items():
             mirrored[name] = act.mirror(component,
@@ -519,7 +517,7 @@ class AirconicsCollection(AirconicsBase):
         if self.construct_geometry:
             self.Build()
         else:
-            log.info("Skipping geometry construction for {}".format(
+            log.debug("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -620,7 +618,7 @@ class AirconicsCollection(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        log.info("Attempting to construct {} geometry...".format(
+        log.debug("Attempting to construct {} geometry...".format(
             type(self).__name__))
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):

@@ -223,8 +223,8 @@ class LiftingSurface(AirconicsShape):
 
         if not (SweepFunct or DihedralFunct or TwistFunct or ChordFunct or
                 AirfoilFunct):
-            log.info("Lifting Surface functional parameters not defined:")
-            log.info("Initialising without geometry construction")
+            log.debug("Lifting Surface functional parameters not defined:")
+            log.debug("Initialising without geometry construction")
             construct_geometry = False
 
         self.CreateConstructionGeometry()
@@ -576,8 +576,8 @@ class LiftingSurface(AirconicsShape):
         self.AR = self.CalculateAspectRatio()
         self.SA = act.CalculateSurfaceArea(self['Surface'])
 
-        log.info("Lifting Surface complete. Key features:")
-        log.info("""   Proj.area: {},
+        log.info("""Lifting Surface complete. Key features:
+    Proj.area: {},
     Wet.area: {},
     Span:{},
     Aspect ratio: {},

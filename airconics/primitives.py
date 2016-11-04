@@ -14,6 +14,8 @@ from . import AirCONICStools as act
 from pkg_resources import resource_string, resource_exists
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
 
 # Classes
 # -----------------------------------------------------------------------------
@@ -166,7 +168,7 @@ class Airfoil(object):
             self.AddLinear2(Epsilon, Af1, Af2, Eps1, Eps2)
         else:
             # 'Empty' Profile
-            print("No Profile specified: Creating 'empty' Airfoil")
+            log.debug("No Profile specified: Creating 'empty' Airfoil")
             self.Curve = None
             self.Profile = None
 

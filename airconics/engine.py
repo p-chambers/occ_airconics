@@ -14,6 +14,9 @@ from .examples import wing_example_transonic_airliner as wingex
 from OCC.gp import gp_Pnt, gp_Vec, gp_OY, gp_Dir
 from OCC.Geom import Handle_Geom_Circle
 from OCC.GC import GC_MakeSegment
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Engine(AirconicsShape):
@@ -73,7 +76,7 @@ class Engine(AirconicsShape):
                  ):
 
         if HChord == 0:
-            print("No HChord specified to fit engine to: creating default")
+            log.warning("No HChord specified to fit engine to: creating default")
             SP = gp_Pnt(MeanNacelleLength * 2.2, 0, HighlightRadius * 1.75)
             EP = gp_Pnt(MeanNacelleLength * 0.5, 0, HighlightRadius * 1.75)
             HChord = GC_MakeSegment(SP, EP).Value()

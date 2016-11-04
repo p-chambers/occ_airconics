@@ -515,7 +515,7 @@ class Topology(AirconicsCollection):
         work correctly.
         """
         if self.construct_geometry:
-            log.info("Building all geometries from Topology object")
+            log.debug("Building all geometries from Topology object")
             for name, part in self.items():
                 part.Build()
 
@@ -750,7 +750,7 @@ class Topology(AirconicsCollection):
             except AttributeError:
                 if isinstance(label, float):
                     # Assume the value is a float
-                    label = "{:.4f}".format(label)
+                    label = "{}".format(label)
                 nodetype = 'number'
 
             pydot_node = pydot.Node(
