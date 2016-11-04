@@ -227,6 +227,12 @@ class LiftingSurface(AirconicsShape):
             log.debug("Initialising without geometry construction")
             construct_geometry = False
 
+        print('Sweepfunct_name = {}'.format(DihedralFunct.__name__))
+        print('Dihedralfunct_name = {}'.format(SweepFunct.__name__))
+        print('Twistfunct_name = {}'.format(TwistFunct.__name__))
+        print('Chordfunct_name = {}'.format(ChordFunct.__name__))
+        print('Airfoilfunct_name = {}'.format(AirfoilFunct.__name__))
+
         self.CreateConstructionGeometry()
 
 #        Initialise the components using base class:
