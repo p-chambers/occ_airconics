@@ -52,44 +52,37 @@ NODE_PROPERTIES = {'fuselage': {'shape': 'ellipse', 'fillcolor': '#136ed4', 'fon
                    'mirror': {'shape': 'box', 'fillcolor': '#136ed4', 'fontcolor': "white"},
                    'number': {'shape': 'ellipse'},
                    'function': {'shape': 'ellipse'},
-                   'rand': {'shape': 'ellipse'},
                    'None': {'shape': 'point'},
                    }
 
 LSURF_FUNCTIONS = {'AirlinerWing':
-   OrderedDict([('SweepFunct', (mySweepAngleFunctionAirliner,
-                                types.FunctionType)),
-                ('DihedralFunct', (myDihedralFunctionAirliner,
-                 types.FunctionType)),
-                ('ChordFunct',
-                 (myChordFunctionAirliner, types.FunctionType)),
-                ('TwistFunct',
-                 (myTwistFunctionAirliner, types.FunctionType)),
-                ('AirfoilFunct', (myAirfoilFunctionAirliner, Airfoil))
+   OrderedDict([('SweepFunct', mySweepAngleFunctionAirliner),
+                ('DihedralFunct', myDihedralFunctionAirliner),
+                ('ChordFunct', myChordFunctionAirliner),
+                ('TwistFunct', myTwistFunctionAirliner),
+                ('AirfoilFunct', myAirfoilFunctionAirliner)
                 ]),
    'AirlinerTP':
-   OrderedDict([('SweepFunct', (mySweepAngleFunctionTP, types.FunctionType)),
-                ('DihedralFunct',
-                 (myDihedralFunctionTP, types.FunctionType)),
-                ('ChordFunct', (myChordFunctionTP, types.FunctionType)),
-                ('TwistFunct', (myTwistFunctionTP, types.FunctionType)),
-                ('AirfoilFunct', (myAirfoilFunctionTP, Airfoil))
+   OrderedDict([('SweepFunct', mySweepAngleFunctionTP),
+                ('DihedralFunct', myDihedralFunctionTP),
+                ('ChordFunct', myChordFunctionTP),
+                ('TwistFunct', myTwistFunctionTP),
+                ('AirfoilFunct', myAirfoilFunctionTP)
                 ]),
    'AirlinerFin':
-   OrderedDict([('SweepFunct', (mySweepAngleFunctionFin, types.FunctionType)),
-                ('DihedralFunct',
-                 (myDihedralFunctionFin, types.FunctionType)),
-                ('ChordFunct', (myChordFunctionFin, types.FunctionType)),
-                ('TwistFunct', (myTwistFunctionFin, types.FunctionType)),
-                ('AirfoilFunct', (myAirfoilFunctionFin, Airfoil))
+   OrderedDict([('SweepFunct', mySweepAngleFunctionFin),
+                ('DihedralFunct', myDihedralFunctionFin),
+                ('ChordFunct', myChordFunctionFin),
+                ('TwistFunct', myTwistFunctionFin),
+                ('AirfoilFunct', myAirfoilFunctionFin)
                 ]),
-   'StraightWing':
-   OrderedDict([('SweepFunct', (SimpleSweepFunction, types.FunctionType)),
-                ('DihedralFunct', (SimpleDihedralFunction, types.FunctionType)),
-                ('ChordFunct', (SimpleChordFunction, types.FunctionType)),
-                ('TwistFunct', (SimpleTwistFunction, types.FunctionType)),
-                ('AirfoilFunct', (SimpleAirfoilFunction, Airfoil))
-                ])
+   # 'StraightWing':
+   # OrderedDict([('SweepFunct', SimpleSweepFunction),
+   #              ('DihedralFunct', SimpleDihedralFunction),
+   #              ('ChordFunct', SimpleChordFunction),
+   #              ('TwistFunct', SimpleTwistFunction),
+   #              ('AirfoilFunct', SimpleAirfoilFunction)
+   #              ])
             }
 
 
@@ -217,8 +210,7 @@ class Topology(AirconicsCollection):
         jan 2014.
     """
     ComponentTypes={"fuselage": [float] * 7,
-                      "liftingsurface": [float] * 5 + [types.FunctionType] * 4 +
-                                        [Airfoil]}
+                      "liftingsurface": [float] * 5 + [dict]}
 
     def __init__(self, parts={},
                  MaxAttachments=2,
@@ -363,26 +355,17 @@ class Topology(AirconicsCollection):
 
         # Primitives for defining shape of lifting surfaces:
         for wingtype, params in LSURF_FUNCTIONS.items():
-            for funct_name, (function, ret_type) in params.items():
-                name = funct_name + "_" + wingtype
-                pset.addTerminal(function, ret_type, name=name)
-                print(name, funct_name, ret_type)
+            # for funct_name, (function, ret_type) in params.items():
+            # name = funct_name + "_" + wingtype
+            pset.addTerminal(params, dict, name=wingtype)
 
         # Workarounds: gp.generate doesn't seem to like mid-tree
         # terminals, so for now just add some primitive operators that
         # do a similar thing as the terminals:
-        def random_lsurffunc():
-            wingtype = np.random.choice(LSURF_FUNCTIONS.keys())
-            lsurffunc = np.random.choice(LSURF_FUNCTIONS[wingtype].keys()[:-1])
-            return LSURF_FUNCTIONS[wingtype][lsurffunc][0]
+        def random_lsurfdict():
+            return np.random.choice(LSURF_FUNCTIONS.values())
 
-        def random_airfoilfunc():
-            wingtype = np.random.choice(LSURF_FUNCTIONS.keys())
-            airfoilfunc = LSURF_FUNCTIONS[wingtype].values()[-1]
-            return airfoilfunc[0]
-
-        pset.addPrimitive(random_lsurffunc, [], types.FunctionType)
-        pset.addPrimitive(random_airfoilfunc, [], Airfoil)
+        pset.addPrimitive(random_lsurfdict, [], dict)
 
         # for wingtype, params in LSURF_FUNCTIONS.items():
         #     for funct_name, function in params.items()[:-1]:
@@ -391,11 +374,11 @@ class Topology(AirconicsCollection):
         #     # The last function is expected to be an airfoil function
         #     name, function=params.items()[-1]
 
-        def useless_None():
+        def empty():
             """This is workaround function: see comment above"""
             return None
 
-        pset.addTerminal(useless_None, types.NoneType)
+        pset.addTerminal(empty, types.NoneType)
 
         pset.addPrimitive(np.random.rand, [], float)
 
@@ -644,8 +627,8 @@ class Topology(AirconicsCollection):
         # descendent nodes: Each box needs a unique ID, so naming a box0
         # function "box0" replaces other shapes in this layout that are also
         # named box0
-        name='fuselage{}_{}'.format(len(args), len(self))
-        self[name]=fus, len(args)
+        name = 'fuselage{}_{}'.format(len(args), len(self))
+        self[name] = fus, len(args)
 
         if self.mirror:
             super(Topology, self).__setitem__(
@@ -658,41 +641,36 @@ class Topology(AirconicsCollection):
 
     @wrap_shapeN
     def liftingsurfaceN(self, ApexX, ApexY, ApexZ, ScaleFactor, Rotation,
-                        SweepFunct, DihedralFunct, ChordFunct, TwistFunct,
-                        AirfoilFunct, *args):
+                        functional_params_dict, *args):
 
         # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
-        ChordFactor=1
+        ChordFactor = 1
 
         # Class definition
-        NSeg=10
+        NSeg = 10
 
         # Essentially this checks if the current shape is being fitted to a
         # parent
         if len(self.parent_nodes) > 0:
-            ScaleFactor, ApexX=self.fit_to_parent(ScaleFactor, ApexX)
+            ScaleFactor, ApexX = self.fit_to_parent(ScaleFactor, ApexX)
         else:
-            ApexX=0
+            ApexX = 0
 
-        ApexZ=ApexY=0
-        P=(ApexX, ApexY, ApexZ)
+        ApexZ = ApexY = 0
+        P = (ApexX, ApexY, ApexZ)
 
         # Instantiate the class
-        wing=liftingsurface.LiftingSurface(P,
+        wing = liftingsurface.LiftingSurface(P,
                                              SegmentNo=NSeg,
                                              ScaleFactor=ScaleFactor,
                                              ChordFactor=ChordFactor,
-                                             SweepFunct=SweepFunct,
-                                             DihedralFunct=DihedralFunct,
-                                             TwistFunct=TwistFunct,
-                                             ChordFunct=ChordFunct,
-                                             AirfoilFunct=AirfoilFunct)
+                                             **functional_params_dict)
 
         # Rotate the component if necessary:
         # if surfacetype in ['AirlinerFin', 'StraightWing']:
         # , 90]) # V tail or vertical fin
         # rotation = np.random.choice([0, 32.5])
-        RotAx=gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+        RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
         wing.RotateComponents(RotAx, Rotation)
 
         self['liftingsurface{}_{}'.format(
@@ -773,8 +751,6 @@ class Topology(AirconicsCollection):
                 # if label is a string, get the name of the function (remove
                 # arity value at the end of the string)
                 nodetype=label.rstrip('0123456789')
-                # print(nodetype)
-                print(nodetype)
 
                 if nodetype in NODE_PROPERTIES:
                     if (nodetype == 'mirror'):
