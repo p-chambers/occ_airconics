@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-14 17:00:29
+# @Last Modified time: 2016-11-08 18:12:25
 import logging
 import os
 import sys
@@ -20,6 +20,23 @@ log = logging.getLogger(__name__)
 # Currently only trying qt
 used_backend = load_backend()
 log.info("GUI backend set to: {0}".format(used_backend))
+
+
+def selManual(individuals, k):
+    """Randomly select *k* individuals from the input *individuals* using *k*
+    tournaments of *tournsize* individuals. The list returned contains
+    references to the input *individuals*.
+
+    :param individuals: A list of individuals to select from.
+    :param k: The number of individuals to select.
+    :param tournsize: The number of individuals participating in each tournament.
+    :returns: A list of selected individuals.
+
+    This function uses the :func:`~random.choice` function from the python base
+    :mod:`random` module.
+    """
+    # Will need to wait for input signal (selection click) here
+    return None
 
 
 from OCC.Display.qtDisplay import qtViewer3d
@@ -53,7 +70,8 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     select_clicked = QtCore.pyqtSignal()
 
     # Note: Some of these have a min target, some have max... misleading
-    data_labels = ['Static Margin', 'Fuel Burn', 'Cost', 'Weight', 'Range', 'Payload']
+    data_labels = ['Static Margin', 'Fuel Burn',
+                   'Cost', 'Weight', 'Range', 'Payload']
 
     colors = itertools.cycle(['b', 'r', 'g', 'm', 'y'])
 
@@ -65,10 +83,10 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
             self._Topology = topology
         else:
             self._Topology = Topology()
+            self._Topology.randomize()
 
         # Matplotlib colour character (different for each instance)
         self.color = next(self.colors)
-
 
         grid = QtGui.QGridLayout(self)
         self.setLayout(grid)
@@ -96,11 +114,9 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
         grid.addWidget(data_group, 0, 1)
 
-
         self.select_button = QtGui.QPushButton('Select', self)
 
         grid.addWidget(self.select_button, 1, 0, 1, 2)
-
 
         self.select_clicked.connect(self.Evolve)
 
@@ -123,19 +139,19 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     @QtCore.pyqtSlot()
     def Evolve(self):
         self.viewer._display.EraseAll()
+        self.Topology.randomize()
         self.Topology.Display(self.viewer._display)
+        # self.viewer._display.FitAll()
 
         Nvars = len(self.data_labels)
 
         # This initialises some data in the radar plot: remove this later!
         data = np.random.random(Nvars)
 
-        self._ax.plot(self.radar_factory, data, color=self.color)
-        self._ax.fill(self.radar_factory, data, facecolor=self.color,
-                      alpha=0.25)
+        self._fillpolygon.set_xy(zip(self.radar_factory, data))
 
-        self._data_canvas.repaint()
-        self._ax.redraw_in_frame()
+        self._fig.canvas.draw()
+        # self._ax.redraw_in_frame()
 
     def InitDataCanvas(self):
         """Initialises a radar chart in self._data_canvas to be embedded in
@@ -177,9 +193,13 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         self._ax.set_rmin(0.)
         self._ax.set_rmax(1.)
 
-        self._ax.plot(self.radar_factory, data, color=self.color)
-        self._ax.fill(self.radar_factory, data, facecolor=self.color,
-                      alpha=0.25)
+        self._fillpolygon = self._ax.fill(self.radar_factory, data,
+                                          facecolor=self.color,
+                                          edgecolor=self.color, linewidth=2,
+                                          alpha=0.25)[0]
+        self._ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+        self._ax.set_rmin(0.)
+        self._ax.set_rmax(1.)
         self._ax.set_varlabels(self.data_labels)
 
         # plt.tight_layout()
@@ -279,7 +299,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.resize(size[0], size[1])
 
-
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
         resolution = QtWidgets.QDesktopWidget().screenGeometry()
@@ -302,7 +321,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self._menus[menu_name].addAction(_action)
         except KeyError:
             raise ValueError('the menu item %s does not exist' % menu_name)
-
 
     @QtCore.pyqtSlot()
     def onAnySelectClicked(self):
@@ -339,73 +357,10 @@ if __name__ == '__main__':
 
     win.raise_()  # make the application float to the top
 
-    # Add some stuff to test the app
-    from airconics import LiftingSurface, Topology, Airfoil
-    from airconics import AirCONICStools as act
-    from airconics.liftingsurface import airfoilfunct
-    import copy
-
-    def blended_winglet():
-        # Position of the apex of the wing
-        P = (0, 0, 0)
-
-        # Class definition
-        NSeg = 1
-
-        # Instantiate the class
-        ChordFactor = 0.3
-        ScaleFactor = 7.951
-
-        def myDihedralFunction(Epsilon):
-            return 7
-
-        def myTwistFunction(Epsilon):
-            return Epsilon * -2
-
-        myChordFunction = act.Generate_InterpFunction([1, 0.33], [0, 1])
-
-        @airfoilfunct
-        def myAirfoilFunction(eps):
-            af_root = Airfoil(SeligProfile='naca63a418')
-            af_tip = Airfoil(SeligProfile='naca63a412')
-
-            profile_dict = {'InterpProfile': True, 'Epsilon': eps,
-                            'Af1': af_root, 'Af2': af_tip, 'Eps1': 0,
-                            'Eps2': 1}
-            return profile_dict
-
-        def mySweepAngleFunction(Epsilon):
-            return 3
-
-        Wing = LiftingSurface(P, mySweepAngleFunction,
-                              myDihedralFunction,
-                              myTwistFunction,
-                              myChordFunction,
-                              myAirfoilFunction,
-                              SegmentNo=NSeg,
-                              ScaleFactor=ScaleFactor,
-                              ChordFactor=ChordFactor)
-
-        Winglet = Wing.Fit_BlendedTipDevice(
-            0.8,
-            cant=15)
-
-        topo = Topology()
-        topo.AddPart(Wing, 'Wing', 1)
-        topo.AddPart(Winglet, 'Winglet', 0)
-        return topo
-
-    # For now I'll just make one fully constructed version and copy it
-    main_topo = blended_winglet()
-
     win.show()
 
     for viewer_grid in win.viewer_grids:
         viewer_grid.viewer.InitDriver()
-        topo = copy.copy(main_topo)
-        print(type(viewer_grid))
-        # topo.Display(viewer_grid.viewer._display)
-        viewer_grid.Topology = main_topo
 
     # add_menu('primitives')
     # add_function_to_menu('primitives', sphere)

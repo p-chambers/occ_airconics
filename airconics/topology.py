@@ -23,7 +23,6 @@ import functools
 from functools import partial
 import pydot
 from collections import OrderedDict
-import numbers
 import numpy as np
 from deap import algorithms
 from deap import base
@@ -280,8 +279,13 @@ class Topology(AirconicsCollection):
             if self.parent_nodes.values()[-1] > 1:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
             else:
-                while self.parent_nodes.values()[-1] < 1:
-                    self.parent_nodes.popitem()
+                try:
+                    while self.parent_nodes.values()[-1] < 1:
+                        self.parent_nodes.popitem()
+                except:
+                    # Without this, errors will occur if self.parent_nodes has
+                    # no length (maybe the case if a mirror node is at the top)
+                    pass
 
         self.parent_nodes[name]=arity
 
@@ -553,22 +557,22 @@ class Topology(AirconicsCollection):
 
         return newscaling, newx
 
-    def Build(self):
-        """Recursively builds all sub components in the current topology tree
-        if self.construct_geometry is true. Will also mirror components
-        if a mirror node has been added, regardless of if construct_geometry
-        is true.
+    # def Build(self):
+    #     """Recursively builds all sub components in the current topology tree
+    #     if self.construct_geometry is true. Will also mirror components
+    #     if a mirror node has been added, regardless of if construct_geometry
+    #     is true.
 
-        Uses the the Build method of all sub components. Any user defined
-        classes must therefore define the Build method in order for this to
-        work correctly.
-        """
-        if self.construct_geometry:
-            log.debug("Building all geometries from Topology object")
-            for name, part in self.items():
-                part.Build()
+    #     Uses the the Build method of all sub components. Any user defined
+    #     classes must therefore define the Build method in order for this to
+    #     work correctly.
+    #     """
+    #     if self.construct_geometry:
+    #         log.debug("Building all geometries from Topology object")
+    #         for name, part in self.items():
+    #             part.Build()
 
-        self.MirrorSubtree()
+    #     self.MirrorSubtree()
 
     @wrap_shapeN
     def mirrorN(self, *args):
