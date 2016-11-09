@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-11-08 18:12:25
+# @Last Modified time: 2016-11-08 18:27:43
 import logging
 import os
 import sys
@@ -119,8 +119,6 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         grid.addWidget(self.select_button, 1, 0, 1, 2)
 
         self.select_clicked.connect(self.Evolve)
-
-        self._Topology.Display(self.viewer._display)
 
     @property
     def Topology(self):
@@ -353,18 +351,27 @@ if __name__ == '__main__':
 
     win = MainWindow()
 
-    splash.finish(win)
-
     win.raise_()  # make the application float to the top
 
     win.show()
 
-    for viewer_grid in win.viewer_grids:
+    app.processEvents()
+
+    for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
+        viewer_grid.Topology.Display(viewer_grid.viewer._display)
+        viewer_grid.viewer._display.FitAll()
+        progressBar.setValue((1./len(win.viewer_grids)) * i * 100)
+        app.processEvents()
+
+
 
     # add_menu('primitives')
     # add_function_to_menu('primitives', sphere)
     # add_function_to_menu('primitives', cube)
     # add_function_to_menu('primitives', exit)
+
+    splash.finish(win)
+
 
     sys.exit(app.exec_())

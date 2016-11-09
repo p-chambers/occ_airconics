@@ -252,6 +252,8 @@ class Topology(AirconicsCollection):
         for name, part_w_arity in parts.items():
             self[name]=part_w_arity
 
+        self._testpoints = []
+
     def __setitem__(self, name, part_w_arity):
         """Overloads the assignment operator used by AirconicsCollection
         to allow only tuples as inputs - arity must be specified for
@@ -525,35 +527,44 @@ class Topology(AirconicsCollection):
         # Need to get a scaling from the parent of arbitrary type:
         # using a try-except to work for any parent type ... could probably
         # do better here
-        parent=self[self.parent_nodes.keys()[-1]]
-        scalingrange=(0.6, 1)
+        parent = self[self.parent_nodes.keys()[-1]]
+        scalingrange = np.array([0.6, 1])
+
+        try:
+            # The LiftingSurface branch (could probably do better here)
+            parentscalefactor = parent.ScaleFactor
+
+        except AttributeError:
+            # The Fuselage branch
+            parentscalefactor = parent.Scaling[0]
+
+        try:
+            # The LiftingSurface branch (could probably do better here)
+            parent_x = parent.ApexPoint.X()
+
+            self._testpoints.append(parent.ApexPoint)
+            xlength = parent.ScaleFactor * parent.ChordFactor
+            self._testpoints.append(gp_Pnt(parent_x + xlength, parent.ApexPoint.Y(), parent.ApexPoint.Z()))
+
+        except AttributeError:
+            # The Fuselage branch
+            parent_x = parent.NoseCoordinates[0]
+            xlength = (parent.SternPoint.X() - parent.BowPoint.X()
+                       ) * (parentscalefactor / 55.902)
+            self._testpoints.append(parent.BowPoint)
+            self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
+
+
+        newx = parent_x + xlength * oldposition
 
         # Ensure that the oldscaled and oldposition fractions does give
         # something invisibly small:
-        oldscaling=np.interp(oldscaling, [0, 1], scalingrange)
-        try:
-            # The LiftingSurface branch (could probably do better here)
-            parentscalefactor=parent.ScaleFactor
+        oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
 
-        except AttributeError:
-            # The Fuselage branch
-            parentscalefactor=parent.Scaling[0]
-
-        try:
-            # The LiftingSurface branch (could probably do better here)
-            parent_x=parent.ApexPoint.X()
-            xlength=parent.ScaleFactor * parent.ChordFactor
-
-        except AttributeError:
-            # The Fuselage branch
-            parent_x=parent.NoseCoordinates[0]
-            xlength=(parent.SternPoint.X() - parent.BowPoint.X()
-                       ) * (parentscalefactor / 55.902)
         # The scaling is some percentage of parent (assumes components get
         # smaller)
-        newscaling=oldscaling * parentscalefactor
+        newscaling = oldscaling * parentscalefactor
 
-        newx=parent_x + xlength * oldposition
 
         return newscaling, newx
 
