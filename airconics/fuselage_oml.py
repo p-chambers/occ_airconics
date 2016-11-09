@@ -102,6 +102,7 @@ class Fuselage(AirconicsShape):
             self.BuildFuselageSimplified()
         else:
             self.BuildFuselageOML(self.Max_attempt)
+        # Note: TransformOML also moves the stern and bow points
         self.TransformOML()
 
     def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
@@ -365,10 +366,12 @@ class Fuselage(AirconicsShape):
             if npart == 0:
                 # Need to add the leading edge on the first lofted section
                 partial_oml = act.AddSurfaceLoft(C, continuity=GeomAbs_C2,
-                                                 first_vertex=act.make_vertex(self.BowPoint),
+                                                 first_vertex=act.make_vertex(
+                                                     self.BowPoint),
                                                  solid=False)
             else:
-                partial_oml = act.AddSurfaceLoft(C, continuity=GeomAbs_C2, solid=False)
+                partial_oml = act.AddSurfaceLoft(
+                    C, continuity=GeomAbs_C2, solid=False)
             Surfaces.append(partial_oml)
             # self['surf' + str(npart)] = partial_oml
 
@@ -485,7 +488,7 @@ class Fuselage(AirconicsShape):
                                                                 FSVMeanCurve)
                 except RuntimeError:
                     log.warning("Intersection Points at Section X={} Not Found"
-                          .format(XStation))
+                                .format(XStation))
                     log.warning("Skipping this plane location")
                     continue
 
@@ -534,7 +537,7 @@ class Fuselage(AirconicsShape):
 
             if OMLSurf is not None:
                 log.debug("Network surface fit succesful on attempt {}\n"
-                      .format(i_attempt))
+                          .format(i_attempt))
                 self.AddComponent(OMLSurf, 'OML')
                 return None
 
@@ -558,14 +561,27 @@ class Fuselage(AirconicsShape):
     def TransformOML(self):
         """Use parameters defined in self to scale and translate the fuselage
         """
-        ScalingF = [0, 0, 0]
-        ScalingF[0] = self.Scaling[0] / 55.902
-        ScalingF[1] = self.Scaling[1] / 55.902
-        ScalingF[2] = self.Scaling[2] / 55.902
+        ScalingF = np.array(self.Scaling) / 55.902
+        # ScalingF[0] = self.Scaling[0] / 55.902
+        # ScalingF[1] = self.Scaling[1] / 55.902
+        # ScalingF[2] = self.Scaling[2] / 55.902
 #
 #        # Overall scaling and translation:
         MoveVec = self.NoseCoordinates
         self.TransformComponents_Nonuniformal(ScalingF, MoveVec)
+
+        self.BowPoint = gp_Pnt(*self.NoseCoordinates)
+
+        # M = np.diag(ScalingF).flatten()
+        # from OCC.gp import gp_Mat, gp_XYZ, gp_GTrsf
+        # trns_M = gp_Mat(*M)
+
+        # V = gp_XYZ(*MoveVec)
+
+        # trns = gp_GTrsf(trns_M, V)
+        # self.SternPoint.Transform(gp_Trsf)
+        self.SternPoint.Translate(gp_Vec(
+            MoveVec[0], MoveVec[1], MoveVec[2]))
 
 #        SternPoint[0] = SternPoint[0]*ScalingF[0]
 #        SternPoint[1] = SternPoint[1]*ScalingF[1]
@@ -703,32 +719,3 @@ class Fuselage(AirconicsShape):
 #    def MakeCockpitWindows(self, Height = 1.620, Depth = 5):
 #        CW
 ###############################################################################
-
-if __name__ == '__main__':
-    # The defaults will yield a fuselage geometry similar to that of the
-    # Boeing 787-8.
-    from OCC.Display.SimpleGui import init_display
-    display, start_display, add_menu, add_function_to_menu = init_display()
-
-    Fus = Fuselage(NoseLengthRatio=0.182,
-                   TailLengthRatio=0.293,
-                   Scaling=[55.902, 55.902, 55.902],
-                   NoseCoordinates=[0., 0., 0],
-                   CylindricalMidSection=False,
-                   Maxi_attempt=5)
-
-    # Create plane to check symmetry:
-#    P = gp_Pln(gp_Pnt(0, 0, 0),
-#                          gp_Dir(gp_Vec(0, 1, 0)))
-#    Fsym = act.make_face(P, -10, 10, 0, 100)
-#    display.DisplayShape(Fsym, update=True)
-
-#    Display Fuselage:
-    Fus.Display(display)
-
-    for section in Fus._Lguides:
-        display.DisplayShape(section, color='Black')
-    for support in Fus._Csections:
-        display.DisplayShape(support, color='Blue')
-
-    start_display()

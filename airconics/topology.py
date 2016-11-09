@@ -277,6 +277,8 @@ class Topology(AirconicsCollection):
             part=part_w_arity
             arity=0
 
+        self.parent_nodes[name]=arity
+
         if len(self.parent_nodes) > 0:
             if self.parent_nodes.values()[-1] > 1:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
@@ -288,8 +290,6 @@ class Topology(AirconicsCollection):
                     # Without this, errors will occur if self.parent_nodes has
                     # no length (maybe the case if a mirror node is at the top)
                     pass
-
-        self.parent_nodes[name]=arity
 
         super(Topology, self).__setitem__(name, part)
 
@@ -527,6 +527,7 @@ class Topology(AirconicsCollection):
         # Need to get a scaling from the parent of arbitrary type:
         # using a try-except to work for any parent type ... could probably
         # do better here
+        print(self.parent_nodes.keys()[-1])
         parent = self[self.parent_nodes.keys()[-1]]
         scalingrange = np.array([0.6, 1])
 
@@ -544,6 +545,7 @@ class Topology(AirconicsCollection):
 
             self._testpoints.append(parent.ApexPoint)
             xlength = parent.ScaleFactor * parent.ChordFactor
+            print("hello")
             self._testpoints.append(gp_Pnt(parent_x + xlength, parent.ApexPoint.Y(), parent.ApexPoint.Z()))
 
         except AttributeError:
@@ -551,7 +553,11 @@ class Topology(AirconicsCollection):
             parent_x = parent.NoseCoordinates[0]
             xlength = (parent.SternPoint.X() - parent.BowPoint.X()
                        ) * (parentscalefactor / 55.902)
-            self._testpoints.append(parent.BowPoint)
+            print("Adding fuselage stern point to testpoints with coords {} {} {}".format(parent.SternPoint.X(), parent.SternPoint.Y(), parent.SternPoint.Z()))
+            self._testpoints.append(parent.SternPoint)
+
+            print("Adding fuselage bow point to testpoints with coords {} {} {}".format(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
+
             self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
 
 

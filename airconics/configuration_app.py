@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-11-08 18:27:43
+# @Last Modified time: 2016-11-09 15:26:55
 import logging
 import os
 import sys
@@ -139,6 +139,10 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         self.viewer._display.EraseAll()
         self.Topology.randomize()
         self.Topology.Display(self.viewer._display)
+
+        for pt in self.Topology._testpoints:
+            self.viewer._display.DisplayShape(pt)
+
         # self.viewer._display.FitAll()
 
         Nvars = len(self.data_labels)
