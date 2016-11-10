@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: p-chambers
 # @Date:   2016-11-09 16:09:51
-# @Last Modified by:   p-chambers
-# @Last Modified time: 2016-11-09 16:39:34
+# @Last Modified by:   Paul Chambers
+# @Last Modified time: 2016-11-10 11:05:15
 from airconics import Fuselage
 
 
@@ -14,12 +14,13 @@ if __name__ == '__main__':
 
     Fus = Fuselage(NoseLengthRatio=0.182,
                    TailLengthRatio=0.293,
-                   Scaling=[40.902, 55.902, 55.902],
+                   Scaling=[55.902, 55.902, 55.902],
                    NoseCoordinates=[0., 0., 0],
                    CylindricalMidSection=False,
                    Maxi_attempt=5)
 
     # Create plane to check symmetry:
+
 #    P = gp_Pln(gp_Pnt(0, 0, 0),
 #                          gp_Dir(gp_Vec(0, 1, 0)))
 #    Fsym = act.make_face(P, -10, 10, 0, 100)

@@ -572,16 +572,11 @@ class Fuselage(AirconicsShape):
 
         self.BowPoint = gp_Pnt(*self.NoseCoordinates)
 
-        # M = np.diag(ScalingF).flatten()
-        # from OCC.gp import gp_Mat, gp_XYZ, gp_GTrsf
-        # trns_M = gp_Mat(*M)
 
-        # V = gp_XYZ(*MoveVec)
+        self.SternPoint = gp_Pnt(self.SternPoint.X()*ScalingF[0], self.SternPoint.Y(), self.SternPoint.Z()*ScalingF[2])
+        self.SternPoint.Translate(gp_Vec(*MoveVec))
 
-        # trns = gp_GTrsf(trns_M, V)
-        # self.SternPoint.Transform(gp_Trsf)
-        self.SternPoint.Translate(gp_Vec(
-            MoveVec[0], MoveVec[1], MoveVec[2]))
+
 
 #        SternPoint[0] = SternPoint[0]*ScalingF[0]
 #        SternPoint[1] = SternPoint[1]*ScalingF[1]
