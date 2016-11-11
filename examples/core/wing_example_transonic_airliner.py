@@ -105,4 +105,6 @@ if __name__ == "__main__":
 #    Wing.Write('Wing.stp')
 #    act.export_STEPFile([Wing['Surface']], 'wing.stp')
 
+
+    display.DisplayShape(Wing.LECurve)
     start_display()

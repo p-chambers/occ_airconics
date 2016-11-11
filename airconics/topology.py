@@ -519,7 +519,7 @@ class Topology(AirconicsCollection):
 
         return pop, hof, stats
 
-    def fit_to_parent(self, oldscaling, oldposition):
+    def fit_to_parent(self, oldscaling, oldx, oldy, oldz):
         """Given an old scaling and old position (this will be a random number
         between 0 and 1 using the DEAP tree I have set up elsewhere), a new
         scaling and position is returned allowing the resulting shape to 'fit'
@@ -527,7 +527,7 @@ class Topology(AirconicsCollection):
         # Need to get a scaling from the parent of arbitrary type:
         # using a try-except to work for any parent type ... could probably
         # do better here
-        print(self.parent_nodes.keys()[-1])
+        # print(self.parent_nodes.keys()[-1])
         parent = self[self.parent_nodes.keys()[-1]]
         scalingrange = np.array([0.6, 1])
 
@@ -540,28 +540,28 @@ class Topology(AirconicsCollection):
             parentscalefactor = parent.Scaling[0]
 
         try:
-            # The LiftingSurface branch (could probably do better here)
-            parent_x = parent.ApexPoint.X()
-
-            self._testpoints.append(parent.ApexPoint)
-            xlength = parent.ScaleFactor * parent.ChordFactor
-            print("hello")
-            self._testpoints.append(gp_Pnt(parent_x + xlength, parent.ApexPoint.Y(), parent.ApexPoint.Z()))
-
+            # The interpolation along the curve: this could be done better
+            # Essentially, this is the length of the vector normalised by
+            # the diagonal of a 1 by 1 by 1 cube
+            curve = parent.LECurve.GetObject()
+            interp_C = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
+            newapex = curve.Value(interp_C)
+            newx, newy, newz = newapex.X(), newapex.Y(), newapex.Z()
+            
         except AttributeError:
             # The Fuselage branch
-            parent_x = parent.NoseCoordinates[0]
-            xlength = (parent.SternPoint.X() - parent.BowPoint.X()
-                       ) * (parentscalefactor / 55.902)
-            print("Adding fuselage stern point to testpoints with coords {} {} {}".format(parent.SternPoint.X(), parent.SternPoint.Y(), parent.SternPoint.Z()))
-            self._testpoints.append(parent.SternPoint)
+            parent_apex = parent.BowPoint
+            # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
+            # self._testpoints.append(parent.SternPoint)
+            xmin, ymin, zmin, xmax, ymax, zmax = self.Extents()
 
-            print("Adding fuselage bow point to testpoints with coords {} {} {}".format(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
+            newx = parent_apex.X() + (xmax-xmin) * oldx
+            newy = parent_apex.Y() + (ymax-ymin)/2. * oldy
+            newz = parent_apex.Z() + (zmax - zmin)/2. * oldz
 
-            self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
+            # self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
 
 
-        newx = parent_x + xlength * oldposition
 
         # Ensure that the oldscaled and oldposition fractions does give
         # something invisibly small:
@@ -572,7 +572,7 @@ class Topology(AirconicsCollection):
         newscaling = oldscaling * parentscalefactor
 
 
-        return newscaling, newx
+        return newscaling, newx, newy, newz
 
     # def Build(self):
     #     """Recursively builds all sub components in the current topology tree
@@ -590,6 +590,23 @@ class Topology(AirconicsCollection):
     #             part.Build()
 
     #     self.MirrorSubtree()
+
+    # def selManual(individual, k):
+    #     """Randomly select *k* individuals from the input *individuals* using *k*
+    #     tournaments of *tournsize* individuals. The list returned contains
+    #     references to the input *individuals*.
+
+    #     :param individuals: A list of individuals to select from.
+    #     :param k: The number of individuals to select.
+    #     :param tournsize: The number of individuals participating in each tournament.
+    #     :returns: A list of selected individuals.
+
+    #     This function uses the :func:`~random.choice` function from the python base
+    #     :mod:`random` module.
+    #     """
+    #     # Will need to wait for input signal (selection click) here
+    #     return None
+
 
     @wrap_shapeN
     def mirrorN(self, *args):
@@ -625,16 +642,16 @@ class Topology(AirconicsCollection):
         # Essentially this checks if the current shape is being fitted to a
         # parent
         if len(self.parent_nodes) > 0:
-            ScalingX, NoseX=self.fit_to_parent(ScalingX, NoseX)
+            ScalingX, NoseX, NoseY, NoseZ = self.fit_to_parent(ScalingX, NoseX, NoseY, NoseZ)
         else:
             ScalingX=np.interp(ScalingX, [0, 1], arglimits[ScalingX])
+            NoseX = NoseY = NoseZ = 0
 
         FinenessRatio=np.interp(
             FinenessRatio, [0, 1], arglimits[FinenessRatio])
 
         ScalingYZ=ScalingX / FinenessRatio
 
-        NoseY=NoseZ=0
 
 #         print(NoseLengthRatio, TailLengthRatio, Scaling)
         # Fits N new components to this box layout
@@ -673,11 +690,10 @@ class Topology(AirconicsCollection):
         # Essentially this checks if the current shape is being fitted to a
         # parent
         if len(self.parent_nodes) > 0:
-            ScaleFactor, ApexX = self.fit_to_parent(ScaleFactor, ApexX)
+            ScaleFactor, ApexX, ApexY, ApexZ = self.fit_to_parent(ScaleFactor, ApexX, ApexY, ApexZ)
         else:
-            ApexX = 0
+            ApexX = ApexY = ApexZ = 0
 
-        ApexZ = ApexY = 0
         P = (ApexX, ApexY, ApexZ)
 
         # Instantiate the class
@@ -690,9 +706,10 @@ class Topology(AirconicsCollection):
         # Rotate the component if necessary:
         # if surfacetype in ['AirlinerFin', 'StraightWing']:
         # , 90]) # V tail or vertical fin
-        # rotation = np.random.choice([0, 32.5])
+        Rotation_deg = np.interp(Rotation, [0,1], [0, 90])
         RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-        wing.RotateComponents(RotAx, Rotation)
+        wing.RotateComponents(RotAx, Rotation_deg)
+        wing.LECurve.GetObject().Rotate(RotAx, np.radians(Rotation_deg))
 
         self['liftingsurface{}_{}'.format(
             len(args), len(self))]=wing, len(args)

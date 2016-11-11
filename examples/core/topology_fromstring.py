@@ -10,8 +10,8 @@ if __name__ == '__main__':
     config2 = Topology()
 
     expr_string = """fuselage1(0., 0., 0., 1.0, 0.182,
-    0.293, 0.5022, mirror2(liftingsurface0(0., 0., 0., 0.38, 0., AirlinerTP),
-    liftingsurface0(0.8172, 0.0, 0.0, 0.3214, 32.5, AirlinerFin)))"""
+    0.293, 0.5022, mirror2(liftingsurface0(0.0, 0., 0., 0.38, 0., AirlinerTP),
+    liftingsurface0(0.5, 0.0, 0.0, 0.3214, 32.5, AirlinerFin)))"""
     # liftingsurface1(0.8172, 0., 0., 0.3214, 32.5, AirlinerFin, fuselage0(1., 0., 0., 1., 0.182, 0.293, 0.5))))"""
 
     config2.from_string(expr_string)

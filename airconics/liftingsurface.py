@@ -476,6 +476,8 @@ class LiftingSurface(AirconicsShape):
 
         LEPoints = self.GenerateLeadingEdge()
 
+        self.LECurve = act.points_to_bspline(LEPoints)
+
         Eps = np.linspace(0, 1, self.NSegments + 1)
 
         for i, eps in enumerate(Eps):
@@ -564,10 +566,12 @@ class LiftingSurface(AirconicsShape):
         # Scaling (w.r.t. origin)
         if self.ScaleFactor != 1:
             self.ScaleComponents_Uniformal(self.ScaleFactor)
+            self.LECurve.GetObject().Scale(gp_Pnt(0,0,0), self.ScaleFactor)
 
         # Position the Components at the apex:
         vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)
         self.TranslateComponents(vec)
+        self.LECurve.GetObject().Translate(vec)
 
         # Calculate some parameters
         self.RootChord = (self.ChordFunct(0) * self.ChordFactor *

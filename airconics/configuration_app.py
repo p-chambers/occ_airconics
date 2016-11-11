@@ -2,8 +2,8 @@
 # MainWindow class and most of this file are edited from OCC.Display.SimpleGui
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
-# @Last Modified by:   p-chambers
-# @Last Modified time: 2016-11-09 15:26:55
+# @Last Modified by:   Paul Chambers
+# @Last Modified time: 2016-11-10 13:44:34
 import logging
 import os
 import sys
@@ -20,23 +20,6 @@ log = logging.getLogger(__name__)
 # Currently only trying qt
 used_backend = load_backend()
 log.info("GUI backend set to: {0}".format(used_backend))
-
-
-def selManual(individuals, k):
-    """Randomly select *k* individuals from the input *individuals* using *k*
-    tournaments of *tournsize* individuals. The list returned contains
-    references to the input *individuals*.
-
-    :param individuals: A list of individuals to select from.
-    :param k: The number of individuals to select.
-    :param tournsize: The number of individuals participating in each tournament.
-    :returns: A list of selected individuals.
-
-    This function uses the :func:`~random.choice` function from the python base
-    :mod:`random` module.
-    """
-    # Will need to wait for input signal (selection click) here
-    return None
 
 
 from OCC.Display.qtDisplay import qtViewer3d
@@ -82,7 +65,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         if topology:
             self._Topology = topology
         else:
-            self._Topology = Topology()
+            self._Topology = Topology(MaxAttachments=1, max_levels=3)
             self._Topology.randomize()
 
         # Matplotlib colour character (different for each instance)
@@ -139,6 +122,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         self.viewer._display.EraseAll()
         self.Topology.randomize()
         self.Topology.Display(self.viewer._display)
+        self.viewer._display.FitAll()        
 
         for pt in self.Topology._testpoints:
             self.viewer._display.DisplayShape(pt)
@@ -213,6 +197,21 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         # self._data_canvas.setMinimumSize(200, 200)
         self._data_canvas.setMaximumSize(200, 200)
 
+    def selManual(individuals, k):
+        """Randomly select *k* individuals from the input *individuals* using *k*
+        tournaments of *tournsize* individuals. The list returned contains
+        references to the input *individuals*.
+
+        :param individuals: A list of individuals to select from.
+        :param k: The number of individuals to select.
+        :param tournsize: The number of individuals participating in each tournament.
+        :returns: A list of selected individuals.
+
+        This function uses the :func:`~random.choice` function from the python base
+        :mod:`random` module.
+        """
+        # Will need to wait for input signal (selection click) here
+        return None
 
 class MainWindow(QtWidgets.QMainWindow):
     """The main Aircraft Topology (configuration) App.
