@@ -7,15 +7,20 @@ if __name__ == '__main__':
     display, start_display, add_menu, add_function_to_menu = init_display()
 
 
-    config2 = Topology()
+    config2 = Topology(MaxAttachments=3)
 
-    expr_string = """fuselage1(0., 0., 0., 1.0, 0.182,
-    0.293, 0.5022, mirror2(liftingsurface0(0.0, 0., 0., 0.38, 0., AirlinerTP),
-    liftingsurface0(0.5, 0.0, 0.0, 0.3214, 32.5, AirlinerFin)))"""
+    # expr_string = """fuselage1(0., 0., 0., 1.0, 0.182,
+    # 0.293, 0.5022, mirror2(liftingsurface0(0.0, 0., 0., 0.38, 0., AirlinerTP),
+    # liftingsurface0(0.5, 0.0, 0.0, 0.3214, 0.3, AirlinerFin)))"""
+
+    expr_string = "liftingsurface2(0., 0., 0., 1.0, 0.182, AirlinerFin, " +\
+"liftingsurface0(0., 0., 0., 0.01, 1.0, AirlinerFin), liftingsurface0(0., 0., 0., 0.01, 1.0, AirlinerFin))"
+
     # liftingsurface1(0.8172, 0., 0., 0.3214, 32.5, AirlinerFin, fuselage0(1., 0., 0., 1., 0.182, 0.293, 0.5))))"""
 
     config2.from_string(expr_string)
 
+    print(expr_string)
     print(config2)
 
     print(config2._Parts)

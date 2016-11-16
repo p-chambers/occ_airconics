@@ -6,7 +6,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-21 16:25:37
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-07-25 14:19:00
+# @Last Modified time: 2016-11-15 15:18:32
 import pytest
 from airconics.topology import Topology
 from airconics.fuselage_oml import Fuselage
@@ -16,7 +16,7 @@ from OCC.gp import gp_Ax2
 
 @pytest.fixture(params=[
     # a list of topologies and expected flattened lisp expressions
-    ('conventional', 'E(L, |L, L(P))'),
+    ('conventional', 'E(L, |L, L(P, P, L))'),
     ('thunderbolt_a10', 'E(|P, L(L), L)'),
     ('predator', 'E(P, L, |L, L)'),
     ('proteus', 'E(|P, L, L(E(L, L, L)))')
@@ -35,7 +35,11 @@ def example_topos(request):
         engine = Engine(construct_geometry=False)
 
         # For now we must manually add parts and affinities
-        topo = Topology()
+        topo = Topology(MaxAttachments=3)
+        topo.from_string("""fuselage2(0., 0., 0., 1., 0.293, 0.183, 1., 
+            liftingsurface0(0.55, 0., 0., 0.01, 0.90, AirlinerFin) mirror2(
+                liftingsurface0(0.55, 0., 0., 0.01, 0.90, AirlinerTP), liftingsurface1( 0.3, 0., 0., 1.0, 0.26, AirlinerWing
+                    liftingsurface0(0., 0., 0., 1., 0., AirlinerFin))))""")
         topo.AddPart(fus, 'Fuselage', 3)
         topo.AddPart(fin, 'fin', 0)
         topo.AddPart(mirror_pln, 'mirror_pln', 0)

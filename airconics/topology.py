@@ -16,6 +16,7 @@ from . import AirCONICStools as act
 from .examples.wing_example_transonic_airliner import *
 from .examples.tailplane_example_transonic_airliner import *
 from .examples.straight_wing import *
+from .examples.tapered_wing import *
 from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt
 
 import types
@@ -75,14 +76,21 @@ LSURF_FUNCTIONS = {'AirlinerWing':
                 ('TwistFunct', myTwistFunctionFin),
                 ('AirfoilFunct', myAirfoilFunctionFin)
                 ]),
-   # 'StraightWing':
-   # OrderedDict([('SweepFunct', SimpleSweepFunction),
-   #              ('DihedralFunct', SimpleDihedralFunction),
-   #              ('ChordFunct', SimpleChordFunction),
-   #              ('TwistFunct', SimpleTwistFunction),
-   #              ('AirfoilFunct', SimpleAirfoilFunction)
-   #              ])
-            }
+   'StraightWing':
+   OrderedDict([('SweepFunct', SimpleSweepFunction),
+                ('DihedralFunct', SimpleDihedralFunction),
+                ('ChordFunct', SimpleChordFunction),
+                ('TwistFunct', SimpleTwistFunction),
+                ('AirfoilFunct', SimpleAirfoilFunction)
+                ]),
+   'TaperedWing':
+   OrderedDict([('SweepFunct', TaperedWingSweepFunction),
+                ('DihedralFunct', TaperedWingDihedralFunction),
+                ('ChordFunct', TaperedWingChordFunction),
+                ('TwistFunct', TaperedWingTwistFunction),
+                ('AirfoilFunct', TaperedWingAirfoilFunction)
+                ])
+        }
 
 
 # Use a wrapper to convert boxN, sphereN etc. to another function that
@@ -275,21 +283,20 @@ class Topology(AirconicsCollection):
         except:
             log.warning("no arity set. Treating as zero")
             part=part_w_arity
-            arity=0
+            arity = 0
 
-        self.parent_nodes[name]=arity
 
         if len(self.parent_nodes) > 0:
-            if self.parent_nodes.values()[-1] > 1:
+            if self.parent_nodes.values()[-1] > 0:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
             else:
-                try:
-                    while self.parent_nodes.values()[-1] < 1:
-                        self.parent_nodes.popitem()
-                except:
-                    # Without this, errors will occur if self.parent_nodes has
-                    # no length (maybe the case if a mirror node is at the top)
-                    pass
+                while self.parent_nodes.values()[-1] == 0:
+                    self.parent_nodes.popitem()
+
+
+        if arity > 0:
+            self.parent_nodes[name] = arity
+        print(self.parent_nodes)
 
         super(Topology, self).__setitem__(name, part)
 
@@ -344,13 +351,13 @@ class Topology(AirconicsCollection):
         # 'attached' subcomponents up to MaxAttachments (__init__ argument)
         for comptype, argtypes in self.ComponentTypes.items():
             for i in range(self.MaxAttachments + 1):
-                name=comptype
+                name = comptype
                 # get Number of inputs of the basic method e.g. fuselageN, and
                 # add N (-1 due to self) float arguments to the typed
                 # primitive
-                argtypes=argtypes + [types.NoneType] * i
+                full_argtypes = argtypes + [types.NoneType] * i
                 pset.addPrimitive(getattr(self, name + 'N'),
-                                  argtypes, types.NoneType, name=name + str(i))
+                                  full_argtypes, types.NoneType, name=name + str(i))
 
         # mirroring primitives (need to start from mirror1 to avoid bloat)
         for i in range(1, self.MaxAttachments + 1):
@@ -529,7 +536,7 @@ class Topology(AirconicsCollection):
         # do better here
         # print(self.parent_nodes.keys()[-1])
         parent = self[self.parent_nodes.keys()[-1]]
-        scalingrange = np.array([0.6, 1])
+        scalingrange = np.array([0.1, 1])
 
         try:
             # The LiftingSurface branch (could probably do better here)
@@ -611,10 +618,20 @@ class Topology(AirconicsCollection):
     @wrap_shapeN
     def mirrorN(self, *args):
         self.mirror=True
+        print(len(args))
+
+        if len(self.parent_nodes) > 0:
+            # The arity of a mirror node must be added to a parent node so that
+            # further subcomponents will be added to their parent, e.g., 
+            # fuselage1(mirror2(lsurf0, lsurf0)) requires that (2-1) is added
+            # to the number of subcomponents attached to the fuselage
+            self.parent_nodes[self.parent_nodes.keys()[-1]] += len(args) - 1
+
         for arg in args:
             arg()
 
         self.mirror=False
+
         return None
 
     @wrap_shapeN
@@ -680,7 +697,6 @@ class Topology(AirconicsCollection):
     @wrap_shapeN
     def liftingsurfaceN(self, ApexX, ApexY, ApexZ, ScaleFactor, Rotation,
                         functional_params_dict, *args):
-
         # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
         ChordFactor = 1
 
