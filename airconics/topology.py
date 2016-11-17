@@ -217,7 +217,7 @@ class Topology(AirconicsCollection):
         jan 2014.
     """
     ComponentTypes={"fuselage": [float] * 7,
-                      "liftingsurface": [float] * 5 + [dict]}
+                      "liftingsurface": [float] * 6 + [dict]}
 
     def __init__(self, parts={},
                  MaxAttachments=2,
@@ -695,10 +695,9 @@ class Topology(AirconicsCollection):
         return None
 
     @wrap_shapeN
-    def liftingsurfaceN(self, ApexX, ApexY, ApexZ, ScaleFactor, Rotation,
-                        functional_params_dict, *args):
+    def liftingsurfaceN(self, ApexX, ApexY, ApexZ, ChordFactor, ScaleFactor,
+                        Rotation, functional_params_dict, *args):
         # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
-        ChordFactor = 1
 
         # Class definition
         NSeg = 10
@@ -722,7 +721,7 @@ class Topology(AirconicsCollection):
         # Rotate the component if necessary:
         # if surfacetype in ['AirlinerFin', 'StraightWing']:
         # , 90]) # V tail or vertical fin
-        Rotation_deg = np.interp(Rotation, [0,1], [0, 90])
+        Rotation_deg = np.sign(Rotation) * np.interp(np.abs(Rotation), [0,1], [0, 90])
         RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
         wing.RotateComponents(RotAx, Rotation_deg)
         wing.LECurve.GetObject().Rotate(RotAx, np.radians(Rotation_deg))
