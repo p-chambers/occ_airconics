@@ -272,7 +272,7 @@ class Topology(AirconicsCollection):
             if self.parent_nodes.values()[-1] > 0:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
             else:
-                while self.parent_nodes.values()[-1] == 0:
+                while self.parent_nodes.values()[-1] == 0 and len(self.parent_nodes >= 1):
                     self.parent_nodes.popitem()
 
         if arity > 0:
@@ -829,7 +829,7 @@ class Topology_GPTools(object):
         return pset
 
     def create_toolbox(self, fitness_method='max', min_=2, max_=4,
-                       tournsize=7):
+                       tournsize=2):
         """
 
         Parameters
@@ -884,6 +884,9 @@ class Topology_GPTools(object):
         tree = self._toolbox.individual()
         return self.run(tree)
 
+    def _init_population(self, n):
+        self.population = self._toolbox.population(n)
+
     def optimize(self, n=30, cxpd=0.5, mutpd=0.2, ngen=20):
         """
         Parameters
@@ -908,8 +911,7 @@ class Topology_GPTools(object):
         --------
         deap.algorithms.eaSimple
         """
-        np.random.seed(69)
-        pop = toolbox.population(n)
+        self._init_population(n)
         hof = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean)
@@ -917,7 +919,7 @@ class Topology_GPTools(object):
         stats.register("min", np.min)
         stats.register("max", np.max)
 
-        algorithms.eaSimple(pop, self._toolbox, 0.5, 0.2,
+        algorithms.eaSimple(self.population, self._toolbox, 0.5, 0.2,
                             20, stats, halloffame=hof)
 
         # get the best individual and rerun it:
@@ -925,7 +927,7 @@ class Topology_GPTools(object):
 
         self.run(best)
 
-        return pop, hof, stats
+        return hof, stats
 
     def evalTopology(self, individual):
         self.run(individual, self._pset)

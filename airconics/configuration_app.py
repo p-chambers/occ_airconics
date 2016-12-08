@@ -2,18 +2,19 @@
 # MainWindow class and most of this file are edited from OCC.Display.SimpleGui
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
-# @Last Modified by:   Paul Chambers
-# @Last Modified time: 2016-11-10 13:44:34
+# @Last Modified by:   p-chambers
+# @Last Modified time: 2016-12-08 19:16:46
 import logging
 import os
 import sys
 
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
-from airconics import Topology
+from airconics.topology import Topology_GPTools
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
+from deap import tools
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +51,6 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
     Notes
     -----
     """
-    select_clicked = QtCore.pyqtSignal()
 
     # Note: Some of these have a min target, some have max... misleading
     data_labels = ['Static Margin', 'Fuel Burn',
@@ -64,9 +64,6 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         # Create a blank topology object if one has not been provided
         if topology:
             self._Topology = topology
-        else:
-            self._Topology = Topology(MaxAttachments=1, max_levels=3)
-            self._Topology.randomize()
 
         # Matplotlib colour character (different for each instance)
         self.color = next(self.colors)
@@ -101,42 +98,32 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
         grid.addWidget(self.select_button, 1, 0, 1, 2)
 
-        self.select_clicked.connect(self.Evolve)
-
     @property
     def Topology(self):
         return self._Topology
 
     @Topology.setter
     def Topology(self, newTopology):
+        self.viewer._display.EraseAll()
         self._Topology = newTopology
         self._Topology.Display(self.viewer._display)
         self.viewer._display.FitAll()
+
+        # This initialises some data in the radar plot: remove this later!
+        data = np.random.random(len(self.data_labels))
+
+        self._fillpolygon.set_xy(zip(self.radar_factory, data))
+
+        self._fig.canvas.draw()
 
     # @QtCore.pyqtSlot()
     # def onSelectButtonClick(self):
     #     Airconics_Viewgrid.select_clicked.emit()
 
-    @QtCore.pyqtSlot()
-    def Evolve(self):
-        self.viewer._display.EraseAll()
-        self.Topology.randomize()
-        self.Topology.Display(self.viewer._display)
-        self.viewer._display.FitAll()        
+    # @QtCore.pyqtSlot()
+    # def Evolve(self):
+        # May be able to migrate this to Topology.setter
 
-        for pt in self.Topology._testpoints:
-            self.viewer._display.DisplayShape(pt)
-
-        # self.viewer._display.FitAll()
-
-        Nvars = len(self.data_labels)
-
-        # This initialises some data in the radar plot: remove this later!
-        data = np.random.random(Nvars)
-
-        self._fillpolygon.set_xy(zip(self.radar_factory, data))
-
-        self._fig.canvas.draw()
         # self._ax.redraw_in_frame()
 
     def InitDataCanvas(self):
@@ -213,6 +200,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         # Will need to wait for input signal (selection click) here
         return None
 
+
 class MainWindow(QtWidgets.QMainWindow):
     """The main Aircraft Topology (configuration) App.
 
@@ -248,6 +236,8 @@ class MainWindow(QtWidgets.QMainWindow):
                  NX=2,
                  NY=2,
                  Topologies=[],
+                 cxpb=0.5,
+                 mutpb=0.2,
                  *args):
         QtWidgets.QMainWindow.__init__(self, *args)
         self.setWindowTitle(
@@ -261,13 +251,21 @@ class MainWindow(QtWidgets.QMainWindow):
         grid = QtGui.QGridLayout(self.main_widget)
         self.setLayout(grid)
 
+        self.N = NX * NY    # The total number of widgets (and geometries)
+        self.cpxb = cxpb
+        self.mutpb = mutpb
+
         # Set up the grid (i, j) widget layout
         positions = [(i, j) for i in range(NX) for j in range(NY)]
 
         # Add the sub widgets for evolved topology options (9 for now?)
         self.viewer_grids = []
 
-        for position in positions:
+        # create the global population and some randomly selected individuals
+        self.topo_tools = Topology_GPTools(max_levels=4)
+        self.Init_Evolution()
+
+        for i, position in enumerate(positions):
             viewer_grid = Airconics_Viewgrid()
             grid.addWidget(viewer_grid, *position)
 
@@ -278,7 +276,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.viewer_grids.append(viewer_grid)
 
         # Connect the main signal to the rebuild function
-        self.global_select_clicked.connect(self.onAnySelectClicked)
+        self.global_select_clicked.connect(self.EvolveInteractive)
 
         if not sys.platform == 'darwin':
             self.menu_bar = self.menuBar()
@@ -324,9 +322,42 @@ class MainWindow(QtWidgets.QMainWindow):
             raise ValueError('the menu item %s does not exist' % menu_name)
 
     @QtCore.pyqtSlot()
-    def onAnySelectClicked(self):
-        for viewer in self.viewer_grids:
-            viewer.select_clicked.emit()
+    def EvolveInteractive(self):
+        """Based on the DEAP eaSimple, but using a hybrid interaction
+        selection method
+
+
+        """
+        # This will produce N individuals from N tournaments, each with a size
+        # of 2
+
+        # individuals = selTournament(k=self.N, tournsize=2)
+        # for viewer in self.viewer_grids:
+            # viewer.Topology = 
+        return self.sender()
+
+    def Init_Evolution(self, verbose=__debug__):
+        """"""
+        self.topo_tools._init_population(n=100)
+
+        self.hof = tools.HallOfFame(1)
+
+        self.stats = tools.Statistics(lambda ind: ind.fitness.values)
+        self.stats.register("avg", np.mean)
+        self.stats.register("std", np.std)
+        self.stats.register("min", np.min)
+        self.stats.register("max", np.max)
+
+        self.logbook = tools.Logbook()
+        self.logbook.header = ['gen', 'nevals'] + self.stats.fields
+
+        self.hof.update(self.topo_tools.population)
+
+        # record = self.stats.compile(self.topo_tools.population)
+        # self.logbook.record(gen=0, **record)
+
+        # if verbose:
+            # log.info(self.logbook.stream)
 
 
 if __name__ == '__main__':
@@ -360,10 +391,12 @@ if __name__ == '__main__':
 
     app.processEvents()
 
+    initial_topos = win.topo_tools._toolbox.select(
+        win.topo_tools.population, win.N)
+
     for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
-        viewer_grid.Topology.Display(viewer_grid.viewer._display)
-        viewer_grid.viewer._display.FitAll()
+        viewer_grid.Topology = win.topo_tools.run(initial_topos[i])
         progressBar.setValue((1./len(win.viewer_grids)) * i * 100)
         app.processEvents()
 
