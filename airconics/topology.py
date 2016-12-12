@@ -272,7 +272,7 @@ class Topology(AirconicsCollection):
             if self.parent_nodes.values()[-1] > 0:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
             else:
-                while self.parent_nodes.values()[-1] == 0 and len(self.parent_nodes >= 1):
+                while self.parent_nodes.values()[-1] == 0 and len(self.parent_nodes) >= 1:
                     self.parent_nodes.popitem()
 
         if arity > 0:
@@ -930,7 +930,7 @@ class Topology_GPTools(object):
         return hof, stats
 
     def evalTopology(self, individual):
-        self.run(individual, self._pset)
+        self.run(individual)
         return self.fitness_funct(),
 
     def from_string(self, config_string):

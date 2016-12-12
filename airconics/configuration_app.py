@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-08 19:16:46
+# @Last Modified time: 2016-12-12 19:29:58
 import logging
 import os
 import sys
@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools
 from deap import tools
+from deap.algorithms import varAnd
+from deap.tools import selRandom
 
 log = logging.getLogger(__name__)
 
@@ -236,6 +238,7 @@ class MainWindow(QtWidgets.QMainWindow):
                  NX=2,
                  NY=2,
                  Topologies=[],
+                 popsize=5,
                  cxpb=0.5,
                  mutpb=0.2,
                  *args):
@@ -251,9 +254,16 @@ class MainWindow(QtWidgets.QMainWindow):
         grid = QtGui.QGridLayout(self.main_widget)
         self.setLayout(grid)
 
+        self.genlabel = QtGui.QLabel()
+        self.genlabel.setText("Generation 0")
+        grid.addWidget(self.genlabel, 0, 0)
+
         self.N = NX * NY    # The total number of widgets (and geometries)
         self.cpxb = cxpb
         self.mutpb = mutpb
+        self._gen = 0
+        self.popsize = 20
+        self.offspring = []
 
         # Set up the grid (i, j) widget layout
         positions = [(i, j) for i in range(NX) for j in range(NY)]
@@ -271,12 +281,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # connect the select button from the viewer grid to the signal
             viewer_grid.select_button.clicked.connect(
-                self.global_select_clicked)
+                lambda: self.EvolveInteractive(i))
 
             self.viewer_grids.append(viewer_grid)
 
         # Connect the main signal to the rebuild function
-        self.global_select_clicked.connect(self.EvolveInteractive)
+        # self.global_select_clicked.connect(self.EvolveInteractive)
 
         if not sys.platform == 'darwin':
             self.menu_bar = self.menuBar()
@@ -322,7 +332,7 @@ class MainWindow(QtWidgets.QMainWindow):
             raise ValueError('the menu item %s does not exist' % menu_name)
 
     @QtCore.pyqtSlot()
-    def EvolveInteractive(self):
+    def EvolveInteractive(self, identifier):
         """Based on the DEAP eaSimple, but using a hybrid interaction
         selection method
 
@@ -333,12 +343,58 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # individuals = selTournament(k=self.N, tournsize=2)
         # for viewer in self.viewer_grids:
-            # viewer.Topology = 
-        return self.sender()
+        # viewer.Topology =
+        if len(self.offspring) < self.popsize:
+            # tournament selection is still happening
+            print(identifier)
+            self.offspring.append(self.viewer_grids[identifier].Topology._deap_tree)
+        else:
+            self._gen += 1
+            # MANUAL SELECTION?
+            # Select the next generation individuals
+            # offspring = self.topo_tools._toolbox.select(self.topo_tools.population,
+                # len(self.topo_tools.population))
+
+            # Vary the pool of individuals
+            offspring = varAnd(self.offspring, self.topo_tools._toolbox, self.cxpb,
+                               self.mutpb)
+
+            # Evaluate the individuals with an invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = self.topo_tools._toolbox.map(
+                self.topo_tools._toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+
+            # Update the hall of fame with the generated individuals
+            self.hof.update(offspring)
+
+            # Replace the current population by the offspring
+            self.topo_tools.population = offspring
+            # Empty the old offspring
+            self.offspring = []
+
+            # Append the current generation statistics to the logbook
+            record = self.stats.compile(self.topo_tools.population)
+            self.logbook.record(gen=self._gen, nevals=len(invalid_ind), **record)
+            if self._verbose:
+                print self.logbook.stream
+
+        # Display the new population (using Topology setter, no addition reqd):
+        new_tournament = selRandom(self.topo_tools.population, self.N)
+        for i, individual in enumerate(new_tournament):
+            self.viewer_grids[i].Topology = self.topo_tools.run(individual)
+
+
+    # def selInteractive(self, individuals, k):
+    #     self.sender = sender()
 
     def Init_Evolution(self, verbose=__debug__):
         """"""
-        self.topo_tools._init_population(n=100)
+        self._verbose = verbose
+        # override the standard select method:
+        # self.topo_tools._toolbox.register('select', self.selInteractive)
+        self.topo_tools._init_population(n=self.popsize)
 
         self.hof = tools.HallOfFame(1)
 
@@ -350,6 +406,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.logbook = tools.Logbook()
         self.logbook.header = ['gen', 'nevals'] + self.stats.fields
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in self.topo_tools.population if not ind.fitness.valid]
+        fitnesses = self.topo_tools._toolbox.map(self.topo_tools._toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
 
         self.hof.update(self.topo_tools.population)
 
