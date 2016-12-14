@@ -704,6 +704,38 @@ class Topology_GPTools(object):
         # Need to bind the fitness function to the object here:
         self.fitness_funct = types.MethodType(fitness_funct, self)
 
+        self.preset_strs = {
+            'airliner':
+                """fuselage2(0.3, 0., 0., 1., 0.293, 0.183, 0.38,
+                liftingsurface0(0.6, 0., 0.2, 1., 0.42, 1.0, AirlinerFin) mirror2(
+                liftingsurface0(0.65, 0., 0.2, 1., 0.42, 0., AirlinerTP),
+                liftingsurface0( 0.1, 0., 0.05, 1., 0.8, 0., AirlinerWing)
+                )
+                )""",
+            'predator':
+                """fuselage2(0.4, 0., 0., 1., 0.293, 0.183, 0.6,
+                liftingsurface0(0.85, 0., 0.3, 0.9, 0.035, -1.0, StraightWing), mirror2(
+                liftingsurface0(0.85, 0., 0.3, 0.65, 0.09, -0.6, StraightWing),
+                liftingsurface0(0.4, 0., 0.05, 0.233, 0.8, -0.1, TaperedWing)
+                )
+                )""",
+        }
+
+    def create_presets(self):
+        presets = {}
+
+        airliner = gp.PrimitiveTree()
+        airliner.addPrimitive(self.fuselageN)
+        # Fuselage inputs are NoseX, NoseY, NoseZ, ScalingX, NoseLengthRatio,
+        #  TailLengthRatio, FinenessRatio:
+        fuselage_inputs = [0.3, 0., 0., 1., 0.293, 0.183, 0.38]
+        for inp in fuselage_inputs:
+            airliner.addTerminal(inp)
+
+        airliner.addPrimitive(liftings)
+
+        return 
+
     def run(self, tree):
         # This function currently overwrites the existing topology attribute
         # with a new topology. Speed increase may be found here by reusing the
@@ -936,7 +968,7 @@ class Topology_GPTools(object):
         self.run(individual)
         return self.fitness_funct(),
 
-    def from_string(self, config_string):
+    def from_string(self, config_string=None, preset=None):
         """Generates a new aircraft topology from a parsed input string.
 
         The arities of each function passed in the input string must not
@@ -957,5 +989,10 @@ class Topology_GPTools(object):
         --------
         Topology.fuselageN, Topology.liftingsurfaceN, Topology.mirrorN
         """
+        if preset:
+            preset = preset.lower()
+            assert(preset in self.preset_strs),\
+                "{} is not a known preset layouts. Choose from {}".format(preset, self.preset_strs.keys())
+            config_string = self.preset_strs[preset]
         tree = gp.PrimitiveTree.from_string(config_string, self._pset)
         return self.run(tree)

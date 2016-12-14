@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-14 12:04:00
+# @Last Modified time: 2016-12-14 15:52:16
 import logging
 import os
 import sys
@@ -254,12 +254,12 @@ class MainWindow(QtWidgets.QMainWindow):
         grid = QtGui.QGridLayout(self.main_widget)
         self.setLayout(grid)
 
-        self.genlabel = QtGui.QLabel()
-        self.genlabel.setText("Generation 0")
+        self.genlabel = QtGui.QLineEdit()
+        self.genlabel.setReadOnly(True)
 
         stats_group = QtGui.QGroupBox("Evolution stats")
-        stats_box = QtGui.QHBoxLayout(stats_group)
-        stats_box.addWidget(self.genlabel)
+        stats_box = QtGui.QFormLayout(stats_group)
+        stats_box.addRow('Generation', self.genlabel)
         stats_group.setLayout(stats_box)
 
         grid.addWidget(stats_group, 0, 0, 1, 8)
@@ -267,14 +267,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.N = NX * NY    # The total number of widgets (and geometries)
         self.cxpb = cxpb
         self.mutpb = mutpb
-        self._gen = 1
+        self.gen = 1
         self.popsize = popsize
         self.offspring = []
 
         # Set up the grid (i, j) widget layout
         positions = [(i, j) for i in range(1,(NY*2)+1, 2) for j in range(0,(NX*2),2)]
 
-        # Add the sub widgets for evolved topology options (9 for now?)
         self.viewer_grids = []
 
         # create the global population and some randomly selected individuals
@@ -315,6 +314,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.resize(size[0], size[1])
 
+    @property
+    def gen(self):
+        return self._gen
+
+    @gen.setter
+    def gen(self, new_gen):
+        """Updates the generation number and text label"""
+        self.genlabel.setText(str(new_gen))
+        self._gen = new_gen
+
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
         resolution = QtWidgets.QDesktopWidget().screenGeometry()
@@ -338,9 +347,10 @@ class MainWindow(QtWidgets.QMainWindow):
         except KeyError:
             raise ValueError('the menu item %s does not exist' % menu_name)
 
-    # def load_preset(self, ) 
+    # @QtCore.pyqtSlot()
+    # def load_preset(self, preset_str):
 
-    # def restart_
+
 
     @QtCore.pyqtSlot()
     def EvolveInteractive(self, identifier):
@@ -356,45 +366,41 @@ class MainWindow(QtWidgets.QMainWindow):
         # for viewer in self.viewer_grids:
         # viewer.Topology =
         print("Selection triggered on geometry {}".format(identifier))
-        self.offspring.append(self.viewer_grids[identifier].Topology._deap_tree)
+        selected = self.viewer_grids[identifier].Topology._deap_tree
 
-        if len(self.offspring) == self.popsize:
-            self._gen += 1
-            self.genlabel.setText("Generation {}".format(self._gen))
+        self.gen += 1
 
-            # MANUAL SELECTION?
-            # Select the next generation individuals
-            # offspring = self.topo_tools._toolbox.select(self.topo_tools.population,
-                # len(self.topo_tools.population))
+        # MANUAL SELECTION?
+        # Select the next generation individuals
+        # offspring = self.topo_tools._toolbox.select(self.topo_tools.population,
+            # len(self.topo_tools.population))
 
-            # Vary the pool of individuals
-            offspring = varAnd(self.offspring, self.topo_tools._toolbox, self.cxpb,
-                               self.mutpb)
+        # Vary the pool of individuals, using mutation only
+        offspring = []
+        for i in range(self.N):
+            offspring.append(self.topo_tools._toolbox.mutate(selected))
 
-            # Evaluate the individuals with an invalid fitness
-            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = self.topo_tools._toolbox.map(
-                self.topo_tools._toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = self.topo_tools._toolbox.map(
+            self.topo_tools._toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
 
-            # Update the hall of fame with the generated individuals
-            self.hof.update(offspring)
+        # Update the hall of fame with the generated individuals
+        self.hof.update(offspring)
 
-            # Replace the current population by the offspring
-            self.topo_tools.population = offspring
-            # Empty the old offspring
-            self.offspring = []
+        # Replace the current population by the offspring
+        self.topo_tools.population = offspring
 
-            # Append the current generation statistics to the logbook
-            record = self.stats.compile(self.topo_tools.population)
-            self.logbook.record(gen=self._gen, nevals=len(invalid_ind), **record)
-            if self._verbose:
-                print self.logbook.stream
+        # Append the current generation statistics to the logbook
+        record = self.stats.compile(self.topo_tools.population)
+        self.logbook.record(gen=self._gen, nevals=len(invalid_ind), **record)
+        if self._verbose:
+            print self.logbook.stream
 
         # Display the new population (using Topology setter, no addition reqd):
-        new_tournament = selRandom(self.topo_tools.population, self.N)
-        for i, individual in enumerate(new_tournament):
+        for i, individual in enumerate(self.topo_tools.population):
             self.viewer_grids[i].Topology = self.topo_tools.run(individual)
 
 
