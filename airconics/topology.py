@@ -93,6 +93,9 @@ LSURF_FUNCTIONS = {'AirlinerWing':
         }
 
 
+
+
+
 # Use a wrapper to convert boxN, sphereN etc. to another function that
 # returns a callable
 def wrap_shapeN(shapeN):
@@ -272,7 +275,7 @@ class Topology(AirconicsCollection):
             if self.parent_nodes.values()[-1] > 0:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
             else:
-                while self.parent_nodes.values()[-1] == 0 and len(self.parent_nodes) >= 1:
+                while len(self.parent_nodes) >= 1 and self.parent_nodes.values()[-1] == 0:
                     self.parent_nodes.popitem()
 
         if arity > 0:
