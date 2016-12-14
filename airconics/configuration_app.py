@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-12 19:29:58
+# @Last Modified time: 2016-12-14 12:04:00
 import logging
 import os
 import sys
@@ -232,7 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
     This is currently in development, and currently no topology evolution is
     performed.
     """
-    global_select_clicked = QtCore.pyqtSignal()
+    # global_select_clicked = QtCore.pyqtSignal()
 
     def __init__(self, size=(1024, 768),
                  NX=2,
@@ -256,17 +256,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.genlabel = QtGui.QLabel()
         self.genlabel.setText("Generation 0")
-        grid.addWidget(self.genlabel, 0, 0)
+
+        stats_group = QtGui.QGroupBox("Evolution stats")
+        stats_box = QtGui.QHBoxLayout(stats_group)
+        stats_box.addWidget(self.genlabel)
+        stats_group.setLayout(stats_box)
+
+        grid.addWidget(stats_group, 0, 0, 1, 8)
 
         self.N = NX * NY    # The total number of widgets (and geometries)
-        self.cpxb = cxpb
+        self.cxpb = cxpb
         self.mutpb = mutpb
-        self._gen = 0
-        self.popsize = 20
+        self._gen = 1
+        self.popsize = popsize
         self.offspring = []
 
         # Set up the grid (i, j) widget layout
-        positions = [(i, j) for i in range(NX) for j in range(NY)]
+        positions = [(i, j) for i in range(1,(NY*2)+1, 2) for j in range(0,(NX*2),2)]
 
         # Add the sub widgets for evolved topology options (9 for now?)
         self.viewer_grids = []
@@ -277,7 +283,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for i, position in enumerate(positions):
             viewer_grid = Airconics_Viewgrid()
-            grid.addWidget(viewer_grid, *position)
+            ix, iy = position
+            grid.addWidget(viewer_grid, ix, iy, 2, 2)
 
             # connect the select button from the viewer grid to the signal
             viewer_grid.select_button.clicked.connect(
@@ -331,6 +338,10 @@ class MainWindow(QtWidgets.QMainWindow):
         except KeyError:
             raise ValueError('the menu item %s does not exist' % menu_name)
 
+    # def load_preset(self, ) 
+
+    # def restart_
+
     @QtCore.pyqtSlot()
     def EvolveInteractive(self, identifier):
         """Based on the DEAP eaSimple, but using a hybrid interaction
@@ -344,12 +355,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # individuals = selTournament(k=self.N, tournsize=2)
         # for viewer in self.viewer_grids:
         # viewer.Topology =
-        if len(self.offspring) < self.popsize:
-            # tournament selection is still happening
-            print(identifier)
-            self.offspring.append(self.viewer_grids[identifier].Topology._deap_tree)
-        else:
+        print("Selection triggered on geometry {}".format(identifier))
+        self.offspring.append(self.viewer_grids[identifier].Topology._deap_tree)
+
+        if len(self.offspring) == self.popsize:
             self._gen += 1
+            self.genlabel.setText("Generation {}".format(self._gen))
+
             # MANUAL SELECTION?
             # Select the next generation individuals
             # offspring = self.topo_tools._toolbox.select(self.topo_tools.population,
