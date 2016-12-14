@@ -23,7 +23,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     # package_data={'': ['*.dat']},
-    install_requires=["numpy"],
+    install_requires=["numpy", "pydot"],
     author='Paul Chambers, Andras Sobester',
     author_email='P.R.Chambers@soton.ac.uk, A.Sobester@soton.ac.uk',
 )

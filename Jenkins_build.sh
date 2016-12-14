@@ -1,8 +1,8 @@
 #!/bin/bash
 # @Author: pchambers
 # @Date:   2016-01-08 17:35:49
-# @Last Modified by:   pc12g10
-# @Last Modified time: 2016-10-11 15:17:30
+# @Last Modified by:   p-chambers
+# @Last Modified time: 2016-12-14 12:46:29
 
 # Create the Conda test environment (note that pytest is required, otherwise wrong
 # python is used and the module is not found!)
