@@ -3,13 +3,15 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-14 15:52:16
+# @Last Modified time: 2016-12-15 16:58:30
 import logging
 import os
 import sys
+import datetime
 
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
+import airconics
 from airconics.topology import Topology_GPTools
 import matplotlib.pyplot as plt
 import numpy as np
@@ -238,7 +240,6 @@ class MainWindow(QtWidgets.QMainWindow):
                  NX=2,
                  NY=2,
                  Topologies=[],
-                 popsize=5,
                  cxpb=0.5,
                  mutpb=0.2,
                  *args):
@@ -247,49 +248,20 @@ class MainWindow(QtWidgets.QMainWindow):
             "occ-airconics aircraft topology app ('%s' backend)" %
             (used_backend))
 
-        # Set up the main widget (this will have several widgets nested within)
-        self.main_widget = QtGui.QWidget(self)
-        self.setCentralWidget(self.main_widget)
-
-        grid = QtGui.QGridLayout(self.main_widget)
-        self.setLayout(grid)
-
-        self.genlabel = QtGui.QLineEdit()
-        self.genlabel.setReadOnly(True)
-
-        stats_group = QtGui.QGroupBox("Evolution stats")
-        stats_box = QtGui.QFormLayout(stats_group)
-        stats_box.addRow('Generation', self.genlabel)
-        stats_group.setLayout(stats_box)
-
-        grid.addWidget(stats_group, 0, 0, 1, 8)
-
+        self.NX = NX
+        self.NY = NY
         self.N = NX * NY    # The total number of widgets (and geometries)
+        self.viewer_grids = []
         self.cxpb = cxpb
         self.mutpb = mutpb
-        self.gen = 1
-        self.popsize = popsize
+        self._gen = 0
         self.offspring = []
 
-        # Set up the grid (i, j) widget layout
-        positions = [(i, j) for i in range(1,(NY*2)+1, 2) for j in range(0,(NX*2),2)]
-
-        self.viewer_grids = []
+        self.setupUi()
 
         # create the global population and some randomly selected individuals
         self.topo_tools = Topology_GPTools(max_levels=4)
         self.Init_Evolution()
-
-        for i, position in enumerate(positions):
-            viewer_grid = Airconics_Viewgrid()
-            ix, iy = position
-            grid.addWidget(viewer_grid, ix, iy, 2, 2)
-
-            # connect the select button from the viewer grid to the signal
-            viewer_grid.select_button.clicked.connect(
-                lambda: self.EvolveInteractive(i))
-
-            self.viewer_grids.append(viewer_grid)
 
         # Connect the main signal to the rebuild function
         # self.global_select_clicked.connect(self.EvolveInteractive)
@@ -314,15 +286,51 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.resize(size[0], size[1])
 
-    @property
-    def gen(self):
-        return self._gen
+    def setupUi(self):
+        # Set up the main widget (this will have several widgets nested within)
+        self.centralwidget = QtGui.QWidget(self)
+        self.setCentralWidget(self.centralwidget)
 
-    @gen.setter
-    def gen(self, new_gen):
-        """Updates the generation number and text label"""
-        self.genlabel.setText(str(new_gen))
-        self._gen = new_gen
+        self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
+
+        # Set up for the statistics stream at the top of the window
+        self.statsFrame = QtGui.QFrame(self.centralwidget)
+        self.statsFrame.setMaximumSize(QtCore.QSize(16777215, 70))
+        self.statsFrame.setFrameShape(QtGui.QFrame.StyledPanel)
+        self.statsFrame.setFrameShadow(QtGui.QFrame.Raised)
+        self.statsHLayout = QtGui.QHBoxLayout(self.statsFrame)
+        self.stats_textEdit = QtGui.QTextEdit(self.statsFrame)
+        self.stats_textEdit.setReadOnly(True)
+        self.stats_textEdit.append('OCC_Airconics Aircraft Configuration app, version {}, {}'.format(airconics.__version__, datetime.datetime.now()))
+        self.statsHLayout.addWidget(self.stats_textEdit)
+        self.verticalLayout.addWidget(self.statsFrame)
+
+        # Set up for the main 3d viewers and radar plots
+        self.view_widget = QtGui.QWidget(self.centralwidget)
+        self.view_layout = QtGui.QGridLayout(self.view_widget)
+        self.view_widget.setLayout(self.view_layout)
+        positions = [(i, j) for i in range(0,(self.NY), 1) for j in range(0,(self.NX),1)]
+        for i, position in enumerate(positions):
+            viewer_grid = Airconics_Viewgrid()
+            ix, iy = position
+            self.view_layout.addWidget(viewer_grid, ix, iy)
+            # connect the select button from the viewer grid to the signal
+            viewer_grid.select_button.clicked.connect(
+                lambda: self.EvolveInteractive(i))
+            self.viewer_grids.append(viewer_grid)
+        self.verticalLayout.addWidget(self.view_widget)
+
+        # Toolbar + icons
+        # self.tb = self.addToolBar("File")
+        # open_act = QtGui.QAction(QtGui.QIcon("open.bmp"),"open",self)
+        # tb.addAction(open_act)
+        # tb.actionTriggered[open_act].connect(openFile)
+
+        self.setCentralWidget(self.centralwidget)
+
+    @QtCore.pyqtSlot()
+    def openFile(self):
+        fname = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '', "JSON files (*.json)")
 
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
@@ -368,7 +376,7 @@ class MainWindow(QtWidgets.QMainWindow):
         print("Selection triggered on geometry {}".format(identifier))
         selected = self.viewer_grids[identifier].Topology._deap_tree
 
-        self.gen += 1
+        self._gen += 1
 
         # MANUAL SELECTION?
         # Select the next generation individuals
@@ -376,9 +384,11 @@ class MainWindow(QtWidgets.QMainWindow):
             # len(self.topo_tools.population))
 
         # Vary the pool of individuals, using mutation only
-        offspring = []
-        for i in range(self.N):
-            offspring.append(self.topo_tools._toolbox.mutate(selected))
+        offspring = [self.topo_tools._toolbox.clone(ind) for ind in self.topo_tools.population]
+        for i in range(len(offspring)):
+            # For some reason, deap.gp.mutUniform returns a tuple of length 1
+            offspring[i], = self.topo_tools._toolbox.mutate(selected)
+            del offspring[i].fitness.values
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -396,8 +406,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Append the current generation statistics to the logbook
         record = self.stats.compile(self.topo_tools.population)
         self.logbook.record(gen=self._gen, nevals=len(invalid_ind), **record)
-        if self._verbose:
-            print self.logbook.stream
+        self.stats_textEdit.append(self.logbook.stream)
 
         # Display the new population (using Topology setter, no addition reqd):
         for i, individual in enumerate(self.topo_tools.population):
@@ -412,7 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._verbose = verbose
         # override the standard select method:
         # self.topo_tools._toolbox.register('select', self.selInteractive)
-        self.topo_tools._init_population(n=self.popsize)
+        self.topo_tools._init_population(n=self.N)
 
         self.hof = tools.HallOfFame(1)
 
@@ -433,11 +442,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.hof.update(self.topo_tools.population)
 
-        # record = self.stats.compile(self.topo_tools.population)
-        # self.logbook.record(gen=0, **record)
+        record = self.stats.compile(self.topo_tools.population)
+        self.logbook.record(gen=0, **record)
 
-        # if verbose:
-            # log.info(self.logbook.stream)
+        if verbose:
+            self.stats_textEdit.append(self.logbook.stream)
 
 
 if __name__ == '__main__':
