@@ -2,8 +2,8 @@
 # MainWindow class and most of this file are edited from OCC.Display.SimpleGui
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
-# @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-15 16:58:30
+# @Last Modified by:   Paul Chambers
+# @Last Modified time: 2016-12-16 11:09:14
 import logging
 import os
 import sys
@@ -321,10 +321,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.verticalLayout.addWidget(self.view_widget)
 
         # Toolbar + icons
-        # self.tb = self.addToolBar("File")
-        # open_act = QtGui.QAction(QtGui.QIcon("open.bmp"),"open",self)
-        # tb.addAction(open_act)
-        # tb.actionTriggered[open_act].connect(openFile)
+        self.tb = self.addToolBar("File")
+        open_act = QtGui.QAction(QtGui.QIcon.fromTheme("document-open"),"open",self)
+        self.tb.addAction(open_act)
+        open_act.triggered.connect(self.openFile)
 
         self.setCentralWidget(self.centralwidget)
 
@@ -485,7 +485,7 @@ if __name__ == '__main__':
 
     for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
-        viewer_grid.Topology = win.topo_tools.run(initial_topos[i])
+    #     viewer_grid.Topology = win.topo_tools.run(initial_topos[i])
         progressBar.setValue((1./len(win.viewer_grids)) * i * 100)
         app.processEvents()
 
@@ -500,3 +500,4 @@ if __name__ == '__main__':
 
 
     sys.exit(app.exec_())
+# 
