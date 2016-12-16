@@ -22,7 +22,9 @@ from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt
 import types
 import functools
 from functools import partial
+import itertools
 import pydot
+import re
 from collections import OrderedDict
 import numpy as np
 from deap import algorithms
@@ -30,6 +32,7 @@ from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
+import json
 
 import logging
 log = logging.getLogger(__name__)
@@ -221,6 +224,11 @@ class Topology(AirconicsCollection):
     """
     ComponentTypes = {"fuselage": [float] * 7,
                       "liftingsurface": [float] * 6 + [dict]}
+
+    varNames = {'liftingsurface': ['X', 'Y', 'Z', 'CF', 'SF', 'Rotation', 'type'], 
+                'fuselage': ['X', 'Y', 'Z', 'ScalingX', 'NoseLengthRatio', 'TailLengthRatio',
+                             'FinenessRatio'],
+                'mirror': []}
 
     def __init__(self, parts={},
                  construct_geometry=True,
@@ -658,6 +666,25 @@ class Topology(AirconicsCollection):
         graph = self.pydot_graph()
         return graph.create_dot()
 
+    def writeJSON(self, fname='layout.json'):
+        """
+        """
+        json_obj = []
+        for node in self._deap_tree:
+            if node.arity > 0:
+                nodetype = re.sub(r'\d+', '', node.name)
+                json_obj.append({'primitive': node.name})
+                cycle = itertools.cycle(self.varNames[nodetype])
+            else:
+                # this must be a terminal: take one from the stack
+                input_name = next(cycle)
+                json_obj[-1][input_name] = node.value
+
+        with open(fname, 'w') as fout:
+            json.dump(fout, json_obj, indent=2)
+
+        return json_obj        
+
     def AddPart(self, part, name, arity=0):
         """Overloads the AddPart method of AirconicsCollection base class
         to append the arity of the input topology node
@@ -995,4 +1022,34 @@ class Topology_GPTools(object):
                 "{} is not a known preset layouts. Choose from {}".format(preset, self.preset_strs.keys())
             config_string = self.preset_strs[preset]
         tree = gp.PrimitiveTree.from_string(config_string, self._pset)
+        return self.run(tree)
+
+    def from_JSON(self, fname):
+        """
+        """
+        with open(fname, 'r') as fin:
+            flat_primitivetree = json.load(fin)
+
+        expr = []
+
+        for component in flat_primitivetree:
+            prim_name = component['primitive']
+            arity = int(re.findall('\d+$', prim_name)[0])
+            if prim_name in self._pset.mapping:
+                expr.append(self._pset.mapping[prim_name])
+            component.pop('primitive')
+            basename = re.sub(r'\d+', '', prim_name)
+            for arg in Topology.varNames[basename]:
+                assert(arg in component), \
+                    'Input file does not contain parameter {} for component of type {}'. format(arg, prim_name)
+                if component[arg] in self._pset.mapping:
+                    terminal = self._pset.mapping[component[arg]]
+                    expr.append(terminal)
+                else:
+
+                    type_ = type(component[arg])
+
+                    expr.append(gp.Terminal(component[arg], False, type_))
+
+        tree = gp.PrimitiveTree(expr)
         return self.run(tree)

@@ -2,8 +2,8 @@
 # MainWindow class and most of this file are edited from OCC.Display.SimpleGui
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
-# @Last Modified by:   Paul Chambers
-# @Last Modified time: 2016-12-16 11:09:14
+# @Last Modified by:   p-chambers
+# @Last Modified time: 2016-12-16 17:52:48
 import logging
 import os
 import sys
@@ -331,6 +331,10 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def openFile(self):
         fname = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '', "JSON files (*.json)")
+        loaded_topo = self.topo_tools.from_JSON(fname)
+        # reset the evolution: 
+        self.Init_Evolution()
+        self.mutate_fromIndividual(loaded_topo._deap_tree)
 
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
@@ -358,8 +362,6 @@ class MainWindow(QtWidgets.QMainWindow):
     # @QtCore.pyqtSlot()
     # def load_preset(self, preset_str):
 
-
-
     @QtCore.pyqtSlot()
     def EvolveInteractive(self, identifier):
         """Based on the DEAP eaSimple, but using a hybrid interaction
@@ -376,6 +378,9 @@ class MainWindow(QtWidgets.QMainWindow):
         print("Selection triggered on geometry {}".format(identifier))
         selected = self.viewer_grids[identifier].Topology._deap_tree
 
+        self.mutate_fromIndividual(selected)
+
+    def mutate_fromIndividual(self, individual):
         self._gen += 1
 
         # MANUAL SELECTION?
@@ -387,7 +392,7 @@ class MainWindow(QtWidgets.QMainWindow):
         offspring = [self.topo_tools._toolbox.clone(ind) for ind in self.topo_tools.population]
         for i in range(len(offspring)):
             # For some reason, deap.gp.mutUniform returns a tuple of length 1
-            offspring[i], = self.topo_tools._toolbox.mutate(selected)
+            offspring[i], = self.topo_tools._toolbox.mutate(individual)
             del offspring[i].fitness.values
 
         # Evaluate the individuals with an invalid fitness
@@ -410,11 +415,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Display the new population (using Topology setter, no addition reqd):
         for i, individual in enumerate(self.topo_tools.population):
-            self.viewer_grids[i].Topology = self.topo_tools.run(individual)
-
-
-    # def selInteractive(self, individuals, k):
-    #     self.sender = sender()
+            self.viewer_grids[i].Topology = self.topo_tools.run(individual)        
 
     def Init_Evolution(self, verbose=__debug__):
         """"""
@@ -480,12 +481,12 @@ if __name__ == '__main__':
 
     app.processEvents()
 
-    initial_topos = win.topo_tools._toolbox.select(
-        win.topo_tools.population, win.N)
+    # initial_topos = win.topo_tools._toolbox.select(
+    #     win.topo_tools.population, win.N)
 
     for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
-    #     viewer_grid.Topology = win.topo_tools.run(initial_topos[i])
+        viewer_grid.Topology = win.topo_tools.run(win.topo_tools.population[i])
         progressBar.setValue((1./len(win.viewer_grids)) * i * 100)
         app.processEvents()
 

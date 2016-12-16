@@ -1,0 +1,45 @@
+[
+  {
+    "primitive": "fuselage2", 
+    "TailLengthRatio": 0.183, 
+    "FinenessRatio": 0.6, 
+    "ScalingX": 1.0, 
+    "Y": 0.0, 
+    "X": 0.4, 
+    "Z": 0.0, 
+    "NoseLengthRatio": 0.293
+  }, 
+  {
+    "primitive": "liftingsurface0", 
+    "CF": 0.9, 
+    "Y": 0.0, 
+    "X": 0.85, 
+    "Rotation": -1.0, 
+    "Z": 0.3, 
+    "type": "StraightWing", 
+    "SF": 0.035
+  }, 
+  {
+    "primitive": "mirror2"
+  }, 
+  {
+    "primitive": "liftingsurface0", 
+    "CF": 0.65, 
+    "Y": 0.0, 
+    "X": 0.85, 
+    "Rotation": -0.6, 
+    "Z": 0.3, 
+    "type": "StraightWing", 
+    "SF": 0.09
+  }, 
+  {
+    "primitive": "liftingsurface0", 
+    "CF": 0.233, 
+    "Y": 0.0, 
+    "X": 0.4, 
+    "Rotation": -0.1, 
+    "Z": 0.05, 
+    "type": "TaperedWing", 
+    "SF": 0.8
+  }
+]
