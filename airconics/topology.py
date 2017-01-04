@@ -96,9 +96,6 @@ LSURF_FUNCTIONS = {'AirlinerWing':
         }
 
 
-
-
-
 # Use a wrapper to convert boxN, sphereN etc. to another function that
 # returns a callable
 def wrap_shapeN(shapeN):
@@ -106,6 +103,13 @@ def wrap_shapeN(shapeN):
     def wrapped_shapeN(*args, **kwargs):
         return partial(shapeN, *args)
     return wrapped_shapeN
+
+
+def wrap_fitnessfunct(fitness_funct):
+    @functools.wraps(fitness_funct)
+    def wrapped_fitnessfunct(self, topology):
+        return fitness_funct(topology)
+    return wrapped_fitnessfunct
 
 
 def default_fitness(topology):
@@ -122,11 +126,7 @@ def default_fitness(topology):
     Until I come with a better fitness function, this fitness function simply
     tries to maximise the volume of the bounding box
     """
-    try:
-        xmin, ymin, zmin, xmax, ymax, zmax = topology.Extents()
-    except:
-        # Bounding Box was probably void
-        return 0
+    xmin, ymin, zmin, xmax, ymax, zmax = topology.Extents()
     return (xmax - xmin) * (ymax - ymin) * (zmax - zmin)
 
 
@@ -225,8 +225,8 @@ class Topology(AirconicsCollection):
     ComponentTypes = {"fuselage": [float] * 7,
                       "liftingsurface": [float] * 6 + [dict]}
 
-    varNames = {'liftingsurface': ['X', 'Y', 'Z', 'CF', 'SF', 'Rotation', 'type'], 
-                'fuselage': ['X', 'Y', 'Z', 'ScalingX', 'NoseLengthRatio', 'TailLengthRatio',
+    varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
+                'fuselage': ['X', 'Y', 'Z', 'X_ScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio'],
                 'mirror': []}
 
@@ -382,29 +382,13 @@ class Topology(AirconicsCollection):
 
     #     self.MirrorSubtree()
 
-    # def selManual(individual, k):
-    #     """Randomly select *k* individuals from the input *individuals* using *k*
-    #     tournaments of *tournsize* individuals. The list returned contains
-    #     references to the input *individuals*.
-
-    #     :param individuals: A list of individuals to select from.
-    #     :param k: The number of individuals to select.
-    #     :param tournsize: The number of individuals participating in each tournament.
-    #     :returns: A list of selected individuals.
-
-    #     This function uses the :func:`~random.choice` function from the python base
-    #     :mod:`random` module.
-    #     """
-    #     # Will need to wait for input signal (selection click) here
-    #     return None
-
     @wrap_shapeN
     def mirrorN(self, *args):
         self.mirror = True
 
         if len(self.parent_nodes) > 0:
             # The arity of a mirror node must be added to a parent node so that
-            # further subcomponents will be added to their parent, e.g., 
+            # further subcomponents will be added to their parent, e.g.,
             # fuselage1(mirror2(lsurf0, lsurf0)) requires that (2-1) is added
             # to the number of subcomponents attached to the fuselage
             self.parent_nodes[self.parent_nodes.keys()[-1]] += len(args) - 1
@@ -481,11 +465,11 @@ class Topology(AirconicsCollection):
                         Rotation, functional_params_dict, *args):
         # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
 
-        # Class definition
         NSeg = 10
 
-        # Essentially this checks if the current shape is being fitted to a
-        # parent
+        # Checks if the current shape is being fitted to a parent; otherwise
+        # this is the root component to which all others will be 'fitted',
+        # in which case a wing is created with its apex at the origin
         if len(self.parent_nodes) > 0:
             ScaleFactor, ApexX, ApexY, ApexZ = self.fit_to_parent(
                 ScaleFactor, ApexX, ApexY, ApexZ)
@@ -504,8 +488,7 @@ class Topology(AirconicsCollection):
         # Rotate the component if necessary:
         # if surfacetype in ['AirlinerFin', 'StraightWing']:
         # , 90]) # V tail or vertical fin
-        Rotation_deg = np.sign(Rotation) * np.interp(np.abs(Rotation),
-                                                     [0, 1], [0, 90])
+        Rotation_deg = np.interp(Rotation, [-1, 0, 1], [-90, 0, 90])
         RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
         wing.RotateComponents(RotAx, Rotation_deg)
         wing.LECurve.GetObject().Rotate(RotAx, np.radians(Rotation_deg))
@@ -725,11 +708,11 @@ class Topology_GPTools(object):
         self.min_levels = min_levels
         self.max_levels = max_levels
         self._pset = self.create_pset(name=pset_name)
-        self._toolbox = self.create_toolbox(min_levels, max_levels)
+        self._toolbox, self._creator = self.create_toolbox(min_levels, max_levels)
         self._topology = None
 
         # Need to bind the fitness function to the object here:
-        self.fitness_funct = types.MethodType(fitness_funct, self)
+        self.fitness_funct = types.MethodType(wrap_fitnessfunct(fitness_funct), self)
 
         self.preset_strs = {
             'airliner':
@@ -747,21 +730,6 @@ class Topology_GPTools(object):
                 )
                 )""",
         }
-
-    def create_presets(self):
-        presets = {}
-
-        airliner = gp.PrimitiveTree()
-        airliner.addPrimitive(self.fuselageN)
-        # Fuselage inputs are NoseX, NoseY, NoseZ, ScalingX, NoseLengthRatio,
-        #  TailLengthRatio, FinenessRatio:
-        fuselage_inputs = [0.3, 0., 0., 1., 0.293, 0.183, 0.38]
-        for inp in fuselage_inputs:
-            airliner.addTerminal(inp)
-
-        airliner.addPrimitive(liftings)
-
-        return 
 
     def run(self, tree):
         # This function currently overwrites the existing topology attribute
@@ -933,7 +901,7 @@ class Topology_GPTools(object):
         toolbox.register("mutate", gp.mutUniform,
                          expr=toolbox.expr_mut, pset=self._pset)
 
-        return toolbox
+        return toolbox, creator
 
     def randomize(self):
         """Generates a new aircraft topology (configuration), using a
@@ -992,8 +960,8 @@ class Topology_GPTools(object):
         return hof, stats
 
     def evalTopology(self, individual):
-        self.run(individual)
-        return self.fitness_funct(),
+        topo = self.run(individual)
+        return self.fitness_funct(topo),
 
     def from_string(self, config_string=None, preset=None):
         """Generates a new aircraft topology from a parsed input string.
@@ -1024,7 +992,7 @@ class Topology_GPTools(object):
         tree = gp.PrimitiveTree.from_string(config_string, self._pset)
         return self.run(tree)
 
-    def from_JSON(self, fname):
+    def from_JSONFile(self, fname):
         """
         """
         with open(fname, 'r') as fin:
@@ -1051,5 +1019,5 @@ class Topology_GPTools(object):
 
                     expr.append(gp.Terminal(component[arg], False, type_))
 
-        tree = gp.PrimitiveTree(expr)
+        tree = self._creator.Individual(expr)
         return self.run(tree)

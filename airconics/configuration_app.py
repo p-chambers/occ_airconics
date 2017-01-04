@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-12-16 17:52:48
+# @Last Modified time: 2017-01-04 18:47:45
 import logging
 import os
 import sys
@@ -188,22 +188,6 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         # self._data_canvas.setMinimumSize(200, 200)
         self._data_canvas.setMaximumSize(200, 200)
 
-    def selManual(individuals, k):
-        """Randomly select *k* individuals from the input *individuals* using *k*
-        tournaments of *tournsize* individuals. The list returned contains
-        references to the input *individuals*.
-
-        :param individuals: A list of individuals to select from.
-        :param k: The number of individuals to select.
-        :param tournsize: The number of individuals participating in each tournament.
-        :returns: A list of selected individuals.
-
-        This function uses the :func:`~random.choice` function from the python base
-        :mod:`random` module.
-        """
-        # Will need to wait for input signal (selection click) here
-        return None
-
 
 class MainWindow(QtWidgets.QMainWindow):
     """The main Aircraft Topology (configuration) App.
@@ -257,11 +241,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._gen = 0
         self.offspring = []
 
+        self.examples_dir = os.path.join(os.path.dirname(__file__),
+            os.path.abspath('resources/configuration_app/presets'))
+
         self.setupUi()
 
         # create the global population and some randomly selected individuals
         self.topo_tools = Topology_GPTools(max_levels=4)
-        self.Init_Evolution()
+        self.initEvolution()
 
         # Connect the main signal to the rebuild function
         # self.global_select_clicked.connect(self.EvolveInteractive)
@@ -295,13 +282,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Set up for the statistics stream at the top of the window
         self.statsFrame = QtGui.QFrame(self.centralwidget)
-        self.statsFrame.setMaximumSize(QtCore.QSize(16777215, 70))
+        self.statsFrame.setMaximumSize(QtCore.QSize(16777215, 80))
         self.statsFrame.setFrameShape(QtGui.QFrame.StyledPanel)
         self.statsFrame.setFrameShadow(QtGui.QFrame.Raised)
         self.statsHLayout = QtGui.QHBoxLayout(self.statsFrame)
         self.stats_textEdit = QtGui.QTextEdit(self.statsFrame)
         self.stats_textEdit.setReadOnly(True)
-        self.stats_textEdit.append('OCC_Airconics Aircraft Configuration app, version {}, {}'.format(airconics.__version__, datetime.datetime.now()))
+        self.stats_textEdit.append('OCC_Airconics Aircraft Configuration app, version {}, {}'.format(
+            airconics.__version__, datetime.datetime.now()))
         self.statsHLayout.addWidget(self.stats_textEdit)
         self.verticalLayout.addWidget(self.statsFrame)
 
@@ -309,7 +297,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.view_widget = QtGui.QWidget(self.centralwidget)
         self.view_layout = QtGui.QGridLayout(self.view_widget)
         self.view_widget.setLayout(self.view_layout)
-        positions = [(i, j) for i in range(0,(self.NY), 1) for j in range(0,(self.NX),1)]
+        positions = [(i, j) for i in range(0, (self.NY), 1)
+                     for j in range(0, (self.NX), 1)]
         for i, position in enumerate(positions):
             viewer_grid = Airconics_Viewgrid()
             ix, iy = position
@@ -322,7 +311,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Toolbar + icons
         self.tb = self.addToolBar("File")
-        open_act = QtGui.QAction(QtGui.QIcon.fromTheme("document-open"),"open",self)
+        open_act = QtGui.QAction(
+            QtGui.QIcon.fromTheme("document-open"), "open", self)
         self.tb.addAction(open_act)
         open_act.triggered.connect(self.openFile)
 
@@ -330,11 +320,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def openFile(self):
-        fname = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '', "JSON files (*.json)")
-        loaded_topo = self.topo_tools.from_JSON(fname)
-        # reset the evolution: 
-        self.Init_Evolution()
-        self.mutate_fromIndividual(loaded_topo._deap_tree)
+        fname = QtGui.QFileDialog.getOpenFileName(
+            self, 'Open File', self.examples_dir, "JSON files (*.json)")
+        if fname:
+            loaded_topo = self.topo_tools.from_JSONFile(fname)
+            # reset the evolution:
+            self._gen = 0
+            self.stats_textEdit.append("Opening file {}...".format(fname))
+            self.stats_textEdit.append("Resetting evolution")
+
+            record = self.stats.compile(self.topo_tools.population)
+            self.logbook.record(gen=0, **record)
+            self.stats_textEdit.append(self.logbook.stream)
+            print(self.topo_tools.population[0].fitness)
+            self.mutate_fromIndividual(loaded_topo._deap_tree)
 
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
@@ -386,38 +385,33 @@ class MainWindow(QtWidgets.QMainWindow):
         # MANUAL SELECTION?
         # Select the next generation individuals
         # offspring = self.topo_tools._toolbox.select(self.topo_tools.population,
-            # len(self.topo_tools.population))
+        # len(self.topo_tools.population))
 
-        # Vary the pool of individuals, using mutation only
-        offspring = [self.topo_tools._toolbox.clone(ind) for ind in self.topo_tools.population]
-        for i in range(len(offspring)):
+        # Vary the pool of individuals, using mutation only: this is based on
+        # the deap.algorithms.easimple example, with mutation only
+        for i in range(len(self.topo_tools.population)):
             # For some reason, deap.gp.mutUniform returns a tuple of length 1
-            offspring[i], = self.topo_tools._toolbox.mutate(individual)
-            del offspring[i].fitness.values
+            ind, = self.topo_tools._toolbox.mutate(individual)
 
-        # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = self.topo_tools._toolbox.map(
-            self.topo_tools._toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+            # All individuals have an invalid fitness, so update:
+            ind.fitness.values = \
+                self.topo_tools._toolbox.evaluate(ind)
+
+            self.topo_tools.population[i] = ind
 
         # Update the hall of fame with the generated individuals
-        self.hof.update(offspring)
-
-        # Replace the current population by the offspring
-        self.topo_tools.population = offspring
+        self.hof.update(self.topo_tools.population)
 
         # Append the current generation statistics to the logbook
         record = self.stats.compile(self.topo_tools.population)
-        self.logbook.record(gen=self._gen, nevals=len(invalid_ind), **record)
+        self.logbook.record(gen=self._gen, nevals=len(self.topo_tools.population), **record)
         self.stats_textEdit.append(self.logbook.stream)
 
         # Display the new population (using Topology setter, no addition reqd):
         for i, individual in enumerate(self.topo_tools.population):
-            self.viewer_grids[i].Topology = self.topo_tools.run(individual)        
+            self.viewer_grids[i].Topology = self.topo_tools.run(individual)
 
-    def Init_Evolution(self, verbose=__debug__):
+    def initEvolution(self, verbose=__debug__):
         """"""
         self._verbose = verbose
         # override the standard select method:
@@ -436,8 +430,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logbook.header = ['gen', 'nevals'] + self.stats.fields
 
         # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in self.topo_tools.population if not ind.fitness.valid]
-        fitnesses = self.topo_tools._toolbox.map(self.topo_tools._toolbox.evaluate, invalid_ind)
+        invalid_ind = [
+            ind for ind in self.topo_tools.population if not ind.fitness.valid]
+        fitnesses = self.topo_tools._toolbox.map(
+            self.topo_tools._toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
 
@@ -487,10 +483,8 @@ if __name__ == '__main__':
     for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
         viewer_grid.Topology = win.topo_tools.run(win.topo_tools.population[i])
-        progressBar.setValue((1./len(win.viewer_grids)) * i * 100)
+        progressBar.setValue((1. / len(win.viewer_grids)) * i * 100)
         app.processEvents()
-
-
 
     # add_menu('primitives')
     # add_function_to_menu('primitives', sphere)
@@ -499,6 +493,5 @@ if __name__ == '__main__':
 
     splash.finish(win)
 
-
     sys.exit(app.exec_())
-# 
+#
