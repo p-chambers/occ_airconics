@@ -1,6 +1,6 @@
 [
   {
-    "primitive": "fuselage2", 
+    "primitive": "fuselage1", 
     "X": 0.4, 
     "Y": 0.0, 
     "Z": 0.0,
@@ -8,38 +8,38 @@
     "NoseLengthRatio": 0.182,
     "TailLengthRatio": 0.293,
     "FinenessRatio": 0.6
-  }, 
-  {
-    "primitive": "liftingsurface0",
-    "X": 0.85,
-    "Y": 0.0, 
-    "Z": 0.3, 
-    "ChordFactor": 0.9,
-    "ScaleFactor": 0.035,
-    "Rotation": -1.0, 
-    "Type": "StraightWing"
-  }, 
+  },
   {
     "primitive": "mirror2"
-  }, 
-  {
-    "primitive": "liftingsurface0", 
-    "X": 0.85,
-    "Y": 0.0, 
-    "Z": 0.3, 
-    "ChordFactor": 0.65, 
-    "ScaleFactor": 0.09,
-    "Rotation": -0.6, 
-    "Type": "StraightWing"
   }, 
   {
     "primitive": "liftingsurface0",
     "X": 0.4, 
     "Y": 0.0, 
-    "Z": 0.05,     
+    "Z": 0.00,     
+    "ScaleFactor": 0.4,
+    "ChordFactor": 0.333,
+    "Rotation": 0.02, 
+    "Type": "TaperedWing"
+  },
+  {
+    "primitive": "liftingsurface1", 
+    "X": 0.85,
+    "Y": 0.0, 
+    "Z": 0.5, 
+    "ChordFactor": 0.65, 
+    "ScaleFactor": 0.09,
+    "Rotation": 0.0, 
+    "Type": "StraightWing"
+  },
+  {
+    "primitive": "liftingsurface0",
+    "X": 1.0, 
+    "Y": 1.0, 
+    "Z": 1.0,     
     "ScaleFactor": 0.8,
-    "ChordFactor": 0.233,
-    "Rotation": -0.1, 
+    "ChordFactor": 0.833,
+    "Rotation": 1.0, 
     "Type": "TaperedWing"
   }
 ]
