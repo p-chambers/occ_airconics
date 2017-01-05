@@ -226,7 +226,7 @@ class Topology(AirconicsCollection):
                       "liftingsurface": [float] * 6 + [dict]}
 
     varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
-                'fuselage': ['X', 'Y', 'Z', 'X_ScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
+                'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio'],
                 'mirror': []}
 
