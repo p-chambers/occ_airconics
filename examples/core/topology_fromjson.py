@@ -13,7 +13,7 @@ if __name__ == '__main__':
     fname = os.path.join(os.path.dirname(airconics.__file__),
                          'resources/configuration_app/presets/thunderbolt.json')
 
-    topo = topo_tools.from_JSONFile(fname)
+    topo = topo_tools.from_file(fname, loader="json")
 
     topo.Display(display)
 

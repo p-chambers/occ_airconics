@@ -992,32 +992,68 @@ class Topology_GPTools(object):
         tree = gp.PrimitiveTree.from_string(config_string, self._pset)
         return self.run(tree)
 
-    def from_JSONFile(self, fname):
+    def from_json(self, json_array):
         """
         """
-        with open(fname, 'r') as fin:
-            flat_primitivetree = json.load(fin)
-
         expr = []
 
-        for component in flat_primitivetree:
+        for component in json_array:
             prim_name = component['primitive']
+            basename = re.sub(r'\d+', '', prim_name)
+
+
+            if basename != 'mirror':
+                prim_args = component['args']
+            else:
+                # This is a mirror component, no args reqd.
+                pass
+
             arity = int(re.findall('\d+$', prim_name)[0])
             if prim_name in self._pset.mapping:
                 expr.append(self._pset.mapping[prim_name])
-            component.pop('primitive')
-            basename = re.sub(r'\d+', '', prim_name)
+
             for arg in Topology.varNames[basename]:
-                assert(arg in component), \
+                assert(arg in prim_args), \
                     'Input file does not contain parameter {} for component of type {}'. format(arg, prim_name)
-                if component[arg] in self._pset.mapping:
-                    terminal = self._pset.mapping[component[arg]]
+                if prim_args[arg] in self._pset.mapping:
+                    terminal = self._pset.mapping[prim_args[arg]]
                     expr.append(terminal)
                 else:
+                    # Probably a floating point number or string
+                    type_ = type(prim_args[arg])
 
-                    type_ = type(component[arg])
-
-                    expr.append(gp.Terminal(component[arg], False, type_))
+                    expr.append(gp.Terminal(prim_args[arg], False, type_))
 
         tree = self._creator.Individual(expr)
         return self.run(tree)
+
+    def from_file(self, fname, loader='json'):
+        """Opens file 'fname' and attempts to load the Topology described
+        within.
+
+        Currently only supports json files.
+
+        Parameters
+        ----------
+        fname : string
+
+        loader : string (default 'json')
+            Defines the loading method used to extract the files contents.
+            Currently only allows json
+
+        Notes
+        -----
+        the 'loader' parameter is used instead of a file extension method as
+        JSON formatted files do not require the extension to be '.json'
+
+        See Also
+        --------
+        from_JSON
+        """
+        if loader == "json":
+            with open(fname, 'r') as fin:
+                json_array = json.load(fin)
+            return self.from_json(json_array)
+        else:
+            raise ValueError(
+                "{} is not a known file loading method".format(loader))

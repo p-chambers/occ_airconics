@@ -27,8 +27,8 @@
     }
   },
   {
-    "primitive": "liftingsurface1",
-    "args": {    
+    "primitive": "liftingsurface1", 
+    "args": {
       "X": 0.85,
       "Y": 0.0, 
       "Z": 0.5, 
