@@ -282,9 +282,8 @@ class Topology(AirconicsCollection):
         if len(self.parent_nodes) > 0:
             if self.parent_nodes.values()[-1] > 0:
                 self.parent_nodes[self.parent_nodes.keys()[-1]] -= 1
-            else:
-                while len(self.parent_nodes) >= 1 and self.parent_nodes.values()[-1] == 0:
-                    self.parent_nodes.popitem()
+            while len(self.parent_nodes) >= 1 and self.parent_nodes.values()[-1] == 0:
+                self.parent_nodes.popitem()
 
         if arity > 0:
             self.parent_nodes[name] = arity
@@ -320,6 +319,7 @@ class Topology(AirconicsCollection):
         # using a try-except to work for any parent type ... could probably
         # do better here
         parent = self[self.parent_nodes.keys()[-1]]
+
         scalingrange = np.array([0.1, 1])
 
         try:
@@ -344,7 +344,7 @@ class Topology(AirconicsCollection):
             parent_apex = parent.BowPoint
             # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
             # self._testpoints.append(parent.SternPoint)
-            xmin, ymin, zmin, xmax, ymax, zmax = self.Extents()
+            xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
 
             newx = parent_apex.X() + (xmax - xmin) * oldx
             newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
@@ -356,7 +356,8 @@ class Topology(AirconicsCollection):
 
         # Ensure that the oldscaled and oldposition fractions does give
         # something invisibly small:
-        oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
+        # REMOVING THIS TEMPORARILY: trying to see if scalings > 1 are allowed
+        # oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
 
         # The scaling is some percentage of parent (assumes components get
         # smaller)
@@ -425,18 +426,15 @@ class Topology(AirconicsCollection):
         # Essentially this checks if the current shape is being fitted to a
         # parent
         if len(self.parent_nodes) > 0:
+
             ScalingX, NoseX, NoseY, NoseZ = self.fit_to_parent(
                 ScalingX, NoseX, NoseY, NoseZ)
         else:
             ScalingX = np.interp(ScalingX, [0, 1], arglimits[ScalingX])
             NoseX = NoseY = NoseZ = 0
 
-        FinenessRatio = np.interp(
-            FinenessRatio, [0, 1], arglimits[FinenessRatio])
-
         ScalingYZ = ScalingX / FinenessRatio
-
-
+        
         # Fits N new components to this box layout
         fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
                        TailLengthRatio=TailLengthRatio,
@@ -465,7 +463,7 @@ class Topology(AirconicsCollection):
                         Rotation, functional_params_dict, *args):
         # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
 
-        NSeg = 10
+        NSeg = 21
 
         # Checks if the current shape is being fitted to a parent; otherwise
         # this is the root component to which all others will be 'fitted',
@@ -473,6 +471,7 @@ class Topology(AirconicsCollection):
         if len(self.parent_nodes) > 0:
             ScaleFactor, ApexX, ApexY, ApexZ = self.fit_to_parent(
                 ScaleFactor, ApexX, ApexY, ApexZ)
+
         else:
             ApexX = ApexY = ApexZ = 0
 
@@ -703,10 +702,13 @@ class Topology_GPTools(object):
     def __init__(self, MaxAttachments=2, fitness_funct=default_fitness,
                  min_levels=2,
                  max_levels=4,
-                 pset_name="MAIN"):
+                 pset_name="MAIN",
+                 SimplificationReqd=True):
         self.MaxAttachments = MaxAttachments
         self.min_levels = min_levels
         self.max_levels = max_levels
+        self.SimplificationReqd = SimplificationReqd
+
         self._pset = self.create_pset(name=pset_name)
         self._toolbox, self._creator = self.create_toolbox(min_levels, max_levels)
         self._topology = None
@@ -736,7 +738,7 @@ class Topology_GPTools(object):
         # with a new topology. Speed increase may be found here by reusing the
         # Topology with self._topology._reset(), however, this can cause
         # unexpected behaviour with references returned by previous runs
-        self._topology = Topology()
+        self._topology = Topology(SimplificationReqd=self.SimplificationReqd)
         routine = gp.compile(tree, self._pset)
         self._topology._deap_tree = tree
         routine()
