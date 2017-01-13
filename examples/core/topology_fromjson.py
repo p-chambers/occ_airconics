@@ -11,7 +11,7 @@ if __name__ == '__main__':
     topo_tools = Topology_GPTools(MaxAttachments=4)
 
     fname = os.path.join(os.path.dirname(airconics.__file__),
-                         'resources/configuration_app/presets/proteus.json')
+                         'resources/configuration_app/presets/thunderbolt.json')
 
     topo = topo_tools.from_file(fname, loader="json")
 

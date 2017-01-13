@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-01-04 18:47:45
+# @Last Modified time: 2017-01-13 11:08:15
 import logging
 import os
 import sys
@@ -247,7 +247,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setupUi()
 
         # create the global population and some randomly selected individuals
-        self.topo_tools = Topology_GPTools(max_levels=4)
+        self.topo_tools = Topology_GPTools(MaxAttachments=3, max_levels=5)
         self.initEvolution()
 
         # Connect the main signal to the rebuild function
@@ -323,7 +323,7 @@ class MainWindow(QtWidgets.QMainWindow):
         fname = QtGui.QFileDialog.getOpenFileName(
             self, 'Open File', self.examples_dir, "JSON files (*.json)")
         if fname:
-            loaded_topo = self.topo_tools.from_JSONFile(fname)
+            loaded_topo = self.topo_tools.from_file(fname)
             # reset the evolution:
             self._gen = 0
             self.stats_textEdit.append("Opening file {}...".format(fname))
@@ -374,7 +374,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # individuals = selTournament(k=self.N, tournsize=2)
         # for viewer in self.viewer_grids:
         # viewer.Topology =
-        print("Selection triggered on geometry {}".format(identifier))
+        log.debug("Selection triggered on geometry {}".format(identifier))
         selected = self.viewer_grids[identifier].Topology._deap_tree
 
         self.mutate_fromIndividual(selected)

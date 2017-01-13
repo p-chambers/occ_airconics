@@ -710,7 +710,8 @@ class Topology_GPTools(object):
         self.SimplificationReqd = SimplificationReqd
 
         self._pset = self.create_pset(name=pset_name)
-        self._toolbox, self._creator = self.create_toolbox(min_levels, max_levels)
+        self._toolbox, self._creator = self.create_toolbox(
+            min_levels=min_levels, max_levels=max_levels)
         self._topology = None
 
         # Need to bind the fitness function to the object here:
@@ -860,7 +861,7 @@ class Topology_GPTools(object):
 
         return pset
 
-    def create_toolbox(self, fitness_method='max', min_=2, max_=4,
+    def create_toolbox(self, fitness_method='max', min_levels=2, max_levels=4,
                        tournsize=2):
         """
 
@@ -887,7 +888,7 @@ class Topology_GPTools(object):
 
         # Attribute generator
         toolbox.register("expr_init", gp.genFull,
-                         pset=self._pset, min_=min_, max_=max_)
+                         pset=self._pset, min_=min_levels, max_=max_levels)
 
         # Structure initializers
         toolbox.register("individual", tools.initIterate,

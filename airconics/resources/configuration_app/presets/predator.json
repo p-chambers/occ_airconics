@@ -8,7 +8,7 @@
       "XScaleFactor": 1.0,
       "NoseLengthRatio": 0.182,
       "TailLengthRatio": 0.293,
-      "FinenessRatio": 0.6
+      "FinenessRatio": 0.8
     }
   }, 
   {
@@ -18,7 +18,7 @@
       "Y": 0.0, 
       "Z": 0.3, 
       "ChordFactor": 0.9,
-      "ScaleFactor": 0.035,
+      "ScaleFactor": 0.115,
       "Rotation": -1.0, 
       "Type": "StraightWing"
     }
@@ -33,7 +33,7 @@
       "Y": 0.0, 
       "Z": 0.3, 
       "ChordFactor": 0.65, 
-      "ScaleFactor": 0.09,
+      "ScaleFactor": 0.15,
       "Rotation": -0.6, 
       "Type": "StraightWing"
     }
@@ -44,7 +44,7 @@
       "X": 0.4, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 0.8,
+      "ScaleFactor": 0.9,
       "ChordFactor": 0.233,
       "Rotation": -0.1, 
       "Type": "TaperedWing"

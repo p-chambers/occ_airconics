@@ -8,7 +8,7 @@
       "XScaleFactor": 1.0,
       "NoseLengthRatio": 0.182,
       "TailLengthRatio": 0.293,
-      "FinenessRatio": 0.6
+      "FinenessRatio": 0.85
     }
   },
   {
@@ -33,7 +33,7 @@
       "Y": 0.0, 
       "Z": 0.5, 
       "ChordFactor": 0.65, 
-      "ScaleFactor": 0.09,
+      "ScaleFactor": 0.14,
       "Rotation": 0.0, 
       "Type": "StraightWing"
     }
