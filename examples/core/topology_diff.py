@@ -13,7 +13,6 @@ from deap import gp
 
 if __name__ == '__main__':
 
-
     topo_tools = Topology_GPTools(MaxAttachments=4)
 
     fname = os.path.join(os.path.dirname(airconics.__file__),
@@ -26,24 +25,23 @@ if __name__ == '__main__':
 
     # can omit the loader='json' as this is default behavior
     topo2 = topo_tools.from_file(fname)
-    
+
     pset = topo_tools._pset
-    
-    component_types = [key for key in topo_tools._pset.mapping if isinstance(
-        topo_tools._pset.mapping[key], gp.Primitive)]
-    
-    components_1 = [node.name for node in topo._deap_tree if node.name in component_types]
-    
-    components_2 = [node.name for node in topo2._deap_tree if node.name in component_types]
-    
+
+    components_1 = [
+        node.name for node in topo._deap_tree if isinstance(node, gp.Primitive)]
+
+    components_2 = [
+        node.name for node in topo2._deap_tree if isinstance(node, gp.Primitive)]
+
     import difflib
-    
+
     sm = difflib.SequenceMatcher(None, components_1, components_2)
     print(sm.ratio())
-    
+
     print(components_1)
     print(components_2)
-    
+
     for match in sm.get_matching_blocks():
         print(match)
 

@@ -130,6 +130,116 @@ def default_fitness(topology):
     return (xmax - xmin) * (ymax - ymin) * (zmax - zmin)
 
 
+def create_diffed_airliner_fitness():
+    """
+    Produces a fitness function for checking the similarity of an input
+    airconics topology with a reference: the airliner example.
+
+    Uses difflib's gestalt pattern matching algorithms.
+
+    Returns
+    -------
+    diffed_fitness : function
+        A function which takes an airconics topology as its input
+
+    Notes
+    -----
+    * This function is used so that the reference geometry/layout needs to
+    be created once only.
+    
+    * Eventually this function should use some information from the
+    geometry model, e.g., total wing area, as part of the objective function.
+    """
+    # Create the reference list of primitive strings
+    topo_tools = Topology_GPTools(MaxAttachments=4)
+    fname = os.path.join(os.path.dirname(__file__,
+                         'resources/configuration_app/presets/airliner.json'))
+    topo = topo_tools.from_file(fname)
+    
+    # Obtain a list of all component primitives in the tree
+    airliner_json = topo.to_json()
+
+    airliner_components = [node['primitive'] for node in ref_json]
+
+    def diffed_airliner_fitness(topology):
+        """Currently just uses difflibs gestalt pattern matcher. Eventually,
+        this should use data from the inputs of the matched components 
+        """
+        import difflib
+
+        tree_json = topology.to_json()
+        tree_components = [node['primitive'] for node in tree_json]
+
+        sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
+
+        return sm.ratio()
+    return diffed_fitness
+
+
+import random
+from inspect import isclass
+
+def generate(pset, min_, max_, type_=None):
+    """Generate a Tree as a list of list. The tree is build
+    from the root to the leaves, and it stop growing when the
+    condition is fulfilled.
+    :param pset: Primitive set from which primitives are selected.
+    :param min_: Minimum height of the produced trees. INCLUDES LOWEST LEVEL OF TERMINALS,
+                 i.e., fuselage0(args) has a tree of height 2
+    :param max_: Maximum Height of the produced trees.
+    :param condition: The condition is a function that takes two arguments,
+                      the height of the tree to build and the current
+                      depth in the tree.
+    :param type_: The type that should return the tree when called, when
+                  :obj:`None` (default) the type of :pset: (pset.ret)
+                  is assumed.
+    :returns: A grown tree with leaves at possibly different depths
+              dependending on the condition function.
+    """
+    if type_ is None:
+        type_ = pset.ret
+    expr = []
+    height = random.randint(min_, max_)
+    last_level = height - 1
+    stack = [(0, type_)]
+    while len(stack) != 0:
+        depth, type_ = stack.pop()
+        if depth == height:
+            try:
+                term = random.choice(pset.terminals[type_])
+            except IndexError:
+                _, _, traceback = sys.exc_info()
+                raise IndexError, "The gp.generate function tried to add "\
+                                  "a terminal of type '%s', but there is "\
+                                  "none available." % (type_,), traceback
+            if isclass(term):
+                term = term()
+            expr.append(term)
+        else:
+            try:
+                if depth == last_level:
+                    prim = pset.mapping[random.choice(pset.leaf_primitives[type_])]
+                else:
+                    prim = random.choice(pset.primitives[type_])
+            except IndexError:
+                try:
+                    term = random.choice(pset.terminals[type_])
+                except IndexError:
+                    _, _, traceback = sys.exc_info()
+                    raise IndexError, \
+                        """The airconics.topology.generate function tried to
+                        add a terminal of type '%s', but there is none
+                        available.""" % (type_,), traceback
+                if isclass(term):
+                    term = term()
+                expr.append(term)
+            else:
+                expr.append(prim)
+                for arg in reversed(prim.args):
+                    stack.append((depth + 1, arg))
+    return expr
+
+
 class TreeNode(object):
     def __init__(self, part, name, arity):
         """Basic type to define node elements in the topology tree. To be used
@@ -228,7 +338,9 @@ class Topology(AirconicsCollection):
     varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
                 'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio'],
-                'mirror': []}
+                'mirror': [],
+                # 'empty': []
+                }
 
     def __init__(self, parts={},
                  construct_geometry=True,
@@ -648,24 +760,30 @@ class Topology(AirconicsCollection):
         graph = self.pydot_graph()
         return graph.create_dot()
 
-    def writeJSON(self, fname='layout.json'):
-        """
-        """
+    def to_json(self):
         json_obj = []
         for node in self._deap_tree:
-            if node.arity > 0:
+            if isinstance(node, gp.Primitive):
                 nodetype = re.sub(r'\d+', '', node.name)
                 json_obj.append({'primitive': node.name})
                 cycle = itertools.cycle(self.varNames[nodetype])
+                json_obj[-1]['args'] = {}
             else:
-                # this must be a terminal: take one from the stack
-                input_name = next(cycle)
-                json_obj[-1][input_name] = node.value
+                # try:
+                json_obj[-1]['args'][next(cycle)] = node.value
+                # except StopIteration:
+                #     # This 
+                #     pass
 
+        return json_obj
+
+    def write_json(self, fname='layout.json'):
+        """
+        """
+        json_obj = self.to_json()
         with open(fname, 'w') as fout:
-            json.dump(fout, json_obj, indent=2)
+            json.dump(json_obj, fout, indent=2)
 
-        return json_obj        
 
     def AddPart(self, part, name, arity=0):
         """Overloads the AddPart method of AirconicsCollection base class
@@ -712,27 +830,11 @@ class Topology_GPTools(object):
         self._pset = self.create_pset(name=pset_name)
         self._toolbox, self._creator = self.create_toolbox(
             min_levels=min_levels, max_levels=max_levels)
+        
         self._topology = None
 
         # Need to bind the fitness function to the object here:
         self.fitness_funct = types.MethodType(wrap_fitnessfunct(fitness_funct), self)
-
-        self.preset_strs = {
-            'airliner':
-                """fuselage2(0.3, 0., 0., 1., 0.293, 0.183, 0.38,
-                liftingsurface0(0.6, 0., 0.2, 1., 0.42, 1.0, AirlinerFin) mirror2(
-                liftingsurface0(0.65, 0., 0.2, 1., 0.42, 0., AirlinerTP),
-                liftingsurface0( 0.1, 0., 0.05, 1., 0.8, 0., AirlinerWing)
-                )
-                )""",
-            'predator':
-                """fuselage2(0.4, 0., 0., 1., 0.293, 0.183, 0.6,
-                liftingsurface0(0.85, 0., 0.3, 0.9, 0.035, -1.0, StraightWing), mirror2(
-                liftingsurface0(0.85, 0., 0.3, 0.65, 0.09, -0.6, StraightWing),
-                liftingsurface0(0.4, 0., 0.05, 0.233, 0.8, -0.1, TaperedWing)
-                )
-                )""",
-        }
 
     def run(self, tree):
         # This function currently overwrites the existing topology attribute
@@ -821,26 +923,30 @@ class Topology_GPTools(object):
                                   full_argtypes, types.NoneType,
                                   name=name + str(i))
 
+        # Adding a leaf_primitives list to pset: these are the names of prims
+        # that DO NOT CONTAIN SUBCOMPONENTS: the second to last level of
+        # primitives in a tree must be one of these (forced in 'generate'
+        # function)
+        pset.leaf_primitives = {types.NoneType: ['fuselage0', 'liftingsurface0'],
+        float: [], dict: []}
+
         # mirroring primitives (need to start from mirror1 to avoid bloat)
         for i in range(1, self.MaxAttachments + 1):
             name = 'mirror' + str(i)
-
             pset.addPrimitive(
                 self.mirrorN, [types.NoneType] * i, types.NoneType, name=name)
 
         # Primitives for defining shape of lifting surfaces:
         for wingtype, params in LSURF_FUNCTIONS.items():
-            # for funct_name, (function, ret_type) in params.items():
-            # name = funct_name + "_" + wingtype
             pset.addTerminal(params, dict, name=wingtype)
 
         # Workarounds: gp.generate doesn't seem to like mid-tree
         # terminals, so for now just add some primitive operators that
         # do a similar thing as the terminals:
-        def random_lsurfdict():
-            return np.random.choice(LSURF_FUNCTIONS.values())
+        # def random_lsurfdict():
+            # return np.random.choice(LSURF_FUNCTIONS.values())
 
-        pset.addPrimitive(random_lsurfdict, [], dict)
+        # pset.addEphemeralConstant('random_lsurf', random_lsurfdict, dict)
 
         # for wingtype, params in LSURF_FUNCTIONS.items():
         #     for funct_name, function in params.items()[:-1]:
@@ -849,13 +955,13 @@ class Topology_GPTools(object):
         #     # The last function is expected to be an airfoil function
         #     name, function=params.items()[-1]
 
-        def empty():
-            """This is workaround function: see comment above"""
-            return None
+        # def empty():
+        #     """This is workaround function: see comment above"""
+        #     return None
 
-        pset.addTerminal(empty, types.NoneType)
+        # pset.addTerminal(empty, types.NoneType)
 
-        pset.addPrimitive(np.random.rand, [], float)
+        # pset.addPrimitive(np.random.rand, [], float)
 
         pset.addEphemeralConstant('rand', np.random.rand, float)
 
@@ -887,8 +993,8 @@ class Topology_GPTools(object):
         toolbox = base.Toolbox()
 
         # Attribute generator
-        toolbox.register("expr_init", gp.genFull,
-                         pset=self._pset, min_=min_levels, max_=max_levels)
+        toolbox.register("expr_init", generate, pset=self._pset,
+            min_=min_levels, max_=max_levels)
 
         # Structure initializers
         toolbox.register("individual", tools.initIterate,
@@ -900,7 +1006,7 @@ class Topology_GPTools(object):
         toolbox.register("evaluate", self.evalTopology)
         toolbox.register("select", tools.selTournament, tournsize=tournsize)
         toolbox.register("mate", gp.cxOnePoint)
-        toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
+        toolbox.register("expr_mut", generate, min_=0, max_=2)
         toolbox.register("mutate", gp.mutUniform,
                          expr=toolbox.expr_mut, pset=self._pset)
 
