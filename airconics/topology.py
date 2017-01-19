@@ -33,6 +33,7 @@ from deap import creator
 from deap import tools
 from deap import gp
 import json
+import sys
 
 import logging
 log = logging.getLogger(__name__)
@@ -179,7 +180,7 @@ def create_diffed_airliner_fitness():
 import random
 from inspect import isclass
 
-def generate(pset, min_, max_, type_=None):
+def generate_topology(pset, min_, max_, type_=None):
     """Generate a Tree as a list of list. The tree is build
     from the root to the leaves, and it stop growing when the
     condition is fulfilled.
@@ -209,7 +210,7 @@ def generate(pset, min_, max_, type_=None):
                 term = random.choice(pset.terminals[type_])
             except IndexError:
                 _, _, traceback = sys.exc_info()
-                raise IndexError, "The gp.generate function tried to add "\
+                raise IndexError, "The topology.generate function tried to add "\
                                   "a terminal of type '%s', but there is "\
                                   "none available." % (type_,), traceback
             if isclass(term):
@@ -227,7 +228,7 @@ def generate(pset, min_, max_, type_=None):
                 except IndexError:
                     _, _, traceback = sys.exc_info()
                     raise IndexError, \
-                        """The airconics.topology.generate function tried to
+                        """The topology.generate function tried to
                         add a terminal of type '%s', but there is none
                         available.""" % (type_,), traceback
                 if isclass(term):
@@ -820,17 +821,21 @@ class Topology_GPTools(object):
     def __init__(self, MaxAttachments=2, fitness_funct=default_fitness,
                  min_levels=2,
                  max_levels=4,
+                 min_mut=1,
+                 max_mut=3,
                  pset_name="MAIN",
                  SimplificationReqd=True):
         self.MaxAttachments = MaxAttachments
         self.min_levels = min_levels
         self.max_levels = max_levels
         self.SimplificationReqd = SimplificationReqd
+        self.min_mut = min_mut
+        self.max_mut = max_mut
 
         self._pset = self.create_pset(name=pset_name)
         self._toolbox, self._creator = self.create_toolbox(
             min_levels=min_levels, max_levels=max_levels)
-        
+
         self._topology = None
 
         # Need to bind the fitness function to the object here:
@@ -993,8 +998,8 @@ class Topology_GPTools(object):
         toolbox = base.Toolbox()
 
         # Attribute generator
-        toolbox.register("expr_init", generate, pset=self._pset,
-            min_=min_levels, max_=max_levels)
+        toolbox.register("expr_init", generate_topology, pset=self._pset,
+                         min_=min_levels, max_=max_levels)
 
         # Structure initializers
         toolbox.register("individual", tools.initIterate,
@@ -1006,9 +1011,12 @@ class Topology_GPTools(object):
         toolbox.register("evaluate", self.evalTopology)
         toolbox.register("select", tools.selTournament, tournsize=tournsize)
         toolbox.register("mate", gp.cxOnePoint)
-        toolbox.register("expr_mut", generate, min_=0, max_=2)
-        toolbox.register("mutate", gp.mutUniform,
-                         expr=toolbox.expr_mut, pset=self._pset)
+
+
+        toolbox.register("expr_mut", generate_topology, min_=self.min_mut, max_=self.max_mut)
+        toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=self._pset)
+        # REMOVE THIS LATER: A BUG IS PRESENT IN THE ABOVE CODE, FIXING IT...
+        # toolbox.register("expr_mut", )
 
         return toolbox, creator
 
