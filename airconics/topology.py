@@ -34,6 +34,7 @@ from deap import tools
 from deap import gp
 import json
 import sys
+import os
 
 import logging
 log = logging.getLogger(__name__)
@@ -153,28 +154,29 @@ def create_diffed_airliner_fitness():
     """
     # Create the reference list of primitive strings
     topo_tools = Topology_GPTools(MaxAttachments=4)
-    fname = os.path.join(os.path.dirname(__file__,
-                         'resources/configuration_app/presets/airliner.json'))
+    fname = os.path.join(os.path.dirname(__file__),
+                         'resources/configuration_app/presets/airliner.json')
     topo = topo_tools.from_file(fname)
     
     # Obtain a list of all component primitives in the tree
     airliner_json = topo.to_json()
 
-    airliner_components = [node['primitive'] for node in ref_json]
+    airliner_components = [node['primitive'] for node in airliner_json]
 
     def diffed_airliner_fitness(topology):
-        """Currently just uses difflibs gestalt pattern matcher. Eventually,
-        this should use data from the inputs of the matched components 
-        """
-        import difflib
+            """Currently just uses difflibs gestalt pattern matcher. Eventually,
+            this should use data from the inputs of the matched components 
+            """
+            import difflib
 
-        tree_json = topology.to_json()
-        tree_components = [node['primitive'] for node in tree_json]
+            tree_json = topology.to_json()
+            tree_components = [node['primitive'] for node in tree_json]
 
-        sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
+            sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
 
-        return sm.ratio()
-    return diffed_fitness
+            return sm.ratio()
+    return diffed_airliner_fitness
+
 
 
 import random
