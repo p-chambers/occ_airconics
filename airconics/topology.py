@@ -826,7 +826,9 @@ class Topology_GPTools(object):
                  min_mut=1,
                  max_mut=3,
                  pset_name="MAIN",
-                 SimplificationReqd=True):
+                 SimplificationReqd=True,
+                 fitness_weights=(1.0,),
+                 tournsize=5):
         self.MaxAttachments = MaxAttachments
         self.min_levels = min_levels
         self.max_levels = max_levels
@@ -836,7 +838,8 @@ class Topology_GPTools(object):
 
         self._pset = self.create_pset(name=pset_name)
         self._toolbox, self._creator = self.create_toolbox(
-            min_levels=min_levels, max_levels=max_levels)
+            fitness_weights=fitness_weights, min_levels=min_levels,
+            max_levels=max_levels, tournsize=tournsize)
 
         self._topology = None
 
@@ -974,7 +977,7 @@ class Topology_GPTools(object):
 
         return pset
 
-    def create_toolbox(self, fitness_method='max', min_levels=2, max_levels=4,
+    def create_toolbox(self, fitness_weights=(1.0,), min_levels=2, max_levels=4,
                        tournsize=2):
         """
 
@@ -986,17 +989,22 @@ class Topology_GPTools(object):
         tournsize : int
             Number of individuals to enter tournament selection
 
+        fitness_weights : tuple (default (1.0,))
+            the weighting of the fitness values. (1.,) find global max, (-1.0,)
+            is a minimisation. See DEAP base.Fitness. Multiple objectives are
+            possible.
+
         See Also
         --------
-        deap.gp.tools, deap.base.Toolbox
+        deap.gp.tools, deap.base.Toolbox, deap.base.Fitness
         """
         if not self._pset:
             self._pset = self.create_pset()
 
-        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        creator.create("Fitness", base.Fitness, weights=fitness_weights)
         creator.create("Individual", gp.PrimitiveTree,
-                       fitness=creator.FitnessMax)
-
+                       fitness=creator.Fitness)
+    
         toolbox = base.Toolbox()
 
         # Attribute generator
@@ -1061,22 +1069,22 @@ class Topology_GPTools(object):
         deap.algorithms.eaSimple
         """
         self._init_population(n)
-        hof = tools.HallOfFame(1)
+        hof = tools.HallOfFame(100)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean)
         stats.register("std", np.std)
         stats.register("min", np.min)
         stats.register("max", np.max)
 
-        algorithms.eaSimple(self.population, self._toolbox, 0.5, 0.2,
-                            20, stats, halloffame=hof)
+        population, logbook = algorithms.eaSimple(self.population, self._toolbox, cxpd, mutpd,
+                            ngen, stats, halloffame=hof)
 
         # get the best individual and rerun it:
-        best = hof[0]
+        best = hof[100]
 
         self.run(best)
 
-        return hof, stats
+        return population, logbook, hof
 
     def evalTopology(self, individual):
         topo = self.run(individual)

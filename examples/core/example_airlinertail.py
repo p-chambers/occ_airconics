@@ -22,6 +22,12 @@ if __name__ == '__main__':
     from OCC.Display.SimpleGui import init_display
     display, start_display, add_menu, add_function_to_menu = init_display()
 
+    # increase the quality, as this shape has high curvature
+    drawer = display.Context.DefaultDrawer().GetObject()
+    drawer.SetDeviationAngle(drawer.DeviationAngle() / 100.)
+    drawer.SetDeviationCoefficient(drawer.DeviationCoefficient() / 100.)
+    
+    
     from airconics.examples.tailplane_example_transonic_airliner import *
     from airconics import liftingsurface
     import airconics.AirCONICStools as act
