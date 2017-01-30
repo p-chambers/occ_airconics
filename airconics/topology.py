@@ -1080,7 +1080,7 @@ class Topology_GPTools(object):
                             ngen, stats, halloffame=hof)
 
         # get the best individual and rerun it:
-        best = hof[100]
+        best = hof[0]
 
         self.run(best)
 
