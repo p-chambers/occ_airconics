@@ -35,6 +35,8 @@ from deap import gp
 import json
 import sys
 import os
+from operator import attrgetter
+
 
 import logging
 log = logging.getLogger(__name__)
@@ -140,7 +142,7 @@ def create_diffed_airliner_fitness():
     Uses difflib's gestalt pattern matching algorithms.
 
     Returns
-    -------
+    -------~
     diffed_fitness : function
         A function which takes an airconics topology as its input
 
@@ -164,23 +166,52 @@ def create_diffed_airliner_fitness():
     airliner_components = [node['primitive'] for node in airliner_json]
 
     def diffed_airliner_fitness(topology):
-            """Currently just uses difflibs gestalt pattern matcher. Eventually,
-            this should use data from the inputs of the matched components 
-            """
-            import difflib
+        """Currently just uses difflibs gestalt pattern matcher. Eventually,
+        this should use data from the inputs of the matched components 
+        """
+        import difflib
 
-            tree_json = topology.to_json()
-            tree_components = [node['primitive'] for node in tree_json]
+        tree_json = topology.to_json()
+        tree_components = [node['primitive'] for node in tree_json]
 
-            sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
+        sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
+        
+        # Will give something in order 0-10, 0 being exactly the same
+        diff = (1-sm.ratio()) * 10
 
-            return sm.ratio()
+        for match in sm.get_matching_blocks()[:-1]:
+
+            for i in range(match.size):
+                argsa = tree_json[match.a + i]['args']
+                diff_vector = np.zeros(len(argsa))
+                if len(argsa) > 0:
+                    # This node is not a mirror, and inputs may have some difference
+                    argsb = airliner_json[match.b + i]['args']
+
+                    # Try and get the shape difference only:
+                    try:
+                        # if this works, it's a wing
+                        diff += (1 if argsa['Type'] != argsb['Type'] else 0)
+                    except KeyError:
+                        # If not, it's a fuselage
+                        pass
+                    
+                    for j, (key, val) in enumerate(argsb.items()):
+                        try: 
+                            diff_vector[j] = abs(val - argsa[key])
+                        except TypeError:
+                            # This is probably the string parameter (eg wing type)
+                            pass
+                    diff += np.linalg.norm(diff_vector) / np.linalg.norm(np.ones_like(diff_vector))   # Will give something in the order 1
+
+        return diff
     return diffed_airliner_fitness
 
 
 
 import random
 from inspect import isclass
+
 
 def generate_topology(pset, min_, max_, type_=None):
     """Generate a Tree as a list of list. The tree is build
@@ -241,6 +272,116 @@ def generate_topology(pset, min_, max_, type_=None):
                 for arg in reversed(prim.args):
                     stack.append((depth + 1, arg))
     return expr
+
+
+def eaSimple_logbest(population, toolbox, cxpb, mutpb, ngen, stats=None,
+             halloffame=None, verbose=__debug__):
+    """This algorithm is directly copied and edited from
+    deap.algorithms.eaSimple, and reproduce the simplest evolutionary algorithm
+    as presented in chapter 7 of [Back2000]_.
+
+    Edits in this algorithm allow that the best individual of each generation
+    is logged and returned.
+
+    :param population: A list of individuals.
+    :param toolbox: A :class:`~deap.base.Toolbox` that contains the evolution
+                    operators.
+    :param cxpb: The probability of mating two individuals.
+    :param mutpb: The probability of mutating an individual.
+    :param ngen: The number of generation.
+    :param stats: A :class:`~deap.tools.Statistics` object that is updated
+                  inplace, optional.
+    :param halloffame: A :class:`~deap.tools.HallOfFame` object that will
+                       contain the best individuals, optional.
+    :param verbose: Whether or not to log the statistics.
+    :returns: The final population
+    :returns: A class:`~deap.tools.Logbook` with the statistics of the
+              evolution
+    :returns: The best individuals at each generation
+
+    The algorithm takes in a population and evolves it in place using the
+    :meth:`varAnd` method. It returns the optimized population and a
+    :class:`~deap.tools.Logbook` with the statistics of the evolution. The
+    logbook will contain the generation number, the number of evalutions for
+    each generation and the statistics if a :class:`~deap.tools.Statistics` is
+    given as argument. The *cxpb* and *mutpb* arguments are passed to the
+    :func:`varAnd` function. The pseudocode goes as follow ::
+        evaluate(population)
+        for g in range(ngen):
+            population = select(population, len(population))
+            offspring = varAnd(population, toolbox, cxpb, mutpb)
+            evaluate(offspring)
+            population = offspring
+    As stated in the pseudocode above, the algorithm goes as follow. First, it
+    evaluates the individuals with an invalid fitness. Second, it enters the
+    generational loop where the selection procedure is applied to entirely
+    replace the parental population. The 1:1 replacement ratio of this
+    algorithm **requires** the selection procedure to be stochastic and to
+    select multiple times the same individual, for example,
+    :func:`~deap.tools.selTournament` and :func:`~deap.tools.selRoulette`.
+    Third, it applies the :func:`varAnd` function to produce the next
+    generation population. Fourth, it evaluates the new individuals and
+    compute the statistics on this population. Finally, when *ngen*
+    generations are done, the algorithm returns a tuple with the final
+    population and a :class:`~deap.tools.Logbook` of the evolution.
+    .. note::
+        Using a non-stochastic selection method will result in no selection as
+        the operator selects *n* individuals from a pool of *n*.
+    This function expects the :meth:`toolbox.mate`, :meth:`toolbox.mutate`,
+    :meth:`toolbox.select` and :meth:`toolbox.evaluate` aliases to be
+    registered in the toolbox.
+    .. [Back2000] Back, Fogel and Michalewicz, "Evolutionary Computation 1 :
+       Basic Algorithms and Operators", 2000.
+    """
+    logbook = tools.Logbook()
+    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+    # Evaluate the individuals with an invalid fitness
+    invalid_ind = [ind for ind in population if not ind.fitness.valid]
+    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    if halloffame is not None:
+        halloffame.update(population)
+
+    record = stats.compile(population) if stats else {}
+    logbook.record(gen=0, nevals=len(invalid_ind), **record)
+    if verbose:
+        print logbook.stream
+
+    gen_best = [toolbox.clone(max(population, key=attrgetter("fitness")))]
+
+    # Begin the generational process
+    for gen in range(1, ngen + 1):
+        # Select the next generation individuals
+        offspring = toolbox.select(population, len(population))
+
+        # Vary the pool of individuals
+        offspring = algorithms.varAnd(offspring, toolbox, cxpb, mutpb)
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        # Update the hall of fame with the generated individuals
+        if halloffame is not None:
+            halloffame.update(offspring)
+
+        # Replace the current population by the offspring
+        population[:] = offspring
+
+        gen_best.append(toolbox.clone(max(population, key=attrgetter("fitness"))))
+
+        # Append the current generation statistics to the logbook
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+        if verbose:
+            print logbook.stream
+
+    return population, logbook, gen_best
 
 
 class TreeNode(object):
@@ -347,7 +488,7 @@ class Topology(AirconicsCollection):
 
     def __init__(self, parts={},
                  construct_geometry=True,
-                 SimplificationReqd=True,
+                 SimplificationReqd=True
                  ):
 
         # Start with an empty parts list, as all parts will be added using
@@ -828,18 +969,20 @@ class Topology_GPTools(object):
                  pset_name="MAIN",
                  SimplificationReqd=True,
                  fitness_weights=(1.0,),
-                 tournsize=5):
+                 tournsize=5,
+                 history=False):
         self.MaxAttachments = MaxAttachments
         self.min_levels = min_levels
         self.max_levels = max_levels
         self.SimplificationReqd = SimplificationReqd
         self.min_mut = min_mut
         self.max_mut = max_mut
+        self.history = None
 
         self._pset = self.create_pset(name=pset_name)
         self._toolbox, self._creator = self.create_toolbox(
             fitness_weights=fitness_weights, min_levels=min_levels,
-            max_levels=max_levels, tournsize=tournsize)
+            max_levels=max_levels, tournsize=tournsize, history=history)
 
         self._topology = None
 
@@ -978,7 +1121,7 @@ class Topology_GPTools(object):
         return pset
 
     def create_toolbox(self, fitness_weights=(1.0,), min_levels=2, max_levels=4,
-                       tournsize=2):
+                       tournsize=2, history=False):
         """
 
         Parameters
@@ -1028,6 +1171,11 @@ class Topology_GPTools(object):
         # REMOVE THIS LATER: A BUG IS PRESENT IN THE ABOVE CODE, FIXING IT...
         # toolbox.register("expr_mut", )
 
+        if history:
+            self.history = tools.support.History()
+            toolbox.decorate("mate", self.history.decorator)
+            toolbox.decorate("mutate", self.history.decorator)
+
         return toolbox, creator
 
     def randomize(self):
@@ -1069,6 +1217,9 @@ class Topology_GPTools(object):
         deap.algorithms.eaSimple
         """
         self._init_population(n)
+        if self.history:
+            self.history.update(self.population)
+
         hof = tools.HallOfFame(100)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean)
@@ -1076,7 +1227,7 @@ class Topology_GPTools(object):
         stats.register("min", np.min)
         stats.register("max", np.max)
 
-        population, logbook = algorithms.eaSimple(self.population, self._toolbox, cxpd, mutpd,
+        population, logbook, gen_best = eaSimple_logbest(self.population, self._toolbox, cxpd, mutpd,
                             ngen, stats, halloffame=hof)
 
         # get the best individual and rerun it:
@@ -1084,7 +1235,7 @@ class Topology_GPTools(object):
 
         self.run(best)
 
-        return population, logbook, hof
+        return population, logbook, hof, gen_best
 
     def evalTopology(self, individual):
         topo = self.run(individual)
