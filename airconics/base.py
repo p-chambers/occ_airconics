@@ -590,7 +590,7 @@ class AirconicsCollection(AirconicsBase):
             else:
                 for partname, part in self.items():
                     f = path + '_' + name + ext
-                    status.append(path.Write(f, single_export=True))
+                    status.append(part.Write(f, single_export=True))
 
         elif ext in ['.stp', '.step']:
             if single_export:

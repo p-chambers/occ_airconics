@@ -1061,7 +1061,7 @@ class Topology_GPTools(object):
         --------
         deap.gp.PrimitiveSetTyped
         """
-        pset = gp.PrimitiveSetTyped(name, [], types.NoneType)
+        pset = gp.PrimitiveSetTyped(name, [], functools.partial)
 
         # Automatically add primitive for each type with integer numbers of
         # 'attached' subcomponents up to MaxAttachments (__init__ argument)
@@ -1071,23 +1071,23 @@ class Topology_GPTools(object):
                 # get Number of inputs of the basic method e.g. fuselageN, and
                 # add N (-1 due to self) float arguments to the typed
                 # primitive
-                full_argtypes = argtypes + [types.NoneType] * i
+                full_argtypes = argtypes + [functools.partial] * i
                 pset.addPrimitive(getattr(self, name + 'N'),
-                                  full_argtypes, types.NoneType,
+                                  full_argtypes, functools.partial,
                                   name=name + str(i))
 
         # Adding a leaf_primitives list to pset: these are the names of prims
         # that DO NOT CONTAIN SUBCOMPONENTS: the second to last level of
         # primitives in a tree must be one of these (forced in 'generate'
         # function)
-        pset.leaf_primitives = {types.NoneType: ['fuselage0', 'liftingsurface0'],
+        pset.leaf_primitives = {functools.partial: ['fuselage0', 'liftingsurface0'],
         float: [], dict: []}
 
         # mirroring primitives (need to start from mirror1 to avoid bloat)
         for i in range(1, self.MaxAttachments + 1):
             name = 'mirror' + str(i)
             pset.addPrimitive(
-                self.mirrorN, [types.NoneType] * i, types.NoneType, name=name)
+                self.mirrorN, [functools.partial] * i, functools.partial, name=name)
 
         # Primitives for defining shape of lifting surfaces:
         for wingtype, params in LSURF_FUNCTIONS.items():
@@ -1116,7 +1116,7 @@ class Topology_GPTools(object):
 
         # pset.addPrimitive(np.random.rand, [], float)
 
-        pset.addEphemeralConstant('rand', np.random.rand, float)
+        pset.addEphemeralConstant('rand', random.random, float)
 
         return pset
 
@@ -1161,15 +1161,13 @@ class Topology_GPTools(object):
                          list, toolbox.individual)
 
         # The evolutionary operators
-        toolbox.register("evaluate", self.evalTopology)
+        toolbox.register("evaluate", self.evalTopology)  # This may cause errors with multiprocessing, due to self
         toolbox.register("select", tools.selTournament, tournsize=tournsize)
         toolbox.register("mate", gp.cxOnePoint)
 
 
         toolbox.register("expr_mut", generate_topology, min_=self.min_mut, max_=self.max_mut)
         toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=self._pset)
-        # REMOVE THIS LATER: A BUG IS PRESENT IN THE ABOVE CODE, FIXING IT...
-        # toolbox.register("expr_mut", )
 
         if history:
             self.history = tools.support.History()

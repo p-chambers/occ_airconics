@@ -14,11 +14,11 @@
   {
     "primitive": "liftingsurface0", 
     "args": {
-      "X": 0.6, 
+      "X": 0.55, 
       "Y": 0.0,
-      "Z": 0.2, 
+      "Z": 0.6, 
       "ChordFactor": 1.0,
-      "ScaleFactor": 0.42,
+      "ScaleFactor": 0.45,
       "Rotation": 1.0,
       "Type": "AirlinerFin"
     }
@@ -29,11 +29,11 @@
   {
     "primitive": "liftingsurface0", 
     "args": {
-      "X": 0.65,
+      "X": 0.7,
       "Y": 0.0, 
-      "Z": 0.2, 
+      "Z": 0.5, 
       "ChordFactor": 1.0, 
-      "ScaleFactor": 0.42,
+      "ScaleFactor": 0.35,
       "Rotation": 0.0, 
       "Type": "AirlinerTP"
     }
@@ -41,11 +41,11 @@
   {
     "primitive": "liftingsurface0",
     "args": {
-      "X": 0.1, 
+      "X": 0.15, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 1.0,
-      "ChordFactor": 0.8,
+      "ScaleFactor": 0.82,
+      "ChordFactor": 0.71,
       "Rotation": 0.0, 
       "Type": "AirlinerWing"
     }

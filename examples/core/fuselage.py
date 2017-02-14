@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: p-chambers
 # @Date:   2016-11-09 16:09:51
-# @Last Modified by:   Paul Chambers
-# @Last Modified time: 2016-11-10 11:05:15
+# @Last Modified by:   p-chambers
+# @Last Modified time: 2017-02-08 18:23:25
 from airconics import Fuselage
 
 
@@ -38,5 +38,7 @@ if __name__ == '__main__':
         display.DisplayShape(pt)
 
     print(Fus.SternPoint.X(), Fus.SternPoint.Y(), Fus.SternPoint.Z())
+
+    Fus.Write('fuselage.stp')
 
     start_display()
