@@ -3,7 +3,7 @@
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-01-17 15:15:34
+# @Last Modified time: 2017-02-22 11:57:32
 import logging
 import os
 import sys
@@ -317,12 +317,12 @@ class MainWindow(QtWidgets.QMainWindow):
         open_act.triggered.connect(self.openFile)
 
         # Menus and functions
-        self.add_menu('tools')
-        self.add_function_to_menu()
+        # self.add_menu('tools')
+        # self.add_function_to_menu()
 
         self.setCentralWidget(self.centralwidget)
 
-    def setGeomDisplayType(self, type='digraph'):
+    # def setGeomDisplayType(self, type='digraph'):
 
 
     @QtCore.pyqtSlot()
