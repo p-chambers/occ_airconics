@@ -243,9 +243,9 @@ def generate_topology(pset, min_, max_, type_=None):
                 term = random.choice(pset.terminals[type_])
             except IndexError:
                 _, _, traceback = sys.exc_info()
-                raise IndexError, "The topology.generate function tried to add "\
+                raise IndexError("The topology.generate function tried to add "\
                                   "a terminal of type '%s', but there is "\
-                                  "none available." % (type_,), traceback
+                                  "none available." % (type_,), traceback)
             if isclass(term):
                 term = term()
             expr.append(term)
@@ -260,10 +260,10 @@ def generate_topology(pset, min_, max_, type_=None):
                     term = random.choice(pset.terminals[type_])
                 except IndexError:
                     _, _, traceback = sys.exc_info()
-                    raise IndexError, \
+                    raise IndexError(
                         """The topology.generate function tried to
                         add a terminal of type '%s', but there is none
-                        available.""" % (type_,), traceback
+                        available.""" % (type_,), traceback)
                 if isclass(term):
                     term = term()
                 expr.append(term)
@@ -348,7 +348,7 @@ def eaSimple_logbest(population, toolbox, cxpb, mutpb, ngen, stats=None,
     record = stats.compile(population) if stats else {}
     logbook.record(gen=0, nevals=len(invalid_ind), **record)
     if verbose:
-        print logbook.stream
+        print(logbook.stream)
 
     gen_best = [toolbox.clone(max(population, key=attrgetter("fitness")))]
 
@@ -379,7 +379,7 @@ def eaSimple_logbest(population, toolbox, cxpb, mutpb, ngen, stats=None,
         record = stats.compile(population) if stats else {}
         logbook.record(gen=gen, nevals=len(invalid_ind), **record)
         if verbose:
-            print logbook.stream
+            print(logbook.stream)
 
     return population, logbook, gen_best
 
