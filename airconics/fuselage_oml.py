@@ -707,6 +707,47 @@ class Fuselage(AirconicsShape):
 
         return WinStbd, WinPort
 
+    def fit_scale_location(self, oldscaling, oldx, oldy, oldz):
+        """Given an old scaling and old position (this will be a random number
+        between 0 and 1 using the DEAP tree I have set up elsewhere), a new
+        scaling and position is returned allowing the resulting shape to 'fit'
+        to its parent"""
+        # Need to get a scaling from the parent of arbitrary type:
+        # using a try-except to work for any parent type ... could probably
+        # do better here
+
+        scalingrange = np.array([0.1, 1])
+
+        parentscalefactor = self.Scaling[0]
+
+        parent_apex = self.BowPoint
+        # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
+        # self._testpoints.append(parent.SternPoint)
+        xmin, ymin, zmin, xmax, ymax, zmax = self.Extents()
+
+        newx = parent_apex.X() + (xmax - xmin) * oldx
+        newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
+        newz = parent_apex.Z() + (zmax - zmin) / 2. * oldz
+
+
+        # Ensure that the oldscaled and oldposition fractions doesn't give
+        # something invisibly small:
+        # REMOVING THIS TEMPORARILY: trying to see if scalings > 1 are allowed
+        # oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
+
+        # The scaling is some percentage of parent (assumes components get
+        # smaller)
+        newscaling = oldscaling * parentscalefactor
+
+
+        return newscaling, newx, newy, newz
+
 #    def MakeCockpitWindows(self, Height = 1.620, Depth = 5):
 #        CW
 ###############################################################################
+
+    def get_spanstation_chord(self, spanstation):
+        """
+        """
+        EngineSection, HChord = act.CutSect(self['OML'], SpanStation)
+        return HChord

@@ -477,7 +477,8 @@ class Topology(AirconicsCollection):
         jan 2014.
     """
     ComponentTypes = {"fuselage": [float] * 7,
-                      "liftingsurface": [float] * 6 + [dict]}
+                      "liftingsurface": [float] * 6 + [dict],
+                      "engine": [float] * 3+}
 
     varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
                 'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
@@ -566,78 +567,61 @@ class Topology(AirconicsCollection):
         self.nparts = 0
         self.mirror = False
 
-    def fit_to_parent(self, oldscaling, oldx, oldy, oldz):
-        """Given an old scaling and old position (this will be a random number
-        between 0 and 1 using the DEAP tree I have set up elsewhere), a new
-        scaling and position is returned allowing the resulting shape to 'fit'
-        to its parent"""
-        # Need to get a scaling from the parent of arbitrary type:
-        # using a try-except to work for any parent type ... could probably
-        # do better here
-        parent = self[self.parent_nodes.keys()[-1]]
+    # def fit_to_parent(self, oldscaling, oldx, oldy, oldz):
+    #     """Given an old scaling and old position (this will be a random number
+    #     between 0 and 1 using the DEAP tree I have set up elsewhere), a new
+    #     scaling and position is returned allowing the resulting shape to 'fit'
+    #     to its parent"""
+    #     # Need to get a scaling from the parent of arbitrary type:
+    #     # using a try-except to work for any parent type ... could probably
+    #     # do better here
+    #     parent = self[self.parent_nodes.keys()[-1]]
 
-        scalingrange = np.array([0.1, 1])
+    #     parent.fit_scale_location(oldscaling, oldx, oldy, oldz)
 
-        try:
-            # The LiftingSurface branch (could probably do better here)
-            parentscalefactor = parent.ScaleFactor
+    #     try:
+    #         # The LiftingSurface branch (could probably do better here)
+    #         parentscalefactor = parent.ScaleFactor
 
-        except AttributeError:
-            # The Fuselage branch
-            parentscalefactor = parent.Scaling[0]
+    #     except AttributeError:
+    #         # The Fuselage branch
+    #         parentscalefactor = parent.Scaling[0]
 
-        try:
-            # The interpolation along the curve: this could be done better
-            # Essentially, this is the length of the vector normalised by
-            # the diagonal of a 1 by 1 by 1 cube
-            curve = parent.LECurve.GetObject()
-            interp_C = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
-            newapex = curve.Value(interp_C)
-            newx, newy, newz = newapex.X(), newapex.Y(), newapex.Z()
+    #     try:
+    #         # The interpolation along the curve: this could be done better
+    #         # Essentially, this is the length of the vector normalised by
+    #         # the diagonal of a 1 by 1 by 1 cube
+    #         curve = parent.LECurve.GetObject()
+    #         interp_C = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
+    #         newapex = curve.Value(interp_C)
+    #         newx, newy, newz = newapex.X(), newapex.Y(), newapex.Z()
 
-        except AttributeError:
-            # The Fuselage branch
-            parent_apex = parent.BowPoint
-            # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
-            # self._testpoints.append(parent.SternPoint)
-            xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
+    #     except AttributeError:
+    #         # The Fuselage branch
+    #         parent_apex = parent.BowPoint
+    #         # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
+    #         # self._testpoints.append(parent.SternPoint)
+    #         xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
 
-            newx = parent_apex.X() + (xmax - xmin) * oldx
-            newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
-            newz = parent_apex.Z() + (zmax - zmin) / 2. * oldz
+    #         newx = parent_apex.X() + (xmax - xmin) * oldx
+    #         newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
+    #         newz = parent_apex.Z() + (zmax - zmin) / 2. * oldz
 
-            # self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
-
-
-
-        # Ensure that the oldscaled and oldposition fractions does give
-        # something invisibly small:
-        # REMOVING THIS TEMPORARILY: trying to see if scalings > 1 are allowed
-        # oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
-
-        # The scaling is some percentage of parent (assumes components get
-        # smaller)
-        newscaling = oldscaling * parentscalefactor
+    #         # self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
 
 
-        return newscaling, newx, newy, newz
 
-    # def Build(self):
-    #     """Recursively builds all sub components in the current topology tree
-    #     if self.construct_geometry is true. Will also mirror components
-    #     if a mirror node has been added, regardless of if construct_geometry
-    #     is true.
+    #     # Ensure that the oldscaled and oldposition fractions does give
+    #     # something invisibly small:
+    #     # REMOVING THIS TEMPORARILY: trying to see if scalings > 1 are allowed
+    #     # oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
 
-    #     Uses the the Build method of all sub components. Any user defined
-    #     classes must therefore define the Build method in order for this to
-    #     work correctly.
-    #     """
-    #     if self.construct_geometry:
-    #         log.debug("Building all geometries from Topology object")
-    #         for name, part in self.items():
-    #             part.Build()
+    #     # The scaling is some percentage of parent (assumes components get
+    #     # smaller)
+    #     newscaling = oldscaling * parentscalefactor
 
-    #     self.MirrorSubtree()
+
+    #     return newscaling, newx, newy, newz
 
     @wrap_shapeN
     def mirrorN(self, *args):
@@ -679,12 +663,13 @@ class Topology(AirconicsCollection):
         NoseLengthRatio = 0.182
         TailLengthRatio = 0.293
 
-        # Essentially this checks if the current shape is being fitted to a
-        # parent
+        # Fit shape to parent, if one is available
         if len(self.parent_nodes) > 0:
+            parent = self[self.parent_nodes.keys()[-1]]
 
-            ScalingX, NoseX, NoseY, NoseZ = self.fit_to_parent(
+            ScalingX, NoseX, NoseY, NoseZ = parent.fit_scale_location(
                 ScalingX, NoseX, NoseY, NoseZ)
+
         else:
             ScalingX = np.interp(ScalingX, [0, 1], arglimits[ScalingX])
             NoseX = NoseY = NoseZ = 0
@@ -698,10 +683,8 @@ class Topology(AirconicsCollection):
                        NoseCoordinates=[NoseX, NoseY, NoseZ],
                        SimplificationReqd=self.SimplificationReqd
                        )
-        # Do no be confused between the numbering of boxes and the number of
-        # descendent nodes: Each box needs a unique ID, so naming a box0
-        # function "box0" replaces other shapes in this layout that are also
-        # named box0
+        # Do no be confused between the numbering of components and the number
+        # of descendent nodes
         name = 'fuselage{}_{}'.format(len(args), len(self))
         self[name] = fus, len(args)
 
@@ -725,7 +708,8 @@ class Topology(AirconicsCollection):
         # this is the root component to which all others will be 'fitted',
         # in which case a wing is created with its apex at the origin
         if len(self.parent_nodes) > 0:
-            ScaleFactor, ApexX, ApexY, ApexZ = self.fit_to_parent(
+            parent = self[self.parent_nodes.keys()[-1]]
+            ScaleFactor, ApexX, ApexY, ApexZ = parent.fit_scale_location(
                 ScaleFactor, ApexX, ApexY, ApexZ)
 
         else:
@@ -760,6 +744,90 @@ class Topology(AirconicsCollection):
             arg()
 
         return None
+
+    @wrap_shapeN
+    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, PylonLength
+        Rotation, Invert, *args):
+        """
+        parameters
+        ----------
+        SpanStation: float in [0, 1]
+            The spanwise percentage at which to obtain the chord
+
+        PylonLength: 
+
+        YZLengthRatio:
+
+        PylonLength: distance from hchord to the engine 
+
+        Rotation : Rotation angle around the chord fitting point
+
+        Invert : int or bool (1 or 0)
+            project above (0) or below (1) the xy plane
+
+        Engines are always in the x direction, hence y-length cuts
+        """
+        # Allowing these to be fixed for now
+        arglimits = {XChordFactor: (0.25, 1.0),
+                     YZLengthRatio: (0.25, 1.0),
+                     Rotation: (0.5, 2)}
+
+
+        EngineCtrBelowLE = 0.35
+        Scarf_deg = 0
+
+        XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
+        YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[ScalingX])
+
+        if len(self.parent_nodes) > 0:
+            parent = self[self.parent_nodes.keys()[-1]]
+            # obtain chord for fitting engine to - this is different for a 
+            # wing and a fuselage
+            SpanStation = SpanStation
+            HChord = parent.get_spanstation_chord(SpanStation)
+            Chord = HChord.GetObject()
+            CEP = Chord.EndPoint()
+            NacelleLength = XChordFactor
+        else:
+            HChord = 0
+            NacelleLength = 1
+
+        # interpolate values between allowable limits
+
+        EngineDia = YZLengthRatio * 
+
+        Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
+                 CEP.Y(),
+                 CEP.Z()-EngineCtrBelowLE*NacelleLength]
+
+        #   Now build the engine and its pylon
+        eng = Engine(HChord,
+                      CentreLocation=Centreloc,
+                      ScarfAngle=Scarf_deg,
+                      HighlightRadius=EngineDia/2.0,
+                      MeanNacelleLength=NacelleLength)
+
+        # Rotate the engine around the hchord (180deg range?):
+        # RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+        eng.RotateComponents(HChord, np.radians(Rotation_deg))
+        Rotation_deg = np.interp(Rotation, [-1, 1], [-90 90])
+
+        self['engine{}_{}'.format(
+            len(args), len(self))] = eng, len(args)
+
+        if self.mirror:
+            super(Topology, self).__setitem__(
+                'engine{}_{}_mirror'.format(
+                    len(args), len(self) - 1), eng.MirrorComponents(plane='xz'))
+
+        for arg in args:
+            arg()        
+
+
+        # if parent is fuselage, standard pylon plane should be horizontal,
+        # otherwise if it's a wing, fit it vertically
+        return None
+
 
     def pydot_graph(self):
         """Returns a pydot Graph for visualizing the topology tree.
@@ -1066,6 +1134,10 @@ class Topology_GPTools(object):
         # Automatically add primitive for each type with integer numbers of
         # 'attached' subcomponents up to MaxAttachments (__init__ argument)
         for comptype, argtypes in Topology.ComponentTypes.items():
+            # For now, engines are added as leaves (i.e. engine0) only
+            full_argtypes = argtypes + functools
+            pset.addPrimitive(getattr(self, 'engineN'), ar)
+
             for i in range(self.MaxAttachments + 1):
                 name = comptype
                 # get Number of inputs of the basic method e.g. fuselageN, and
@@ -1080,7 +1152,7 @@ class Topology_GPTools(object):
         # that DO NOT CONTAIN SUBCOMPONENTS: the second to last level of
         # primitives in a tree must be one of these (forced in 'generate'
         # function)
-        pset.leaf_primitives = {functools.partial: ['fuselage0', 'liftingsurface0'],
+        pset.leaf_primitives = {functools.partial: ['fuselage0', 'liftingsurface0', 'engine0'],
         float: [], dict: []}
 
         # mirroring primitives (need to start from mirror1 to avoid bloat)

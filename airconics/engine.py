@@ -73,6 +73,7 @@ class Engine(AirconicsShape):
                  HighlightRadius=1.45,
                  MeanNacelleLength=5.67,
                  construct_geometry=True,
+                 SimplePylon=False
                  ):
 
         if HChord == 0:
