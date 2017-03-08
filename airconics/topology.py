@@ -746,7 +746,7 @@ class Topology(AirconicsCollection):
         return None
 
     @wrap_shapeN
-    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, PylonLength
+    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, CtrBelowLE, CtrForwardLE
         Rotation, Invert, *args):
         """
         parameters
@@ -758,7 +758,8 @@ class Topology(AirconicsCollection):
 
         YZLengthRatio:
 
-        PylonLength: distance from hchord to the engine 
+        CtrBelowLE: float
+            fractional distance from hchord to the engine in engine nacelle lengths
 
         Rotation : Rotation angle around the chord fitting point
 
@@ -769,15 +770,13 @@ class Topology(AirconicsCollection):
         """
         # Allowing these to be fixed for now
         arglimits = {XChordFactor: (0.25, 1.0),
-                     YZLengthRatio: (0.25, 1.0),
-                     Rotation: (0.5, 2)}
+                     YZLengthRatio: (0.25, 1.0)}
 
 
-        EngineCtrBelowLE = 0.35
         Scarf_deg = 0
 
         XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
-        YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[ScalingX])
+        YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[YZLengthRatio])
 
         if len(self.parent_nodes) > 0:
             parent = self[self.parent_nodes.keys()[-1]]
@@ -787,14 +786,16 @@ class Topology(AirconicsCollection):
             HChord = parent.get_spanstation_chord(SpanStation)
             Chord = HChord.GetObject()
             CEP = Chord.EndPoint()
-            NacelleLength = XChordFactor
+            NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
         else:
             HChord = 0
             NacelleLength = 1
 
         # interpolate values between allowable limits
 
-        EngineDia = YZLengthRatio * 
+        EngineDia = YZLengthRatio * NacelleLength
+        EngineCtrBelowLE = CtrBelowLE * NacelleLength
+        EngineCtrFwdOfLE = CtrForwardLE * NacelleLength
 
         Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
                  CEP.Y(),
