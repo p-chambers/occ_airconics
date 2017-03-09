@@ -787,7 +787,7 @@ class LiftingSurface(AirconicsShape):
 
         return newscaling, newx, newy, newz
 
-    def get_spanstation_chord(self, spanstation):
+    def get_spanstation_chord(self, SpanStation):
         """
         """
         EngineSection, HChord = act.CutSect(self['Surface'], SpanStation)

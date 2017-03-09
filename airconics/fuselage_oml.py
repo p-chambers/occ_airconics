@@ -746,7 +746,7 @@ class Fuselage(AirconicsShape):
 #        CW
 ###############################################################################
 
-    def get_spanstation_chord(self, spanstation):
+    def get_spanstation_chord(self, SpanStation):
         """
         """
         EngineSection, HChord = act.CutSect(self['OML'], SpanStation)

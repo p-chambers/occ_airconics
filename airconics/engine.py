@@ -52,6 +52,14 @@ class Engine(AirconicsShape):
     construct_geometry : bool
         If true, Build method will be called on construction
 
+    SimplePylon : bool
+        Simplifies the 787 style pylon for a single loft segment between 2
+        airfoils
+
+    PylonAngle : list, length 3 (default [0, 0, -1])
+        The angle of rotation of the pylon 
+
+
     Attributes
     ----------
     _Components : dictionary of shapes
@@ -73,7 +81,7 @@ class Engine(AirconicsShape):
                  HighlightRadius=1.45,
                  MeanNacelleLength=5.67,
                  construct_geometry=True,
-                 SimplePylon=False
+                 SimplePylon=False,
                  ):
 
         if HChord == 0:
@@ -90,6 +98,7 @@ class Engine(AirconicsShape):
                                      ScarfAngle=ScarfAngle,
                                      HighlightRadius=HighlightRadius,
                                      MeanNacelleLength=MeanNacelleLength,
+                                     SimplePylon=SimplePylon
                                      )
 
     def Build(self):
@@ -201,67 +210,87 @@ class Engine(AirconicsShape):
 #        Move the engine into its actual place on the wing
         self.TranslateComponents(gp_Vec(*CentreLocation))
 
-# Now build the pylon between the engine and the chord on the wing
-        CP1 = gp_Pnt(MeanNacelleLength * 0.26 + CentreLocation[0],
-                     CentreLocation[1],
-                     CentreLocation[2] + HighlightRadius * 0.1)
-        CP2 = gp_Pnt(MeanNacelleLength * 0.4 + CentreLocation[0],
-                     CentreLocation[1],
-                     HighlightRadius * 1.45 + CentreLocation[2])
+        if self.SimplePylon:
+            # Get the chord from its handle
+            Chord = self.HChord.GetObject()
+            CP1 = gp_Pnt(MeanNacelleLength * 0.26 + CentreLocation[0],
+                         CentreLocation[1],
+                         CentreLocation[2] + HighlightRadius * 0.1)
 
-        # Get the chord from its handle
-        Chord = self.HChord.GetObject()
-        CP3 = Chord.EndPoint()
-        CP4 = Chord.StartPoint()
-        self._pylonPts = [CP1, CP2, CP3, CP4]
+            vec = gp_Vec(Chord.StartPoint, CP1)
+            theta = np.arccos(vec.Z() / vec.Y())
 
-#        Pylon wireframe
-        tangents = np.array([[0, 0, 1], [1, 0, 0]])
-        PylonTop = act.points_to_bspline([CP1, CP2, CP3, CP4],
-                                         tangents=tangents)
-        self._PylonTop = PylonTop
-        PylonBase_LE = [CP1.X(), CP1.Y(), CP1.Z()]
-        PylonAf = primitives.Airfoil(PylonBase_LE, MeanNacelleLength * 1.35,
-                                     90, 0, Naca4Profile='0012',
-                                     EnforceSharpTE=False)
-        self._PylonAf = PylonAf
-        LowerTE = PylonAf.ChordLine.GetObject().EndPoint()
-#        LowerTE = rs.CurveEndPoint(PylonChord)
-        PylonTE = GC_MakeSegment(LowerTE, CP4).Value()
-        self._PylonTE = PylonTE
+            Pylon_StartAf = primitives.Airfoil(CP1, MeanNacelleLength * 1.35,
+                                         theta, 0, Naca4Profile='0012',
+                                         EnforceSharpTE=False)
+            Pylon_EndAf = primitives.Airfoil(gp_Pnt(CentreLocation), MeanNacelleLength * 1.35,
+                                         theta, 0, Naca4Profile='0012',
+                                         EnforceSharpTE=False)
 
-        edges = [act.make_edge(PylonAf.ChordLine),
-                 act.make_edge(PylonTop),
-                 act.make_edge(PylonTE)]
 
-        Pylon_symplane = act.make_face(act.make_wire(*edges))
-        self.AddComponent(Pylon_symplane, 'Pylon_symplane')
 
-#         TODO: Pylon surface. Currently a flat plate at symmetry plane.
-#        This should be done with a plate surface (similar to NetworkSrf in
-#        Rhino), but I haven't got this to work yet
-#         Method 1: Sweep - gives the wrong shape
-#        Pylon_tip = GC_MakeCircle(gp_Ax1(CP4, gp_Dir(0, 1, 0)),
-#                                  PylonAf.ChordLength*0.001
-#                                  ).Value()
-#
-#        Pylon_curve = PylonAf.Curve.GetObject()
-#        PylonAf_TE = act.make_edge(Pylon_curve.StartPoint(),
-#                                   Pylon_curve.EndPoint())
-#        PylonAf_Face = act.PlanarSurf(PylonAf.Curve)
-#        PylonAf_closedwire = act.make_wire(act.make_edge(PylonAf.Curve),
-#                                           PylonAf_TE)
-#        sections = [PylonAf.Curve, PylonTE]
-#        spine = act.make_wire(act.make_edge(PylonTop))
-#        self.PylonLeft = act.make_pipe_shell(spine, sections)
-#
-#         Move into place under the wing
-#        self._Translate(gp_Vec(0,-CentreLocation[1],0))
-#
-# TODO: Mirror the pylon half surface
-#        PylonRight = act.mirror(PylonLeft, plane='xz')
-#        PylonAfCurve = act.AddTEtoOpenAirfoil(PylonAfCurve)
-#        PylonAfSrf = rs.AddPlanarSrf(PylonAfCurve)
+        else:
+            # Now build the pylon between the engine and the chord on the wing
+            CP1 = gp_Pnt(MeanNacelleLength * 0.26 + CentreLocation[0],
+                         CentreLocation[1],
+                         CentreLocation[2] + HighlightRadius * 0.1)
+            CP2 = gp_Pnt(MeanNacelleLength * 0.4 + CentreLocation[0],
+                         CentreLocation[1],
+                         HighlightRadius * 1.45 + CentreLocation[2])
+
+            # Get the chord from its handle
+            Chord = self.HChord.GetObject()
+            CP3 = Chord.EndPoint()
+            CP4 = Chord.StartPoint()
+            self._pylonPts = [CP1, CP2, CP3, CP4]
+
+           # Pylon wireframe
+            tangents = np.array([[0, 0, 1], [1, 0, 0]])
+            PylonTop = act.points_to_bspline([CP1, CP2, CP3, CP4],
+                                             tangents=tangents)
+            self._PylonTop = PylonTop
+            PylonBase_LE = [CP1.X(), CP1.Y(), CP1.Z()]
+            PylonAf = primitives.Airfoil(PylonBase_LE, MeanNacelleLength * 1.35,
+                                         90, 0, Naca4Profile='0012',
+                                         EnforceSharpTE=False)
+            self._PylonAf = PylonAf
+            LowerTE = PylonAf.ChordLine.GetObject().EndPoint()
+           # LowerTE = rs.CurveEndPoint(PylonChord)
+            PylonTE = GC_MakeSegment(LowerTE, CP4).Value()
+            self._PylonTE = PylonTE
+
+            edges = [act.make_edge(PylonAf.ChordLine),
+                     act.make_edge(PylonTop),
+                     act.make_edge(PylonTE)]
+
+            Pylon_symplane = act.make_face(act.make_wire(*edges))
+            self.AddComponent(Pylon_symplane, 'Pylon_symplane')
+
+          #   TODO: Pylon surface. Currently a flat plate at symmetry plane.
+          #  This should be done with a plate surface (similar to NetworkSrf in
+          #  Rhino), but I haven't got this to work yet
+          #   Method 1: Sweep - gives the wrong shape
+          #  Pylon_tip = GC_MakeCircle(gp_Ax1(CP4, gp_Dir(0, 1, 0)),
+          #                            PylonAf.ChordLength*0.001
+          #                            ).Value()
+    
+          #  Pylon_curve = PylonAf.Curve.GetObject()
+          #  PylonAf_TE = act.make_edge(Pylon_curve.StartPoint(),
+          #                             Pylon_curve.EndPoint())
+          #  PylonAf_Face = act.PlanarSurf(PylonAf.Curve)
+          #  PylonAf_closedwire = act.make_wire(act.make_edge(PylonAf.Curve),
+          #                                     PylonAf_TE)
+          #  sections = [PylonAf.Curve, PylonTE]
+          #  spine = act.make_wire(act.make_edge(PylonTop))
+          #  self.PylonLeft = act.make_pipe_shell(spine, sections)
+    
+          #   Move into place under the wing
+          #  self._Translate(gp_Vec(0,-CentreLocation[1],0))
+    
+          # TODO: Mirror the pylon half surface
+          #  PylonRight = act.mirror(PylonLeft, plane='xz')
+          #  PylonAfCurve = act.AddTEtoOpenAirfoil(PylonAfCurve)
+          #  PylonAfSrf = rs.AddPlanarSrf(PylonAfCurve)
 
         return None
 

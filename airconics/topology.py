@@ -478,7 +478,8 @@ class Topology(AirconicsCollection):
     """
     ComponentTypes = {"fuselage": [float] * 7,
                       "liftingsurface": [float] * 6 + [dict],
-                      "engine": [float] * 3+}
+                      "engine": [float] * 6
+                      }
 
     varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
                 'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
@@ -746,8 +747,8 @@ class Topology(AirconicsCollection):
         return None
 
     @wrap_shapeN
-    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, CtrBelowLE, CtrForwardLE
-        Rotation, Invert, *args):
+    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, CtrBelowLE, CtrForwardLE,
+        Rotation, *args):
         """
         parameters
         ----------
@@ -782,7 +783,6 @@ class Topology(AirconicsCollection):
             parent = self[self.parent_nodes.keys()[-1]]
             # obtain chord for fitting engine to - this is different for a 
             # wing and a fuselage
-            SpanStation = SpanStation
             HChord = parent.get_spanstation_chord(SpanStation)
             Chord = HChord.GetObject()
             CEP = Chord.EndPoint()
@@ -790,6 +790,7 @@ class Topology(AirconicsCollection):
         else:
             HChord = 0
             NacelleLength = 1
+            CEP=gp_Pnt(0, 0, 0)
 
         # interpolate values between allowable limits
 
@@ -808,10 +809,13 @@ class Topology(AirconicsCollection):
                       HighlightRadius=EngineDia/2.0,
                       MeanNacelleLength=NacelleLength)
 
+        # if parent is fuselage, standard pylon plane should be horizontal,
+        # otherwise if it's a wing, fit it vertically
         # Rotate the engine around the hchord (180deg range?):
         # RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-        eng.RotateComponents(HChord, np.radians(Rotation_deg))
-        Rotation_deg = np.interp(Rotation, [-1, 1], [-90 90])
+        Rotation_deg = np.interp(Rotation, [-1, 1], [-90, 90])
+        Rot_Ax = gp_Ax1(CEP, gp_Dir(0, 1, 0))
+        eng.RotateComponents(Rot_Ax, np.radians(Rotation_deg))
 
         self['engine{}_{}'.format(
             len(args), len(self))] = eng, len(args)
@@ -824,9 +828,6 @@ class Topology(AirconicsCollection):
         for arg in args:
             arg()        
 
-
-        # if parent is fuselage, standard pylon plane should be horizontal,
-        # otherwise if it's a wing, fit it vertically
         return None
 
 
@@ -895,7 +896,7 @@ class Topology(AirconicsCollection):
                 # arity value at the end of the string)
                 nodetype = label.rstrip('0123456789')
 
-                if nodetype in NODE_PROPERTIES:
+                if nodetype in NODE_PROPERTIES or nodetype == 'engine':
                     if (nodetype == 'mirror'):
                         # Need to expect some direct subcomponents to be added to
                         # the cluster_2
@@ -1111,6 +1112,21 @@ class Topology_GPTools(object):
         """
         return self._topology.fuselageN(*args)
 
+    def engineN(self, *args):
+        """Passes args obtained from the GP primitive set attributed to this
+        object to the CURRENT _topology attribute.
+
+        This function is required as _topology is overwritten on every run, and
+        hence its engineN methods are replaced on every run: the
+        primitive set must use the current topologies engineN method.
+
+        See Also
+        --------
+        airconics.Topology.engineN
+        """
+        return self._topology.engineN(*args)
+
+
     def create_pset(self, name="MAIN"):
         """Creates the primitive set to be used for compiling topology 'programs'
 
@@ -1135,19 +1151,20 @@ class Topology_GPTools(object):
         # Automatically add primitive for each type with integer numbers of
         # 'attached' subcomponents up to MaxAttachments (__init__ argument)
         for comptype, argtypes in Topology.ComponentTypes.items():
-            # For now, engines are added as leaves (i.e. engine0) only
-            full_argtypes = argtypes + functools
-            pset.addPrimitive(getattr(self, 'engineN'), ar)
+            if comptype != 'engine':
+                for i in range(self.MaxAttachments + 1):
+                    name = comptype
+                    # get Number of inputs of the basic method e.g. fuselageN, and
+                    # add N (-1 due to self) float arguments to the typed
+                    # primitive
+                    full_argtypes = argtypes + [functools.partial] * i
+                    pset.addPrimitive(getattr(self, name + 'N'),
+                                      full_argtypes, functools.partial,
+                                      name=name + str(i))
 
-            for i in range(self.MaxAttachments + 1):
-                name = comptype
-                # get Number of inputs of the basic method e.g. fuselageN, and
-                # add N (-1 due to self) float arguments to the typed
-                # primitive
-                full_argtypes = argtypes + [functools.partial] * i
-                pset.addPrimitive(getattr(self, name + 'N'),
-                                  full_argtypes, functools.partial,
-                                  name=name + str(i))
+        # For now, engines are added as leaves (i.e. engine0) only
+        # full_argtypes = argtypes
+        pset.addPrimitive(getattr(self, 'engineN'), [float] * 6, functools.partial, name='engine0')
 
         # Adding a leaf_primitives list to pset: these are the names of prims
         # that DO NOT CONTAIN SUBCOMPONENTS: the second to last level of
