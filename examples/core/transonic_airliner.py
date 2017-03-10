@@ -425,16 +425,16 @@ if __name__ == "__main__":
 #    A few examples, instances of this parametric aircraft geometry:
 
 #    '787-8'
-    # Airliner = transonic_airliner(display)
+    Airliner = transonic_airliner(display)
 
 #    '787-9'
     # Airliner = transonic_airliner(display,
     #                              FuselageScaling=[61.9, 55.902, 55.902])
 
 #    'A380'
-    Airliner = transonic_airliner(display, Propulsion=2,
-                                  FuselageScaling=[70.4, 67.36, 80.1],
-                                  WingScaleFactor=59.26)
+    # Airliner = transonic_airliner(display, Propulsion=2,
+    #                               FuselageScaling=[70.4, 67.36, 80.1],
+    #                               WingScaleFactor=59.26)
 
 #    This, for now, is just intended to stretch the model a bit in terms of 
 #    topological variety - it is a box wing version of the 787-8. There is 

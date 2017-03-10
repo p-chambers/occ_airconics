@@ -213,20 +213,24 @@ class Engine(AirconicsShape):
         if self.SimplePylon:
             # Get the chord from its handle
             Chord = self.HChord.GetObject()
-            CP1 = gp_Pnt(MeanNacelleLength * 0.26 + CentreLocation[0],
+            CEP = Chord.EndPoint()
+            # The End point where the airfoil is generated 
+            CP1 = [MeanNacelleLength * 0.26 + CentreLocation[0],
                          CentreLocation[1],
-                         CentreLocation[2] + HighlightRadius * 0.1)
+                         CentreLocation[2] + HighlightRadius * 0.1]
+            CP1_pt = gp_Pnt(*CP1)
 
-            vec = gp_Vec(Chord.StartPoint, CP1)
-            theta = np.arccos(vec.Z() / vec.Y())
+            vec = gp_Vec(Chord.StartPoint(), CP1_pt)
+            theta = np.degrees(np.arctan(vec.Z() / vec.Y()))
 
-            Pylon_StartAf = primitives.Airfoil(CP1, MeanNacelleLength * 1.35,
+            Pylon_StartAf = primitives.Airfoil([CEP.X(), CEP.Y(), CEP.Z()], MeanNacelleLength * 1.35,
                                          theta, 0, Naca4Profile='0012',
                                          EnforceSharpTE=False)
-            Pylon_EndAf = primitives.Airfoil(gp_Pnt(CentreLocation), MeanNacelleLength * 1.35,
+            Pylon_EndAf = primitives.Airfoil(CP1, MeanNacelleLength * 1.35,
                                          theta, 0, Naca4Profile='0012',
                                          EnforceSharpTE=False)
-
+            Pylon = act.AddSurfaceLoft([Pylon_StartAf, Pylon_EndAf])
+            self.AddComponent(Pylon, 'Pylon')
 
 
         else:

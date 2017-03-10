@@ -17,7 +17,7 @@ from .examples.wing_example_transonic_airliner import *
 from .examples.tailplane_example_transonic_airliner import *
 from .examples.straight_wing import *
 from .examples.tapered_wing import *
-from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt
+from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt, gp_Vec
 
 import types
 import functools
@@ -485,7 +485,7 @@ class Topology(AirconicsCollection):
                 'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio'],
                 'mirror': [],
-                # 'empty': []
+                'engine': ['SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']
                 }
 
     def __init__(self, parts={},
@@ -747,7 +747,7 @@ class Topology(AirconicsCollection):
         return None
 
     @wrap_shapeN
-    def engineN(self, SpanStation, XChordFactor, YZLengthRatio, CtrBelowLE, CtrForwardLE,
+    def engineN(self, SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
         Rotation, *args):
         """
         parameters
@@ -771,51 +771,63 @@ class Topology(AirconicsCollection):
         """
         # Allowing these to be fixed for now
         arglimits = {XChordFactor: (0.25, 1.0),
-                     YZLengthRatio: (0.25, 1.0)}
-
+                     DiameterLenRatio: (0.25, 1.0)}
 
         Scarf_deg = 0
 
-        XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
-        YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[YZLengthRatio])
-
+        # XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
+        # YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[YZLengthRatio])
+        from OCC.GC import GC_MakeSegment
         if len(self.parent_nodes) > 0:
             parent = self[self.parent_nodes.keys()[-1]]
             # obtain chord for fitting engine to - this is different for a 
             # wing and a fuselage
-            HChord = parent.get_spanstation_chord(SpanStation)
-            Chord = HChord.GetObject()
-            CEP = Chord.EndPoint()
-            NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
+            if isinstance(parent, Fuselage):
+                HChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
+                MainChord = HChord.GetObject()
+                CEP = MainChord.Value(MainChord.LastParameter() * SpanStation)
+                NacelleLength = XChordFactor * parent.BowPoint.Distance(parent.SternPoint)
+                Chord = GC_MakeSegment(CEP, CEP.Translated(gp_Vec(NacelleLength, 0, 0)))
+            else:
+                HChord = parent.get_spanstation_chord(SpanStation)
+                Chord = HChord.GetObject()
+                CEP = Chord.EndPoint()
+                NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
         else:
             HChord = 0
             NacelleLength = 1
             CEP=gp_Pnt(0, 0, 0)
 
-        # interpolate values between allowable limits
+        EngineDia = DiameterLenRatio * NacelleLength
 
-        EngineDia = YZLengthRatio * NacelleLength
-        EngineCtrBelowLE = CtrBelowLE * NacelleLength
-        EngineCtrFwdOfLE = CtrForwardLE * NacelleLength
+        Rotation_deg = np.interp(Rotation, [0, 1], [0, 180])
+        PylonSweep = np.interp(PylonSweep, [0, 1], [45, -45])
+        print(PylonSweep)
+        pylon_project_vec = gp_Vec(0, 0, -1*PylonLenRatio*NacelleLength)
 
-        Centreloc = [CEP.X()-EngineCtrFwdOfLE*NacelleLength,
-                 CEP.Y(),
-                 CEP.Z()-EngineCtrBelowLE*NacelleLength]
+        # perform the general translation and rotation of the leading edge
+        # point where the pylon starts to obtain the engine start loc
+        LE_X = gp_Ax1(CEP, gp_Dir(1, 0, 0))
+        LE_Y = gp_Ax1(CEP, gp_Dir(0, 1, 0))
+
+        CentrePt = CEP.Translated(pylon_project_vec).Rotated(LE_X, np.radians(Rotation_deg)).Rotated(LE_Y, np.radians(PylonSweep))
+
+
+        Centreloc = [CentrePt.X(), CentrePt.Y(), CentrePt.Z()]
 
         #   Now build the engine and its pylon
         eng = Engine(HChord,
                       CentreLocation=Centreloc,
                       ScarfAngle=Scarf_deg,
                       HighlightRadius=EngineDia/2.0,
-                      MeanNacelleLength=NacelleLength)
+                      MeanNacelleLength=NacelleLength,
+                      SimplePylon=True)
 
         # if parent is fuselage, standard pylon plane should be horizontal,
         # otherwise if it's a wing, fit it vertically
         # Rotate the engine around the hchord (180deg range?):
         # RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-        Rotation_deg = np.interp(Rotation, [-1, 1], [-90, 90])
-        Rot_Ax = gp_Ax1(CEP, gp_Dir(0, 1, 0))
-        eng.RotateComponents(Rot_Ax, np.radians(Rotation_deg))
+        # eng.RotateComponents(Rot_Ax, np.radians(Rotation_deg))
 
         self['engine{}_{}'.format(
             len(args), len(self))] = eng, len(args)
@@ -1380,7 +1392,7 @@ class Topology_GPTools(object):
 
             for arg in Topology.varNames[basename]:
                 assert(arg in prim_args), \
-                    'Input file does not contain parameter {} for component of type {}'. format(arg, prim_name)
+                    'Input JSON does not contain parameter {} for component of type {}'. format(arg, prim_name)
                 if prim_args[arg] in self._pset.mapping:
                     terminal = self._pset.mapping[prim_args[arg]]
                     expr.append(terminal)

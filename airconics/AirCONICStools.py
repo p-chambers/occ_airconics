@@ -1221,9 +1221,15 @@ def CutSect(Shape, SpanStation):
     exp = TopExp_Explorer(Section, TopAbs_EDGE)
     edge = topods_Edge(exp.Current())
 
+    DivPoints = []
+    while exp.More():
+
+        edge = topods_Edge(exp.Current())
+
 #    Find the apparent chord of the section (that is, the line connecting the
 #    fore most and aftmost points on the curve
-    DivPoints = Uniform_Points_on_Curve(edge, 200)
+        DivPoints += Uniform_Points_on_Curve(edge, 200)
+        exp.Next()
 
     Xs = np.array([pt.X() for pt in DivPoints])
 
