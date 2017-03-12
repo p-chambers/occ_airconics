@@ -823,7 +823,7 @@ class Topology(AirconicsCollection):
                       HighlightRadius=EngineDia/2.0,
                       MeanNacelleLength=NacelleLength,
                       SimplePylon=True,
-                      PylonRotation=Rotation_deg)
+                      PylonRotation=Rotation_deg-90.)
 
         # if parent is fuselage, standard pylon plane should be horizontal,
         # otherwise if it's a wing, fit it vertically

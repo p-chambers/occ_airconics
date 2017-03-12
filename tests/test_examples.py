@@ -4,10 +4,12 @@ Created on Tue Apr 19 14:48:21 2016
 
 @author: pchambers
 """
-import os
 import subprocess
 import inspect
 import pytest
+from airconics.topology import Topology_GPTools
+import os
+import airconics
 
 
 @pytest.mark.skipif(not pytest.config.getvalue('--examples'),
@@ -35,3 +37,33 @@ def test_examples():
                 subprocess.check_call(['python', fname])
             except subprocess.CalledProcessError:
                 raise AssertionError('Example {} failed'.format(fname))
+
+
+@pytest.fixture(params=[
+    # list of file extension types
+    ('airliner.json'),
+    ('proteus.json'),
+    ('thunderbolt.json'),
+    ('predator.json')])
+def json_fnames(request):
+    return request.param
+
+
+def test_json_topologies(json_fnames):
+    fname = json_fnames
+    from OCC.Display.SimpleGui import init_display
+    display, start_display, add_menu, add_function_to_menu = init_display()
+
+    topo_tools = Topology_GPTools(MaxAttachments=4)
+
+    # Could use topo_tools.from_file instead:
+    fname = os.path.join(os.path.dirname(airconics.__file__),
+                         'resources/configuration_app/presets', fname)
+
+    topo = topo_tools.from_file(fname)
+
+    topo.Display(display)
+
+
+    display.FitAll()
+    start_display()
