@@ -12,7 +12,7 @@
       }
   },
   {
-    "primitive": "mirror2"
+    "primitive": "mirror3"
   }, 
   {
     "primitive": "liftingsurface0",
@@ -26,6 +26,18 @@
         "Type": "StraightWing"
     }
   },
+  {
+    "primitive": "engine0",
+    "args": {
+        "SpanStation": 0.7,
+        "XChordFactor": 0.16,
+        "DiameterLenRatio": 0.21,
+        "PylonSweep": 0.5,
+        "PylonLenRatio": 0.5,
+        "Rotation": 0.75
+    }
+},
+
   {
     "primitive": "liftingsurface1", 
     "args": {

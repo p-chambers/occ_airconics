@@ -39,15 +39,26 @@
     }
   }, 
   {
-    "primitive": "liftingsurface0",
+    "primitive": "liftingsurface1",
     "args": {
       "X": 0.15, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 0.82,
+      "ScaleFactor": 0.8,
       "ChordFactor": 0.71,
       "Rotation": 0.0, 
       "Type": "AirlinerWing"
     }
+  },
+  {
+    "primitive": "engine0",
+      "args": {
+          "SpanStation": 0.35,
+          "XChordFactor": 0.9,
+          "DiameterLenRatio": 0.513,
+          "PylonSweep": 0.0,
+          "PylonLenRatio": 0.8,
+          "Rotation": 0.0
+      }
   }
 ]

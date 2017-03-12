@@ -56,7 +56,7 @@ class Engine(AirconicsShape):
         Simplifies the 787 style pylon for a single loft segment between 2
         airfoils
 
-    PylonAngle : list, length 3 (default [0, 0, -1])
+    PylonRotation : list, length 3 (default [0, 0, -1])
         The angle of rotation of the pylon 
 
 
@@ -82,6 +82,7 @@ class Engine(AirconicsShape):
                  MeanNacelleLength=5.67,
                  construct_geometry=True,
                  SimplePylon=False,
+                 PylonRotation=False
                  ):
 
         if HChord == 0:
@@ -98,7 +99,8 @@ class Engine(AirconicsShape):
                                      ScarfAngle=ScarfAngle,
                                      HighlightRadius=HighlightRadius,
                                      MeanNacelleLength=MeanNacelleLength,
-                                     SimplePylon=SimplePylon
+                                     SimplePylon=SimplePylon,
+                                     PylonRotation=PylonRotation
                                      )
 
     def Build(self):
@@ -210,6 +212,12 @@ class Engine(AirconicsShape):
 #        Move the engine into its actual place on the wing
         self.TranslateComponents(gp_Vec(*CentreLocation))
 
+        if self.PylonRotation:
+          # Use input PylonRotation for the effective pylon loft dihedral
+          gama = self.PylonRotation
+        else:
+          gama = 90
+
         if self.SimplePylon:
             # Get the chord from its handle
             Chord = self.HChord.GetObject()
@@ -220,14 +228,16 @@ class Engine(AirconicsShape):
                          CentreLocation[2] + HighlightRadius * 0.1]
             CP1_pt = gp_Pnt(*CP1)
 
-            vec = gp_Vec(Chord.StartPoint(), CP1_pt)
-            theta = np.degrees(np.arctan(vec.Z() / vec.Y()))
+            # vec = gp_Vec(Chord.StartPoint(), CP1_pt)
+            # print(vec.Z())
+            # print(vec.Y())
+            # theta = np.degrees(np.arctan(vec.Z() / vec.Y()))
 
             Pylon_StartAf = primitives.Airfoil([CEP.X(), CEP.Y(), CEP.Z()], MeanNacelleLength * 1.35,
-                                         theta, 0, Naca4Profile='0012',
+                                         gama, 0, Naca4Profile='0012',
                                          EnforceSharpTE=False)
             Pylon_EndAf = primitives.Airfoil(CP1, MeanNacelleLength * 1.35,
-                                         theta, 0, Naca4Profile='0012',
+                                         gama, 0, Naca4Profile='0012',
                                          EnforceSharpTE=False)
             Pylon = act.AddSurfaceLoft([Pylon_StartAf, Pylon_EndAf])
             self.AddComponent(Pylon, 'Pylon')

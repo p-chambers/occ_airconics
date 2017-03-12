@@ -782,13 +782,15 @@ class Topology(AirconicsCollection):
             parent = self[self.parent_nodes.keys()[-1]]
             # obtain chord for fitting engine to - this is different for a 
             # wing and a fuselage
+            # TODO: wrap this into class method for fuselage and liftinsurface
             if isinstance(parent, Fuselage):
-                HChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
-                MainChord = HChord.GetObject()
+                HMainChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
+                MainChord = HMainChord.GetObject()
                 CEP = MainChord.Value(MainChord.LastParameter() * SpanStation)
                 NacelleLength = XChordFactor * parent.BowPoint.Distance(parent.SternPoint)
-                Chord = GC_MakeSegment(CEP, CEP.Translated(gp_Vec(NacelleLength, 0, 0)))
-            else:
+                HChord = GC_MakeSegment(CEP.Translated(gp_Vec(NacelleLength, 0, 0)), CEP).Value()
+
+            elif isinstance(parent, LiftingSurface):
                 HChord = parent.get_spanstation_chord(SpanStation)
                 Chord = HChord.GetObject()
                 CEP = Chord.EndPoint()
@@ -802,7 +804,6 @@ class Topology(AirconicsCollection):
 
         Rotation_deg = np.interp(Rotation, [0, 1], [0, 180])
         PylonSweep = np.interp(PylonSweep, [0, 1], [45, -45])
-        print(PylonSweep)
         pylon_project_vec = gp_Vec(0, 0, -1*PylonLenRatio*NacelleLength)
 
         # perform the general translation and rotation of the leading edge
@@ -821,7 +822,8 @@ class Topology(AirconicsCollection):
                       ScarfAngle=Scarf_deg,
                       HighlightRadius=EngineDia/2.0,
                       MeanNacelleLength=NacelleLength,
-                      SimplePylon=True)
+                      SimplePylon=True,
+                      PylonRotation=Rotation_deg)
 
         # if parent is fuselage, standard pylon plane should be horizontal,
         # otherwise if it's a wing, fit it vertically
