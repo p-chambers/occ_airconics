@@ -36,7 +36,7 @@
         "PylonLenRatio": 0.5,
         "Rotation": 0.75
     }
-},
+  },
 
   {
     "primitive": "liftingsurface1", 
@@ -61,7 +61,7 @@
         "TailLengthRatio": 0.293,
         "FinenessRatio": 1.0
     }
-  }, 
+  },
   {
     "primitive": "liftingsurface1",
     "args": {

@@ -26,8 +26,8 @@ if __name__ == '__main__':
     drawer = display.Context.DefaultDrawer().GetObject()
     drawer.SetDeviationAngle(drawer.DeviationAngle() / 100.)
     drawer.SetDeviationCoefficient(drawer.DeviationCoefficient() / 100.)
-    
-    
+
+
     from airconics.examples.tailplane_example_transonic_airliner import *
     from airconics import liftingsurface
     import airconics.AirCONICStools as act

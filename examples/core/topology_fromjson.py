@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     # Could use topo_tools.from_file instead:
     fname = os.path.join(os.path.dirname(airconics.__file__),
-                         'resources/configuration_app/presets/thunderbolt.json')
+                         'resources/configuration_app/presets/proteus.json')
 
     topo = topo_tools.from_file(fname)
 

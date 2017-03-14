@@ -27,6 +27,7 @@ import pydot
 import re
 from collections import OrderedDict
 import numpy as np
+import scipy.optimize
 from deap import algorithms
 from deap import base
 from deap import creator
@@ -275,7 +276,8 @@ def generate_topology(pset, min_, max_, type_=None):
 
 
 def eaSimple_logbest(population, toolbox, cxpb, mutpb, ngen, stats=None,
-             halloffame=None, verbose=__debug__):
+             halloffame=None, local_evolve=False, start_nsteps=2, end_nsteps=10
+             verbose=__debug__):
     """This algorithm is directly copied and edited from
     deap.algorithms.eaSimple, and reproduce the simplest evolutionary algorithm
     as presented in chapter 7 of [Back2000]_.
@@ -567,62 +569,6 @@ class Topology(AirconicsCollection):
         self.parent_nodes.clear()
         self.nparts = 0
         self.mirror = False
-
-    # def fit_to_parent(self, oldscaling, oldx, oldy, oldz):
-    #     """Given an old scaling and old position (this will be a random number
-    #     between 0 and 1 using the DEAP tree I have set up elsewhere), a new
-    #     scaling and position is returned allowing the resulting shape to 'fit'
-    #     to its parent"""
-    #     # Need to get a scaling from the parent of arbitrary type:
-    #     # using a try-except to work for any parent type ... could probably
-    #     # do better here
-    #     parent = self[self.parent_nodes.keys()[-1]]
-
-    #     parent.fit_scale_location(oldscaling, oldx, oldy, oldz)
-
-    #     try:
-    #         # The LiftingSurface branch (could probably do better here)
-    #         parentscalefactor = parent.ScaleFactor
-
-    #     except AttributeError:
-    #         # The Fuselage branch
-    #         parentscalefactor = parent.Scaling[0]
-
-    #     try:
-    #         # The interpolation along the curve: this could be done better
-    #         # Essentially, this is the length of the vector normalised by
-    #         # the diagonal of a 1 by 1 by 1 cube
-    #         curve = parent.LECurve.GetObject()
-    #         interp_C = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
-    #         newapex = curve.Value(interp_C)
-    #         newx, newy, newz = newapex.X(), newapex.Y(), newapex.Z()
-
-    #     except AttributeError:
-    #         # The Fuselage branch
-    #         parent_apex = parent.BowPoint
-    #         # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
-    #         # self._testpoints.append(parent.SternPoint)
-    #         xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
-
-    #         newx = parent_apex.X() + (xmax - xmin) * oldx
-    #         newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
-    #         newz = parent_apex.Z() + (zmax - zmin) / 2. * oldz
-
-    #         # self._testpoints.append(gp_Pnt(parent_x + xlength, parent.BowPoint.Y(), parent.BowPoint.Z()))
-
-
-
-    #     # Ensure that the oldscaled and oldposition fractions does give
-    #     # something invisibly small:
-    #     # REMOVING THIS TEMPORARILY: trying to see if scalings > 1 are allowed
-    #     # oldscaling = np.interp(oldscaling, [0, 1], scalingrange)
-
-    #     # The scaling is some percentage of parent (assumes components get
-    #     # smaller)
-    #     newscaling = oldscaling * parentscalefactor
-
-
-    #     return newscaling, newx, newy, newz
 
     @wrap_shapeN
     def mirrorN(self, *args):
@@ -1040,6 +986,51 @@ class Topology(AirconicsCollection):
         """
         self.__setitem__(name, (part, arity))
 
+    def lamarck_update(self, *args):
+        """Performs a local update step on the parse tree and geometry of this
+        topology. 
+
+        Replaces the value of the numeric inputs stored in self._deap_tree (the
+        execution parse tree that generates the geometry), without affecting
+        the component hierarchy. The parse tree is then recompiled and executed
+        to rebuild the geometry
+
+        Notes
+        -----
+        * As the size of the parse tree contained within self._deap_tree is not
+        consistent between instances, the number of input arguments is not
+        known at the time of implementation.
+        * It is the users responsibility to ensure that the correct number of
+        arguments is passed, and that the value and step size is appropriate.
+        * In future, this function would benefit from a 
+        """
+        for node in enumerate(self._deap_Tree):
+            try:
+                # This should only work for deap terminals: primitives do not
+                # have a value attribute
+                node.value = args.pop(0)
+            except AttributeError:
+                pass
+        routine = gp.compile(tree, self._pset)
+        routine()
+
+
+    def lamarck_evolve(self, nsteps, fitness_funct):
+        """Performs multiple objective driven lamarckian (local) evolution
+        steps on self._deap_tree.
+
+        This function updates the geometry contained in this object multiple
+        times. The state of the object once the optimisation steps have been
+        performed is the direct result of the final optimisation step
+
+        Notes
+        -----
+        Uses the scipy.optimize.minimize function, with l-bfgs-b
+        """
+        # retrieve the current vector of inputs
+        res = scipy.optimize.minimize(self.lamarck_update, x0=[], options={'maxiter=nsteps'})
+        return res
+
 
 class Topology_GPTools(object):
     """
@@ -1196,29 +1187,6 @@ class Topology_GPTools(object):
         # Primitives for defining shape of lifting surfaces:
         for wingtype, params in LSURF_FUNCTIONS.items():
             pset.addTerminal(params, dict, name=wingtype)
-
-        # Workarounds: gp.generate doesn't seem to like mid-tree
-        # terminals, so for now just add some primitive operators that
-        # do a similar thing as the terminals:
-        # def random_lsurfdict():
-            # return np.random.choice(LSURF_FUNCTIONS.values())
-
-        # pset.addEphemeralConstant('random_lsurf', random_lsurfdict, dict)
-
-        # for wingtype, params in LSURF_FUNCTIONS.items():
-        #     for funct_name, function in params.items()[:-1]:
-        #         name=funct_name + "_" + wingtype
-        #         pset.addPrimitive(function, [], types.FunctionType, name=name)
-        #     # The last function is expected to be an airfoil function
-        #     name, function=params.items()[-1]
-
-        # def empty():
-        #     """This is workaround function: see comment above"""
-        #     return None
-
-        # pset.addTerminal(empty, types.NoneType)
-
-        # pset.addPrimitive(np.random.rand, [], float)
 
         pset.addEphemeralConstant('rand', random.random, float)
 

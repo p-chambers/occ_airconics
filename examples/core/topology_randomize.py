@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # @Author: p-chambers
 # @Date:   2016-11-09 14:53:09
-# @Last Modified by:   Paul Chambers
-# @Last Modified time: 2016-11-10 13:19:57
+# @Last Modified by:   pchambers
+# @Last Modified time: 2017-03-14 11:14:56
 from airconics import Topology
 
 if __name__ == "__main__":
-    config = Topology()
+    topo_tools = Topology_GPTools()
 
     config.randomize()
 
