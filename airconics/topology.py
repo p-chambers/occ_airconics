@@ -37,6 +37,7 @@ import json
 import sys
 import os
 from operator import attrgetter
+import inspect
 
 
 import logging
@@ -590,7 +591,7 @@ class Topology(AirconicsCollection):
                                        )
 
         # Carry around the tree for visualisation purposes:
-        self._deap_tree = None   # This will be populated when
+        self._deap_tree = gp.PrimitiveTree([])   # This will be populated when
 
         self.nparts = 0
         self.mirror_count = 0
@@ -633,7 +634,6 @@ class Topology(AirconicsCollection):
 
         if arity > 0:
             self.parent_nodes[name] = arity
-        print(self.parent_nodes)
 
         super(Topology, self).__setitem__(name, part)
 
@@ -652,7 +652,7 @@ class Topology(AirconicsCollection):
 
     def _reset(self):
         self._Parts = {}
-        self._deap_tree = None
+        self._deap_tree = gp.PrimitiveTree([]) 
         self.parent_nodes.clear()
         self.nparts = 0
         self.mirror_count = 0
@@ -662,11 +662,14 @@ class Topology(AirconicsCollection):
         self.mirror = True
         if len(self.parent_nodes) > 0:
             # The arity of a mirror node must be added to a parent node so that
-            # further subcomponents will be added to their parent, e.g.,
-            # fuselage1(mirror2(lsurf0, lsurf0)) requires that (2-1) is added
-            # to the number of subcomponents attached to the fuselage
+            # further subcomponents will be added to their parent
             self.parent_nodes[self.parent_nodes.keys()[-1]] += N - 1
+
         self.mirror_count += N
+        # The second argument here (Primitive argtypes) is a bit of a
+        # hack: there are no arguments to the mirror primitive, but this allows
+        # the primitive tree to be constructed
+        self._deap_tree.append(gp.Primitive('mirror'+str(N), [None] * N, None))
 
 
     def fuselageN(self, X, Y, Z, XScaleFactor, NoseLengthRatio,
@@ -722,6 +725,13 @@ class Topology(AirconicsCollection):
         if self.mirror_count == 0:
             self.mirror=False
 
+        # Append to the deap tree
+        self._deap_tree.append(gp.Primitive('fuselage'+str(N),
+            Topology.ComponentTypes['fuselage'][1] + [None]*N, None))
+
+        argspec=inspect.getargvalues(inspect.currentframe())
+        for name in argspec.args[1:-1]:
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
         return None
 
     def liftingsurfaceN(self, X, Y, Z, ChordFactor, ScaleFactor,
@@ -743,16 +753,16 @@ class Topology(AirconicsCollection):
         P = (X, Y, Z)
         # Instantiate the class
         try:
-            Type = LSURF_FUNCTIONS[Type]
+            lsurf_functs = LSURF_FUNCTIONS[Type]
         except TypeError:
             # Assume that Type is already a dictionary of 'name': function
             # params to pass to the wing class: do nothing
-            pass
+            lsurf_functs = Type
         wing = liftingsurface.LiftingSurface(P,
                                              SegmentNo=NSeg,
                                              ScaleFactor=ScaleFactor,
                                              ChordFactor=ChordFactor,
-                                             **Type)
+                                             **lsurf_functs)
 
         # Rotate the component if necessary:
         # if surfacetype in ['AirlinerFin', 'StraightWing']:
@@ -773,6 +783,12 @@ class Topology(AirconicsCollection):
         if self.mirror_count == 0:
             self.mirror=False
 
+        # Append to the deap tree
+        self._deap_tree.append(gp.Primitive('liftingsurface'+str(N),
+            Topology.ComponentTypes['liftingsurface'][1] + [None]*N, None))
+        argspec=inspect.getargvalues(inspect.currentframe())
+        for name in argspec.args[1:-1]:
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
         return None
 
     def engineN(self, SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
@@ -869,13 +885,22 @@ class Topology(AirconicsCollection):
             self.mirror_count += N - 1
         if self.mirror_count == 0:
             self.mirror=False
+
+        # Append to the deap tree
+        self._deap_tree.append(gp.Primitive('engine'+str(N), 
+            Topology.ComponentTypes['engine'][1] + [None]*N, None))
+        argspec=inspect.getargvalues(inspect.currentframe())
+        for name in argspec.args[1:-1]:
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
         return None
 
     def run(self, tree):
         self._reset()
         routine = gp.compile(tree, self.pset)
-        self._deap_tree = tree
         routine(self)
+        # Note: self._deap_tree MUST be set after the routine has been run
+        # here, as running the routine updates the deap tree
+        self._deap_tree = tree
 
 
     def pydot_graph(self):
@@ -943,9 +968,15 @@ class Topology(AirconicsCollection):
                 # arity value at the end of the string)
                 nodetype = label.rstrip('0123456789')
 
-                arity = label.lstrip(nodetype)
-                N_mirrored += int(arity) + \
-                    len(self.ComponentTypes[nodetype][1])
+                if nodetype in NODE_PROPERTIES:
+
+                    arity = label.lstrip(nodetype)
+                    N_mirrored += int(arity) + \
+                        len(self.ComponentTypes[nodetype][1])
+                else:
+                    # if the nodetype is a string, but not a known nodetype,
+                    # then assume it's a lifting surface parametric function:
+                    nodetype = 'function'
 
 
             except AttributeError:
@@ -1049,16 +1080,8 @@ class Topology(AirconicsCollection):
                 self.mirror=True
                 pass
 
-            # for arg in self.ComponentTypes[basename][2]:
-                # ensure the inputs are in the right order
-                # inputs.append(prim_args[arg])
-            if self.mirror:
-                mirror_count += arity
-
             getattr(self, basename+'N')(N=arity, **prim_args)
 
-            if mirror_count == 0:
-                self.mirror = False
         return None
 
     def from_file(self, fname, loader='json'):
