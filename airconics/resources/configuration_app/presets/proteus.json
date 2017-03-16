@@ -22,7 +22,7 @@
         "Z": 0.68,     
         "ScaleFactor": 0.42,
         "ChordFactor": 0.22,
-        "Rotation": 0.05, 
+        "Rotation": 90, 
         "Type": "StraightWing"
     }
   },

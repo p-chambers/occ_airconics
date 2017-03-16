@@ -2,7 +2,7 @@
   {
     "primitive": "fuselage2", 
     "args": {
-      "X": 0.3, 
+      "X": 0.0, 
       "Y": 0.0, 
       "Z": 0.0,
       "XScaleFactor": 1.0,
@@ -19,7 +19,7 @@
       "Z": 0.6, 
       "ChordFactor": 1.0,
       "ScaleFactor": 0.45,
-      "Rotation": 1.0,
+      "Rotation": 1.571,
       "Type": "AirlinerFin"
     }
   }, 
@@ -56,8 +56,8 @@
           "SpanStation": 0.35,
           "XChordFactor": 0.9,
           "DiameterLenRatio": 0.513,
-          "PylonSweep": 0.0,
-          "PylonLenRatio": 0.8,
+          "PylonSweep": 0.785,
+          "PylonLenRatio": 0.7,
           "Rotation": 0.0
       }
   }

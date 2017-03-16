@@ -118,6 +118,48 @@ def wrap_fitnessfunct(fitness_funct):
     return wrapped_fitnessfunct
 
 
+def lamarck_update(individual, pset, *args):
+        """Performs a local update step on the parse tree and geometry of this
+        topology. 
+        Replaces the value of the numeric inputs stored in self._deap_tree (the
+        execution parse tree that generates the geometry), without affecting
+        the component hierarchy. The parse tree is then recompiled and executed
+        to rebuild the geometry
+        Notes
+        -----
+        * As the size of the parse tree contained within self._deap_tree is not
+        consistent between instances, the number of input arguments is not
+        known at the time of implementation.
+        * It is the users responsibility to ensure that the correct number of
+        arguments is passed, and that the value and step size is appropriate.
+        * In future, this function would benefit from a 
+        """
+        for node in enumerate(self._deap_Tree):
+            try:
+                # This should only work for deap terminals: primitives do not
+                # have a value attribute
+                node.value = args.pop(0)
+            except AttributeError:
+                pass
+        routine = gp.compile(tree, self._pset)
+        routine()
+
+
+# def lamarck_evolve(self, nsteps, fitness_funct):
+#     """Performs multiple objective driven lamarckian (local) evolution
+#     steps on self._deap_tree.
+#     This function updates the geometry contained in this object multiple
+#     times. The state of the object once the optimisation steps have been
+#     performed is the direct result of the final optimisation step
+#     Notes
+#     -----
+#     Uses the scipy.optimize.minimize function, with l-bfgs-b
+#     """
+#     # retrieve the current vector of inputs
+#     res = scipy.optimize.minimize(self.lamarck_update, x0=[], options={'maxiter=nsteps'})
+#     return res
+
+
 def default_fitness(topology):
     """The default fitness function used by the Topology class
 
@@ -157,13 +199,16 @@ def create_diffed_airliner_fitness():
     geometry model, e.g., total wing area, as part of the objective function.
     """
     # Create the reference list of primitive strings
-    topo_tools = Topology_GPTools(MaxAttachments=4)
+    topo = Topology(construct_geometry=False)
     fname = os.path.join(os.path.dirname(__file__),
                          'resources/configuration_app/presets/airliner.json')
-    topo = topo_tools.from_file(fname)
+    topo.from_file(fname)
+
+    # topo = topo_tools.spawn_topology(tree, construct_geometry=False)
     
     # Obtain a list of all component primitives in the tree
     airliner_json = topo.to_json()
+    print(airliner_json)
 
     airliner_components = [node['primitive'] for node in airliner_json]
 
@@ -462,7 +507,12 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     --------
     airconics.Topology.liftingsurfaceN
     """
+    # have to assume topo is passed last, as the main routine is made from
+    # python partials. The final routine is a callable function that takes 
+    # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
+    Rotation = np.interp(Rotation, [-1, 0, 1], [-90, 0, 90])
+
     topo.liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
                             Rotation, Type, len(args)-1)
     for arg in args[:-1]:
@@ -483,9 +533,28 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
     --------
     airconics.Topology.fuselageN
     """
+    # have to assume topo is passed last, as the main routine is made from
+    # python partials. The final routine is a callable function that takes 
+    # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
-    topo.fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
-                      TailLengthRatio, FinenessRatio, len(args)-1)
+
+    arglimits = {'NoseLengthRatio': (0.18, 0.4),
+                 'TailLengthRatio': (0.2, 0.55),
+                 }
+    argspec = inspect.getargvalues(inspect.currentframe())
+    true_inputs = {k: (argspec.locals[k] if k not in arglimits
+        else np.interp(argspec.locals[k], [0,1], arglimits[k]))
+        for k in argspec.args}
+
+    true_inputs['N'] = len(args) - 1
+    # XScaleFactor = np.interp(XScaleFactor, [0, 1], arglimits[XScaleFactor])
+    # NoseLengthRatio = np.interp(NoseLengthRatio, [0,1], arglimits[NoseLengthRatio])
+    # TailLengthRatio = np.interp(TailLengthRatio, [0,1],
+    #     arglimits[TailLengthRatio])
+    # FinenessRatio = np.interp(FinenessRatio, [0,1],
+    #     arglimits[FinenessLengthRatio])
+
+    topo.fuselageN(**true_inputs)
     for arg in args[:-1]:
         arg(topo)
 
@@ -504,9 +573,34 @@ def engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRat
     --------
     airconics.Topology.engineN
     """
+    # have to assume topo is passed last, as the main routine is made from
+    # python partials. The final routine is a callable function that takes 
+    # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
+
+    # Interpolate normalised variables between allowable limits. Note that
+    # PylonSweep intentionally backwards, as the engine chord is defined from
+    # TE to LE
+    arglimits = {'XChordFactor': (0.1, 1.0),
+             'DiameterLenRatio': (0.1, 1.0),
+             'Rotation': (0, np.pi),
+             'PylonSweep': (np.pi/4., -np.pi/4) 
+             }
+    argspec = inspect.getargvalues(inspect.currentframe())
+    true_inputs = {k: (argspec.locals[k] if k not in arglimits
+        else np.interp(argspec.locals[k], [0,1], arglimits[k]))
+        for k in argspec.args}
+
+    true_inputs['N'] = len(args) - 1
+    # XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
+    # DiameterLenRatio = np.interp(XChordFactor, [0, 1], arglimits[DiameterLenRatio])
+    # Rotation = np.interp(Rotation, [0, 1], arglimits[Rotation])
+    # PylonSweep = np.interp(PylonSweep, [0, 1], arglimits[PylonSweep])
+
     topo.engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
             Rotation, len(args)-1)
+
+    # run all subtrees 
     for arg in args[:-1]:
         arg(topo)
 
@@ -563,10 +657,18 @@ class Topology(AirconicsCollection):
     """
     ComponentTypes = {'fuselage': (fuselageN, [float] * 7, ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio']),
-                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [dict], ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type']),
+                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type']),
                       'engine': (engineN, [float] * 6, ['SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
                       'mirror': (mirrorN, [], [])
                       }
+    # ArgLimits = {'fuselage' {'X': (0,1), 'Y'(0,1): , 'Z'(0,1): ,
+    #                          'XScaleFactor':(0, 1) ,
+    #                          'NoseLengthRatio':(0.2, 0.55) ,
+    #                          'TailLengthRatio': (0.2, 0.55),
+    #                          'FinenessRatio': (0.0, 1)},
+    #              'liftingsurface' : {'X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'}
+    #              'engine': {'SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation'}
+    #             }
 
     # varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
     #             'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
@@ -578,7 +680,7 @@ class Topology(AirconicsCollection):
     def __init__(self, parts={},
                  construct_geometry=True,
                  SimplificationReqd=True,
-                 pset=None
+                 routine=None
                  ):
 
         # Start with an empty parts list, as all parts will be added using
@@ -587,7 +689,7 @@ class Topology(AirconicsCollection):
         super(Topology, self).__init__(parts=parts,
                                        mirror=False,
                                        SimplificationReqd=SimplificationReqd,
-                                       pset=pset
+                                       construct_geometry=construct_geometry
                                        )
 
         # Carry around the tree for visualisation purposes:
@@ -603,6 +705,9 @@ class Topology(AirconicsCollection):
 
         for name, part_w_arity in parts.items():
             self[name] = part_w_arity
+
+        if routine:
+            self.run(routine)
 
     def __setitem__(self, name, part_w_arity):
         """Overloads the assignment operator used by AirconicsCollection
@@ -659,18 +764,19 @@ class Topology(AirconicsCollection):
         self.mirror = False
 
     def mirrorN(self, N):
-        self.mirror = True
-        if len(self.parent_nodes) > 0:
-            # The arity of a mirror node must be added to a parent node so that
-            # further subcomponents will be added to their parent
-            self.parent_nodes[self.parent_nodes.keys()[-1]] += N - 1
-
-        self.mirror_count += N
         # The second argument here (Primitive argtypes) is a bit of a
         # hack: there are no arguments to the mirror primitive, but this allows
         # the primitive tree to be constructed
         self._deap_tree.append(gp.Primitive('mirror'+str(N), [None] * N, None))
 
+        if self.construct_geometry:
+            self.mirror = True
+            if len(self.parent_nodes) > 0:
+                # The arity of a mirror node must be added to a parent node so that
+                # further subcomponents will be added to their parent
+                self.parent_nodes[self.parent_nodes.keys()[-1]] += N - 1
+
+            self.mirror_count += N
 
     def fuselageN(self, X, Y, Z, XScaleFactor, NoseLengthRatio,
                   TailLengthRatio, FinenessRatio, N):
@@ -679,52 +785,6 @@ class Topology(AirconicsCollection):
         # Need to add constraints here so that the Fuselage has a good chance
         # of successful lofting: any out of range values will be moved to the
         # nearest boundary:
-        arglimits = {NoseLengthRatio: (0.18, 0.19),
-                     TailLengthRatio: (0.29, 0.295),
-                     XScaleFactor: (0.5, 5),
-                     FinenessRatio: (0.5, 2)}
-
-        # NoseLengthRatio = np.interp(NoseLengthRatio, [0,1], arglimits[NoseLengthRatio])
-        # TailLengthRatio = np.interp(TailLengthRatio, [0,1],
-        # arglimits[TailLengthRatio])
-
-        # For now, I'm fixing these values to avoid errors (curve projection
-        # seems to fail)
-        NoseLengthRatio = 0.182
-        TailLengthRatio = 0.293
-
-        # Fit shape to parent, if one is available
-        if len(self.parent_nodes) > 0:
-            parent = self[self.parent_nodes.keys()[-1]]
-
-            XScaleFactor, X, Y, Z = parent.fit_scale_location(
-                XScaleFactor, X, Y, Z)
-
-        else:
-            XScaleFactor = np.interp(XScaleFactor, [0, 1], arglimits[XScaleFactor])
-            NoseX = NoseY = NoseZ = 0
-
-        ScalingYZ = XScaleFactor / FinenessRatio
-        
-        # Fits N new components to this box layout
-        fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
-                       TailLengthRatio=TailLengthRatio,
-                       Scaling=[XScaleFactor, ScalingYZ, ScalingYZ],
-                       NoseCoordinates=[X, Y, Z],
-                       SimplificationReqd=self.SimplificationReqd
-                       )
-        # Do no be confused between the numbering of components and the number
-        # of descendent nodes
-        name = 'fuselage{}_{}'.format(N, len(self))
-        self[name] = fus, N
-
-        if self.mirror:
-            super(Topology, self).__setitem__(
-                name + '_mirror', fus.MirrorComponents(plane='xz'))
-            self.mirror_count += N-1
-        if self.mirror_count == 0:
-            self.mirror=False
-
         # Append to the deap tree
         self._deap_tree.append(gp.Primitive('fuselage'+str(N),
             Topology.ComponentTypes['fuselage'][1] + [None]*N, None))
@@ -732,63 +792,96 @@ class Topology(AirconicsCollection):
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+
+        if self.construct_geometry:
+
+            # Fit shape to parent, if one is available
+            if len(self.parent_nodes) > 0:
+                parent = self[self.parent_nodes.keys()[-1]]
+
+                XScaleFactor, X, Y, Z = parent.fit_scale_location(
+                    XScaleFactor, X, Y, Z)
+
+            else:
+                X = Y = Z = 0
+
+            ScalingYZ = XScaleFactor / FinenessRatio
+            
+            # Fits N new components to this box layout
+            fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
+                           TailLengthRatio=TailLengthRatio,
+                           Scaling=[XScaleFactor, ScalingYZ, ScalingYZ],
+                           NoseCoordinates=[X, Y, Z],
+                           SimplificationReqd=self.SimplificationReqd
+                           )
+            # Do no be confused between the numbering of components and the number
+            # of descendent nodes
+            name = 'fuselage{}_{}'.format(N, len(self))
+            self[name] = fus, N
+
+            if self.mirror:
+                super(Topology, self).__setitem__(
+                    name + '_mirror', fus.MirrorComponents(plane='xz'))
+                self.mirror_count += N-1
+            if self.mirror_count == 0:
+                self.mirror=False
+
         return None
 
     def liftingsurfaceN(self, X, Y, Z, ChordFactor, ScaleFactor,
                         Rotation, Type, N):
-        # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
-        NSeg = 21
-
-        # Checks if the current shape is being fitted to a parent; otherwise
-        # this is the root component to which all others will be 'fitted',
-        # in which case a wing is created with its apex at the origin
-        if len(self.parent_nodes) > 0:
-            parent = self[self.parent_nodes.keys()[-1]]
-            ScaleFactor, X, Y, Z = parent.fit_scale_location(
-                ScaleFactor, X, Y, Z)
-
-        else:
-            X = Y = Z = 0
-
-        P = (X, Y, Z)
-        # Instantiate the class
-        try:
-            lsurf_functs = LSURF_FUNCTIONS[Type]
-        except TypeError:
-            # Assume that Type is already a dictionary of 'name': function
-            # params to pass to the wing class: do nothing
-            lsurf_functs = Type
-        wing = liftingsurface.LiftingSurface(P,
-                                             SegmentNo=NSeg,
-                                             ScaleFactor=ScaleFactor,
-                                             ChordFactor=ChordFactor,
-                                             **lsurf_functs)
-
-        # Rotate the component if necessary:
-        # if surfacetype in ['AirlinerFin', 'StraightWing']:
-        # , 90]) # V tail or vertical fin
-        Rotation_deg = np.interp(Rotation, [-1, 0, 1], [-90, 0, 90])
-        RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-        wing.RotateComponents(RotAx, Rotation_deg)
-        wing.LECurve.GetObject().Rotate(RotAx, np.radians(Rotation_deg))
-
-        self['liftingsurface{}_{}'.format(
-            N, len(self))] = wing, N
-
-        if self.mirror:
-            super(Topology, self).__setitem__(
-                'liftingsurface{}_{}_mirror'.format(
-                    N, len(self) - 1), wing.MirrorComponents(plane='xz'))
-            self.mirror_count += N-1
-        if self.mirror_count == 0:
-            self.mirror=False
-
         # Append to the deap tree
         self._deap_tree.append(gp.Primitive('liftingsurface'+str(N),
             Topology.ComponentTypes['liftingsurface'][1] + [None]*N, None))
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+        if self.construct_geometry:
+            # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
+            NSeg = 21
+
+            # Checks if the current shape is being fitted to a parent; otherwise
+            # this is the root component to which all others will be 'fitted',
+            # in which case a wing is created with its apex at the origin
+            if len(self.parent_nodes) > 0:
+                parent = self[self.parent_nodes.keys()[-1]]
+                ScaleFactor, X, Y, Z = parent.fit_scale_location(
+                    ScaleFactor, X, Y, Z)
+
+            else:
+                X = Y = Z = 0
+
+            P = (X, Y, Z)
+            # Instantiate the class
+            try:
+                lsurf_functs = LSURF_FUNCTIONS[Type]
+            except TypeError:
+                # Assume that Type is already a dictionary of 'name': function
+                # params to pass to the wing class: do nothing
+                lsurf_functs = Type
+            wing = liftingsurface.LiftingSurface(P,
+                                                 SegmentNo=NSeg,
+                                                 ScaleFactor=ScaleFactor,
+                                                 ChordFactor=ChordFactor,
+                                                 **lsurf_functs)
+
+            # Rotate the component if necessary:
+            # if surfacetype in ['AirlinerFin', 'StraightWing']:
+            # , 90]) # V tail or vertical fin
+            RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
+            wing.RotateComponents(RotAx, np.degrees(Rotation))
+            wing.LECurve.GetObject().Rotate(RotAx, Rotation)
+
+            self['liftingsurface{}_{}'.format(
+                N, len(self))] = wing, N
+
+            if self.mirror:
+                super(Topology, self).__setitem__(
+                    'liftingsurface{}_{}_mirror'.format(
+                        N, len(self) - 1), wing.MirrorComponents(plane='xz'))
+                self.mirror_count += N-1
+            if self.mirror_count == 0:
+                self.mirror=False
         return None
 
     def engineN(self, SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
@@ -813,94 +906,82 @@ class Topology(AirconicsCollection):
 
         Engines are always in the x direction, hence y-length cuts
         """
-        # Allowing these to be fixed for now
-        arglimits = {XChordFactor: (0.25, 1.0),
-                     DiameterLenRatio: (0.25, 1.0)}
-
-        Scarf_deg = 0
-
-        # XChordFactor = np.interp(XChordFactor, [0, 1], arglimits[XChordFactor])
-        # YZLengthRatio = np.interp(XChordFactor, [0, 1], arglimits[YZLengthRatio])
-        from OCC.GC import GC_MakeSegment
-        if len(self.parent_nodes) > 0:
-            parent = self[self.parent_nodes.keys()[-1]]
-            # obtain chord for fitting engine to - this is different for a 
-            # wing and a fuselage
-            # TODO: wrap this into class method for fuselage and liftinsurface
-            if isinstance(parent, Fuselage):
-                HMainChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
-                MainChord = HMainChord.GetObject()
-                CEP = MainChord.Value(MainChord.LastParameter() * SpanStation)
-                NacelleLength = XChordFactor * parent.BowPoint.Distance(parent.SternPoint)
-                HChord = GC_MakeSegment(CEP.Translated(gp_Vec(NacelleLength, 0, 0)), CEP).Value()
-
-            elif isinstance(parent, LiftingSurface):
-                HChord = parent.get_spanstation_chord(SpanStation)
-                Chord = HChord.GetObject()
-                CEP = Chord.EndPoint()
-                NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
-        else:
-            HChord = 0
-            NacelleLength = 1
-            CEP=gp_Pnt(0, 0, 0)
-
-        EngineDia = DiameterLenRatio * NacelleLength
-
-        Rotation_deg = np.interp(Rotation, [0, 1], [0, 180])
-        PylonSweep = np.interp(PylonSweep, [0, 1], [45, -45])
-        pylon_project_vec = gp_Vec(0, 0, -1*PylonLenRatio*NacelleLength)
-
-        # perform the general translation and rotation of the leading edge
-        # point where the pylon starts to obtain the engine start loc
-        LE_X = gp_Ax1(CEP, gp_Dir(1, 0, 0))
-        LE_Y = gp_Ax1(CEP, gp_Dir(0, 1, 0))
-
-        CentrePt = CEP.Translated(pylon_project_vec).Rotated(LE_X, np.radians(Rotation_deg)).Rotated(LE_Y, np.radians(PylonSweep))
-
-
-        Centreloc = [CentrePt.X(), CentrePt.Y(), CentrePt.Z()]
-
-        #   Now build the engine and its pylon
-        eng = Engine(HChord,
-                      CentreLocation=Centreloc,
-                      ScarfAngle=Scarf_deg,
-                      HighlightRadius=EngineDia/2.0,
-                      MeanNacelleLength=NacelleLength,
-                      SimplePylon=True,
-                      PylonRotation=Rotation_deg-90.)
-
-        # if parent is fuselage, standard pylon plane should be horizontal,
-        # otherwise if it's a wing, fit it vertically
-        # Rotate the engine around the hchord (180deg range?):
-        # RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-        # eng.RotateComponents(Rot_Ax, np.radians(Rotation_deg))
-
-        self['engine{}_{}'.format(
-            N, len(self))] = eng, N
-
-        if self.mirror:
-            super(Topology, self).__setitem__(
-                'engine{}_{}_mirror'.format(
-                    N, len(self) - 1), eng.MirrorComponents(plane='xz'))
-            self.mirror_count += N - 1
-        if self.mirror_count == 0:
-            self.mirror=False
-
         # Append to the deap tree
         self._deap_tree.append(gp.Primitive('engine'+str(N), 
             Topology.ComponentTypes['engine'][1] + [None]*N, None))
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+
+        if self.construct_geometry:
+            # Allowing these to be fixed for now
+            Scarf_deg = 0
+
+            from OCC.GC import GC_MakeSegment
+            if len(self.parent_nodes) > 0:
+                parent = self[self.parent_nodes.keys()[-1]]
+                # obtain chord for fitting engine to - this is different for a 
+                # wing and a fuselage
+                # TODO: wrap this into class method for fuselage and liftinsurface
+                if isinstance(parent, Fuselage):
+                    HMainChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
+                    MainChord = HMainChord.GetObject()
+                    CEP = MainChord.Value(MainChord.LastParameter() * SpanStation)
+                    NacelleLength = XChordFactor * parent.BowPoint.Distance(parent.SternPoint)
+                    HChord = GC_MakeSegment(CEP.Translated(gp_Vec(NacelleLength, 0, 0)), CEP).Value()
+
+                elif isinstance(parent, LiftingSurface):
+                    HChord = parent.get_spanstation_chord(SpanStation)
+                    Chord = HChord.GetObject()
+                    CEP = Chord.EndPoint()
+                    NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
+            else:
+                HChord = 0
+                NacelleLength = 1
+                CEP=gp_Pnt(0, 0, 0)
+
+            EngineDia = DiameterLenRatio * NacelleLength
+
+            pylon_project_vec = gp_Vec(0, 0, -1*PylonLenRatio*NacelleLength)
+
+            # perform the general translation and rotation of the leading edge
+            # point where the pylon starts to obtain the engine start loc
+            LE_X = gp_Ax1(CEP, gp_Dir(1, 0, 0))
+            LE_Y = gp_Ax1(CEP, gp_Dir(0, 1, 0))
+
+            CentrePt = CEP.Translated(pylon_project_vec).Rotated(LE_X, Rotation).Rotated(LE_Y, PylonSweep)
+
+
+            Centreloc = [CentrePt.X(), CentrePt.Y(), CentrePt.Z()]
+
+            #   Now build the engine and its pylon
+            eng = Engine(HChord,
+                          CentreLocation=Centreloc,
+                          ScarfAngle=Scarf_deg,
+                          HighlightRadius=EngineDia/2.0,
+                          MeanNacelleLength=NacelleLength,
+                          SimplePylon=True,
+                          PylonRotation=Rotation-90.)
+
+            self['engine{}_{}'.format(
+                N, len(self))] = eng, N
+
+            if self.mirror:
+                super(Topology, self).__setitem__(
+                    'engine{}_{}_mirror'.format(
+                        N, len(self) - 1), eng.MirrorComponents(plane='xz'))
+                self.mirror_count += N - 1
+            if self.mirror_count == 0:
+                self.mirror=False
         return None
 
-    def run(self, tree):
+    def run(self, routine):
         self._reset()
-        routine = gp.compile(tree, self.pset)
+        # routine = gp.compile(tree, self.pset)
         routine(self)
         # Note: self._deap_tree MUST be set after the routine has been run
         # here, as running the routine updates the deap tree
-        self._deap_tree = tree
+        # self._deap_tree = tree
 
 
     def pydot_graph(self):
@@ -1153,7 +1234,7 @@ class Topology_GPTools(object):
                  min_levels=2,
                  max_levels=4,
                  min_mut=1,
-                 max_mut=3,
+                 max_mut=4,
                  pset_name="MAIN",
                  SimplificationReqd=True,
                  fitness_weights=(1.0,),
@@ -1175,17 +1256,23 @@ class Topology_GPTools(object):
         # Need to bind the fitness function to the object here:
         self.fitness_funct = types.MethodType(wrap_fitnessfunct(fitness_funct), self)
 
-    def spawn_topology(self, tree=None):
-        # This function currently overwrites the existing topology attribute
-        # with a new topology. Speed increase may be found here by reusing the
-        # Topology with self._topology._reset(), however, this can cause
-        # unexpected behaviour with references returned by previous runs
-        topology = Topology(SimplificationReqd=self.SimplificationReqd,
-                            pset=self._pset)
-        if tree:
-            topology.run(tree)
-        return topology
+    def spawn_topology(self, tree=None, *args, **kwargs):
+        """
+        Parameters
+        ----------
 
+        *kwargs (optional) : additional args to pass to new Topology
+        
+        See also
+        --------
+        airconics.topology.Topology
+        """
+        topology = Topology(SimplificationReqd=self.SimplificationReqd, *args, **kwargs)
+
+        if tree:
+            routine = gp.compile(tree, self._pset)
+            topology.run(routine)
+        return topology
 
     def create_pset(self, name="MAIN"):
         """Creates the primitive set to be used for compiling topology 'programs'
@@ -1230,7 +1317,7 @@ class Topology_GPTools(object):
         # primitives in a tree must be one of these (forced in 'generate'
         # function)
         pset.leaf_primitives = {functools.partial: ['fuselage0', 'liftingsurface0', 'engine0'],
-        float: [], dict: []}
+        float: [], str: []}
 
         # mirroring primitives (need to start from mirror1 to avoid bloat)
         f, argtypes, _ = Topology.ComponentTypes['mirror']
@@ -1240,8 +1327,8 @@ class Topology_GPTools(object):
                 name=name)
 
         # Primitives for defining shape of lifting surfaces:
-        for wingtype, params in LSURF_FUNCTIONS.items():
-            pset.addTerminal(params, dict, name=wingtype)
+        for wingtype in LSURF_FUNCTIONS.keys():
+            pset.addTerminal(wingtype, str, name=wingtype)
 
         pset.addEphemeralConstant('rand', random.random, float)
 
@@ -1356,11 +1443,11 @@ class Topology_GPTools(object):
                             ngen, stats, halloffame=hof)
 
         # get the best individual and rerun it:
-        best = hof[0]
+        # best = hof[0]
 
-        best_topo = self.spawn_topology(best)
+        # best_topo = self.spawn_topology(best)
 
-        return population, logbook, hof, gen_best, best_topo
+        return population, logbook, hof, gen_best
 
     def evalTopology(self, individual):
         topo = self.spawn_topology(individual)
@@ -1394,3 +1481,64 @@ class Topology_GPTools(object):
             config_string = self.preset_strs[preset]
         tree = gp.PrimitiveTree.from_string(config_string, self._pset)
         return self.spawn_topology(tree)
+
+    def from_json(self, json_array):
+        """
+        """
+        expr = []
+
+        for component in json_array:
+            prim_name = component['primitive']
+            basename = re.sub(r'\d+', '', prim_name)
+
+
+            if basename != 'mirror':
+                prim_args = component['args']
+            else:
+                # This is a mirror component, no args reqd.
+                pass
+
+            arity = int(re.findall('\d+$', prim_name)[0])
+            if prim_name in self._pset.mapping:
+                expr.append(self._pset.mapping[prim_name])
+
+            for arg in Topology.ComponentTypes[basename][2]:
+                assert(arg in prim_args), \
+                    'Input JSON does not contain parameter {} for component of type {}'. format(arg, prim_name)
+                if prim_args[arg] in self._pset.mapping:
+                    terminal = self._pset.mapping[prim_args[arg]]
+                    expr.append(terminal)
+                else:
+                    # Probably a floating point number or string
+                    type_ = type(prim_args[arg])
+
+                    expr.append(gp.Terminal(prim_args[arg], False, type_))
+
+        tree = self._creator.Individual(expr)
+        return tree
+
+    # def from_file(self, fname, loader='json'):
+    #     """Opens file 'fname' and attempts to load the Topology described
+    #     within.
+    #     Currently only supports json files.
+    #     Parameters
+    #     ----------
+    #     fname : string
+    #     loader : string (default 'json')
+    #         Defines the loading method used to extract the files contents.
+    #         Currently only allows json
+    #     Notes
+    #     -----
+    #     the 'loader' parameter is used instead of a file extension method as
+    #     JSON formatted files do not require the extension to be '.json'
+    #     See Also
+    #     --------
+    #     from_JSON
+    #     """
+    #     if loader == "json":
+    #         with open(fname, 'r') as fin:
+    #             json_array = json.load(fin)
+    #         return self.from_json(json_array)
+    #     else:
+    #         raise ValueError(
+    #             "{} is not a known file loading method".format(loader))
