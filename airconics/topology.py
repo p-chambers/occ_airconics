@@ -50,6 +50,9 @@ FUNCTIONS = {'E': Fuselage,         # E = Enclosure
              '|': gp_Ax2,           # M = Mirror Plane
              '': None}
 
+PRESETS_DIR = os.path.join(os.path.dirname(__file__),
+                         'resources/configuration_app/presets/')
+
 # Reversed dictionary for manually adding shapes, i.e. converting
 #  a class instance to a string
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
@@ -178,7 +181,7 @@ def default_fitness(topology):
     return (xmax - xmin) * (ymax - ymin) * (zmax - zmin)
 
 
-def create_diffed_airliner_fitness():
+def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
     """
     Produces a fitness function for checking the similarity of an input
     airconics topology with a reference: the airliner example.
@@ -200,8 +203,6 @@ def create_diffed_airliner_fitness():
     """
     # Create the reference list of primitive strings
     topo = Topology(construct_geometry=False)
-    fname = os.path.join(os.path.dirname(__file__),
-                         'resources/configuration_app/presets/airliner.json')
     topo.from_file(fname)
 
     # topo = topo_tools.spawn_topology(tree, construct_geometry=False)
@@ -212,7 +213,7 @@ def create_diffed_airliner_fitness():
 
     airliner_components = [node['primitive'] for node in airliner_json]
 
-    def diffed_airliner_fitness(topology):
+    def diffed_fitness(topology):
         """Currently just uses difflibs gestalt pattern matcher. Eventually,
         this should use data from the inputs of the matched components 
         """
@@ -224,7 +225,7 @@ def create_diffed_airliner_fitness():
         sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
         
         # Will give something in order 0-10, 0 being exactly the same
-        diff = (1-sm.ratio()) * 10
+        diff = (1-sm.ratio()) * 1000
 
         for match in sm.get_matching_blocks()[:-1]:
 
@@ -238,7 +239,7 @@ def create_diffed_airliner_fitness():
                     # Try and get the shape difference only:
                     try:
                         # if this works, it's a wing
-                        diff += (1 if argsa['Type'] != argsb['Type'] else 0)
+                        diff += (10 if argsa['Type'] != argsb['Type'] else 0)
                     except KeyError:
                         # If not, it's a fuselage
                         pass
@@ -252,7 +253,7 @@ def create_diffed_airliner_fitness():
                     diff += np.linalg.norm(diff_vector) / np.linalg.norm(np.ones_like(diff_vector))   # Will give something in the order 1
 
         return diff
-    return diffed_airliner_fitness
+    return diffed_fitness
 
 
 
@@ -511,7 +512,8 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     # python partials. The final routine is a callable function that takes 
     # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
-    Rotation = np.interp(Rotation, [-1, 0, 1], [-90, 0, 90])
+    Rotation = np.interp(Rotation, [0, 1], [-np.pi, np.pi])
+    ScaleFactor = np.interp(Rotation, [0, 1], [0.2, 3.0])
 
     topo.liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
                             Rotation, Type, len(args)-1)
@@ -597,8 +599,7 @@ def engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRat
     # Rotation = np.interp(Rotation, [0, 1], arglimits[Rotation])
     # PylonSweep = np.interp(PylonSweep, [0, 1], arglimits[PylonSweep])
 
-    topo.engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
-            Rotation, len(args)-1)
+    topo.engineN(**true_inputs)
 
     # run all subtrees 
     for arg in args[:-1]:
@@ -961,7 +962,7 @@ class Topology(AirconicsCollection):
                           HighlightRadius=EngineDia/2.0,
                           MeanNacelleLength=NacelleLength,
                           SimplePylon=True,
-                          PylonRotation=Rotation-90.)
+                          PylonRotation=np.degrees(Rotation-np.pi/2.))
 
             self['engine{}_{}'.format(
                 N, len(self))] = eng, N
@@ -977,11 +978,11 @@ class Topology(AirconicsCollection):
 
     def run(self, routine):
         self._reset()
-        # routine = gp.compile(tree, self.pset)
+        #routine = gp.compile(tree, pset)
         routine(self)
         # Note: self._deap_tree MUST be set after the routine has been run
         # here, as running the routine updates the deap tree
-        # self._deap_tree = tree
+        #self._deap_tree = tree
 
 
     def pydot_graph(self):
