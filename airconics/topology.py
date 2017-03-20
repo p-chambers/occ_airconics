@@ -121,48 +121,6 @@ def wrap_fitnessfunct(fitness_funct):
     return wrapped_fitnessfunct
 
 
-def lamarck_update(individual, pset, *args):
-        """Performs a local update step on the parse tree and geometry of this
-        topology. 
-        Replaces the value of the numeric inputs stored in self._deap_tree (the
-        execution parse tree that generates the geometry), without affecting
-        the component hierarchy. The parse tree is then recompiled and executed
-        to rebuild the geometry
-        Notes
-        -----
-        * As the size of the parse tree contained within self._deap_tree is not
-        consistent between instances, the number of input arguments is not
-        known at the time of implementation.
-        * It is the users responsibility to ensure that the correct number of
-        arguments is passed, and that the value and step size is appropriate.
-        * In future, this function would benefit from a 
-        """
-        for node in enumerate(self._deap_Tree):
-            try:
-                # This should only work for deap terminals: primitives do not
-                # have a value attribute
-                node.value = args.pop(0)
-            except AttributeError:
-                pass
-        routine = gp.compile(tree, self._pset)
-        routine()
-
-
-# def lamarck_evolve(self, nsteps, fitness_funct):
-#     """Performs multiple objective driven lamarckian (local) evolution
-#     steps on self._deap_tree.
-#     This function updates the geometry contained in this object multiple
-#     times. The state of the object once the optimisation steps have been
-#     performed is the direct result of the final optimisation step
-#     Notes
-#     -----
-#     Uses the scipy.optimize.minimize function, with l-bfgs-b
-#     """
-#     # retrieve the current vector of inputs
-#     res = scipy.optimize.minimize(self.lamarck_update, x0=[], options={'maxiter=nsteps'})
-#     return res
-
-
 def default_fitness(topology):
     """The default fitness function used by the Topology class
 
