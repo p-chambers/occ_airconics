@@ -209,7 +209,6 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
     
     # Obtain a list of all component primitives in the tree
     airliner_json = topo.to_json()
-    print(airliner_json)
 
     airliner_components = [node['primitive'] for node in airliner_json]
 
