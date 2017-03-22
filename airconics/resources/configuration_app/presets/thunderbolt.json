@@ -6,9 +6,9 @@
       "Y": 0.0, 
       "Z": 0.0,
       "XScaleFactor": 1.0,
-      "NoseLengthRatio": 0.182,
-      "TailLengthRatio": 0.293,
-      "FinenessRatio": 0.85
+      "NoseLengthRatio": 0.15,
+      "TailLengthRatio": 0.4,
+      "FinenessRatio": 0.8
     }
   },
   {
@@ -17,22 +17,22 @@
   {
     "primitive": "engine0",
     "args": {
-        "SpanStation": 0.65,
+        "SpanStation": 0.6,
         "XChordFactor": 0.16,
         "DiameterLenRatio": 0.4,
-        "PylonSweep": 0.4,
+        "PylonSweep": -0.4,
         "PylonLenRatio": 0.58,
-        "Rotation": 0.75
+        "Rotation": 2.36
     }
   }, 
   {
     "primitive": "liftingsurface0",
     "args": {
-      "X": 0.4, 
+      "X": 0.35, 
       "Y": 0.0, 
       "Z": 0.00,     
       "ScaleFactor": 0.4,
-      "ChordFactor": 0.333,
+      "ChordFactor": 0.4,
       "Rotation": 0.02, 
       "Type": "TaperedWing"
     }
@@ -40,10 +40,10 @@
   {
     "primitive": "liftingsurface1",
     "args": {    
-      "X": 0.85,
+      "X": 0.8,
       "Y": 0.0, 
       "Z": 0.5, 
-      "ChordFactor": 0.65, 
+      "ChordFactor": 0.7, 
       "ScaleFactor": 0.14,
       "Rotation": 0.0, 
       "Type": "StraightWing"
@@ -57,7 +57,7 @@
       "Z": 1.0,     
       "ScaleFactor": 0.8,
       "ChordFactor": 0.833,
-      "Rotation": 1.0, 
+      "Rotation": 1.57, 
       "Type": "TaperedWing"
     }
   }

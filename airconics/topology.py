@@ -58,10 +58,10 @@ PRESETS_DIR = os.path.join(os.path.dirname(__file__),
 FUNCTIONS_INV = {func: name for name, func in FUNCTIONS.items()}
 
 # The shapes of nodes in the exported graph from Topo class:
-NODE_PROPERTIES = {'fuselage': {'shape': 'ellipse', 'fillcolor': '#136ed4', 'fontcolor': "white"},
-                   'liftingsurface': {'shape': 'box', 'fillcolor': '#136ed4', 'fontcolor': "white"},
-                   'engine': {'shape': 'hexagon', 'fillcolor': '#136ed4', 'fontcolor': "white"},
-                   'mirror': {'shape': 'box', 'fillcolor': '#136ed4', 'fontcolor': "white"},
+NODE_PROPERTIES = {'fuselage': {'shape': 'ellipse', 'fillcolor': '#d3d3d3', 'fontcolor': "white"},
+                   'liftingsurface': {'shape': 'box', 'fillcolor': '#d3d3d3', 'fontcolor': "white"},
+                   'engine': {'shape': 'hexagon', 'fillcolor': '#d3d3d3', 'fontcolor': "white"},
+                   'mirror': {'shape': 'box', 'fillcolor': '#d3d3d3', 'fontcolor': "white"},
                    'number': {'shape': 'ellipse'},
                    'function': {'shape': 'ellipse'},
                    'None': {'shape': 'point'},
@@ -469,8 +469,8 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     # python partials. The final routine is a callable function that takes 
     # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
-    Rotation = np.interp(Rotation, [0, 1], [-np.pi, np.pi])
-    ScaleFactor = np.interp(Rotation, [0, 1], [0.2, 3.0])
+    Rotation = np.interp(Rotation, [0, 1], [-np.pi/2., np.pi/2.])
+    ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
 
     topo.liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
                             Rotation, Type, len(args)-1)
@@ -749,6 +749,7 @@ class Topology(AirconicsCollection):
 
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
+            # print(name, argspec.locals[name])
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
 
         if self.construct_geometry:
