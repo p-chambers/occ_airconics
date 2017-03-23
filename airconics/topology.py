@@ -473,8 +473,8 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     # ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
 
     arglimits = {'Rotation': (-np.pi/2., np.pi/2.),
-             'ScaleFactor': (0.1, 3.0),
-             'ChordFactor': (0.1, 1.0)
+             'ScaleFactor': (0.3, 3.0),
+             'ChordFactor': (0.2, 1.0)
              }
     argspec = inspect.getargvalues(inspect.currentframe())
     true_inputs = {k: (argspec.locals[k] if k not in arglimits
@@ -509,7 +509,8 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
 
     arglimits = {'NoseLengthRatio': (0.18, 0.4),
                  'TailLengthRatio': (0.2, 0.55),
-                 'XScaleFactor': (0.1, 3.0)
+                 'XScaleFactor': (0.3, 3.0),
+                 'FinenessRatio': (0.2, 1.0)
                  }
     argspec = inspect.getargvalues(inspect.currentframe())
     true_inputs = {k: (argspec.locals[k] if k not in arglimits
@@ -552,7 +553,7 @@ def engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRat
     # PylonSweep intentionally backwards, as the engine chord is defined from
     # TE to LE
     arglimits = {'XChordFactor': (0.1, 1.0),
-             'DiameterLenRatio': (0.1, 1.0),
+             'DiameterLenRatio': (0.2, 1.0),
              'Rotation': (0, np.pi),
              'PylonSweep': (np.pi/4., -np.pi/4) 
              }
