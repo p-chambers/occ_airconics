@@ -469,11 +469,21 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     # python partials. The final routine is a callable function that takes 
     # a Topology object as its input, and runs the routine on it.
     topo = args[-1]
-    Rotation = np.interp(Rotation, [0, 1], [-np.pi/2., np.pi/2.])
-    ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
+    # Rotation = np.interp(Rotation, [0, 1], [-np.pi/2., np.pi/2.])
+    # ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
 
-    topo.liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
-                            Rotation, Type, len(args)-1)
+    arglimits = {'Rotation': (-np.pi/2., np.pi/2.),
+             'ScaleFactor': (0.1, 3.0),
+             'ChordFactor': (0.1, 1.0)
+             }
+    argspec = inspect.getargvalues(inspect.currentframe())
+    true_inputs = {k: (argspec.locals[k] if k not in arglimits
+        else np.interp(argspec.locals[k], [0,1], arglimits[k]))
+        for k in argspec.args}
+
+    true_inputs['N'] = len(args) - 1
+
+    topo.liftingsurfaceN(**true_inputs)
     for arg in args[:-1]:
         arg(topo)
 
@@ -499,6 +509,7 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
 
     arglimits = {'NoseLengthRatio': (0.18, 0.4),
                  'TailLengthRatio': (0.2, 0.55),
+                 'XScaleFactor': (0.1, 3.0)
                  }
     argspec = inspect.getargvalues(inspect.currentframe())
     true_inputs = {k: (argspec.locals[k] if k not in arglimits
