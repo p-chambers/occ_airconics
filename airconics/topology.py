@@ -770,7 +770,7 @@ class Topology(AirconicsCollection):
             if len(self.parent_nodes) > 0:
                 parent = self[self.parent_nodes.keys()[-1]]
 
-                XScaleFactor, X, Y, Z = parent.fit_scale_location(
+                XScaleFactor, X, Y, Z = parent.FitScaleLocation(
                     XScaleFactor, X, Y, Z)
 
             else:
@@ -816,7 +816,7 @@ class Topology(AirconicsCollection):
             # in which case a wing is created with its apex at the origin
             if len(self.parent_nodes) > 0:
                 parent = self[self.parent_nodes.keys()[-1]]
-                ScaleFactor, X, Y, Z = parent.fit_scale_location(
+                ScaleFactor, X, Y, Z = parent.FitScaleLocation(
                     ScaleFactor, X, Y, Z)
 
             else:

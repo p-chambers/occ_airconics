@@ -759,7 +759,7 @@ class LiftingSurface(AirconicsShape):
 
         return Winglet
 
-    def fit_scale_location(self, oldscaling, oldx, oldy, oldz):
+    def FitScaleLocation(self, oldscaling, oldx, oldy, oldz):
         """Given an old scaling and old position (this will be a random number
         between 0 and 1 using the DEAP tree I have set up elsewhere), a new
         scaling and position is returned allowing the resulting shape to 'fit'
