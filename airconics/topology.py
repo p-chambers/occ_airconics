@@ -452,7 +452,7 @@ def mirrorN(*args):
 
 
 @wrap_shapeN
-def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
+def liftingsurfaceN(X, Y, Z, XScaleFactor, ChordFactor,
                         Rotation, Type, *args):
     """Passes args obtained from the GP primitive set attributed to this
     object to the CURRENT _topology attribute.
@@ -473,7 +473,7 @@ def liftingsurfaceN(X, Y, Z, ChordFactor, ScaleFactor,
     # ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
 
     arglimits = {'Rotation': (-np.pi/2., np.pi/2.),
-             'ScaleFactor': (0.3, 3.0),
+             'XScaleFactor': (0.3, 3.0),
              'ChordFactor': (0.2, 1.0)
              }
     argspec = inspect.getargvalues(inspect.currentframe())
@@ -627,7 +627,7 @@ class Topology(AirconicsCollection):
     """
     ComponentTypes = {'fuselage': (fuselageN, [float] * 7, ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio']),
-                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type']),
+                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'XScaleFactor', 'Rotation', 'Type']),
                       'engine': (engineN, [float] * 6, ['SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
                       'mirror': (mirrorN, [], [])
                       }

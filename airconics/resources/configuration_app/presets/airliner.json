@@ -18,7 +18,7 @@
       "Y": 0.0,
       "Z": 0.6, 
       "ChordFactor": 1.0,
-      "ScaleFactor": 0.45,
+      "XScaleFactor": 0.32,
       "Rotation": 1.57,
       "Type": "AirlinerFin"
     }
@@ -33,7 +33,7 @@
       "Y": 0.0, 
       "Z": 0.5, 
       "ChordFactor": 1.0, 
-      "ScaleFactor": 0.35,
+      "XScaleFactor": 0.22,
       "Rotation": 0.0, 
       "Type": "AirlinerTP"
     }
@@ -44,8 +44,8 @@
       "X": 0.15, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 0.8,
-      "ChordFactor": 0.71,
+      "XScaleFactor": 0.3,
+      "ChordFactor": 0.78,
       "Rotation": 0.0, 
       "Type": "AirlinerWing"
     }

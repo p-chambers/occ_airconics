@@ -707,23 +707,19 @@ class Fuselage(AirconicsShape):
 
         return WinStbd, WinPort
 
-    def FitScaleLocation(self, oldscaling, oldx, oldy, oldz, base_xlength):
+    def FitScaleLocation(self, XScaleFactor, oldx, oldy, oldz, base_xlength):
         """Given an old scaling and old position (this will be a random number
         between 0 and 1 using the DEAP tree I have set up elsewhere), a new
         scaling and position is returned allowing the resulting shape to 'fit'
         to its parent"""
-        # Need to get a scaling from the parent of arbitrary type:
-        # using a try-except to work for any parent type ... could probably
-        # do better here
-
-        scalingrange = np.array([0.1, 1])
-
-        parentscalefactor = self.Scaling[0]
+        # Standard fuselage length for SF=1 is 1, therefore only need SF_X
+        # fitting_length = self.Scaling[0]
 
         parent_apex = self.BowPoint
         # dL = gp_Vec(parent.BowPoint, parent.SternPoint)
         # self._testpoints.append(parent.SternPoint)
         xmin, ymin, zmin, xmax, ymax, zmax = self.Extents()
+        fitting_length = abs(xmax - xmin) * XScaleFactor
 
         newx = parent_apex.X() + (xmax - xmin) * oldx
         newy = parent_apex.Y() + (ymax - ymin) / 2. * oldy
@@ -737,7 +733,7 @@ class Fuselage(AirconicsShape):
 
         # The scaling is some percentage of parent (assumes components get
         # smaller)
-        newscaling = oldscaling * parentscalefactor
+        newscaling = fitting_length / float(base_xlength)
 
 
         return newscaling, newx, newy, newz

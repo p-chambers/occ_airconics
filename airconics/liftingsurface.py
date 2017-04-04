@@ -780,9 +780,9 @@ class LiftingSurface(AirconicsShape):
 
         # The scaling is some percentage of parent (assumes components get
         # smaller)
-        Chord = self.get_spanstation_chord(epsilon)
-        fitting_length = abs(Chord.StartPoint.X() - Chord.EndPoint.X()) * XScaleFactor
-        newscaling = fitting_length / base_xlength
+        Chord = self.get_spanstation_chord(epsilon).GetObject()
+        fitting_length = abs(Chord.StartPoint().X() - Chord.EndPoint().X()) * XScaleFactor
+        newscaling = fitting_length / float(base_xlength)
 
         return newscaling, newx, newy, newz
 

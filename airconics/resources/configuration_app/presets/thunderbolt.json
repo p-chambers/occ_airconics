@@ -2,7 +2,7 @@
   {
     "primitive": "fuselage1", 
     "args": {
-      "X": 0.4, 
+      "X": 0.0, 
       "Y": 0.0, 
       "Z": 0.0,
       "XScaleFactor": 1.0,
@@ -31,7 +31,7 @@
       "X": 0.35, 
       "Y": 0.0, 
       "Z": 0.00,     
-      "ScaleFactor": 0.4,
+      "XScaleFactor": 0.2,
       "ChordFactor": 0.4,
       "Rotation": 0.02, 
       "Type": "TaperedWing"
@@ -44,7 +44,7 @@
       "Y": 0.0, 
       "Z": 0.5, 
       "ChordFactor": 0.7, 
-      "ScaleFactor": 0.14,
+      "XScaleFactor": 0.14,
       "Rotation": 0.0, 
       "Type": "StraightWing"
     }
@@ -52,10 +52,10 @@
   {
     "primitive": "liftingsurface0",
     "args": {
-      "X": 1.0, 
-      "Y": 1.0, 
-      "Z": 1.0,     
-      "ScaleFactor": 0.8,
+      "X": 0.98, 
+      "Y": 0.98, 
+      "Z": 0.98,     
+      "XScaleFactor": 1.0,
       "ChordFactor": 0.833,
       "Rotation": 1.57, 
       "Type": "TaperedWing"
