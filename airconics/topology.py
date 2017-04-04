@@ -155,7 +155,7 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
     -----
     * This function is used so that the reference geometry/layout needs to
     be created once only.
-    
+
     * Eventually this function should use some information from the
     geometry model, e.g., total wing area, as part of the objective function.
     """
@@ -164,7 +164,7 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
     topo.from_file(fname)
 
     # topo = topo_tools.spawn_topology(tree, construct_geometry=False)
-    
+
     # Obtain a list of all component primitives in the tree
     airliner_json = topo.to_json()
 
@@ -172,7 +172,7 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
 
     def diffed_fitness(topology):
         """Currently just uses difflibs gestalt pattern matcher. Eventually,
-        this should use data from the inputs of the matched components 
+        this should use data from the inputs of the matched components
         """
         import difflib
 
@@ -180,7 +180,7 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
         tree_components = [node['primitive'] for node in tree_json]
 
         sm = difflib.SequenceMatcher(None, tree_components, airliner_components)
-        
+
         # Will give something in order 0-10, 0 being exactly the same
         diff = (1-sm.ratio()) * 1000
 
@@ -190,7 +190,7 @@ def create_diffed_fitness(fname=os.path.join(PRESETS_DIR, 'airliner.json')):
                 argsa = tree_json[match.a + i]['args']
                 diff_vector = np.zeros(len(argsa))
                 if len(argsa) > 0:
-                    # This node is not a mirror, and inputs may have some difference
+                    # This node is not a mirror
                     argsb = airliner_json[match.b + i]['args']
 
                     # Try and get the shape difference only:
@@ -769,9 +769,9 @@ class Topology(AirconicsCollection):
             # Fit shape to parent, if one is available
             if len(self.parent_nodes) > 0:
                 parent = self[self.parent_nodes.keys()[-1]]
-
+                base_xlength = 1    # The standard fuselage length
                 XScaleFactor, X, Y, Z = parent.FitScaleLocation(
-                    XScaleFactor, X, Y, Z)
+                    XScaleFactor, X, Y, Z, base_xlength)
 
             else:
                 X = Y = Z = 0
@@ -799,7 +799,7 @@ class Topology(AirconicsCollection):
 
         return None
 
-    def liftingsurfaceN(self, X, Y, Z, ChordFactor, ScaleFactor,
+    def liftingsurfaceN(self, X, Y, Z, XScaleFactor, ChordFactor,
                         Rotation, Type, N):
         # Append to the deap tree
         self._deap_tree.append(gp.Primitive('liftingsurface'+str(N),
@@ -807,6 +807,14 @@ class Topology(AirconicsCollection):
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+
+        try:
+            lsurf_functs = LSURF_FUNCTIONS[Type]
+        except TypeError:
+            # Assume that Type is already a dictionary of 'name': function
+            # params to pass to the wing class: do nothing
+            lsurf_functs = Type
+
         if self.construct_geometry:
             # ScaleFactor = np.interp(ScaleFactor, [0,1], [1,50])
             NSeg = 21
@@ -816,20 +824,13 @@ class Topology(AirconicsCollection):
             # in which case a wing is created with its apex at the origin
             if len(self.parent_nodes) > 0:
                 parent = self[self.parent_nodes.keys()[-1]]
-                ScaleFactor, X, Y, Z = parent.FitScaleLocation(
-                    ScaleFactor, X, Y, Z)
-
+                base_xlength = lsurf_functs['ChordFunct'](0) * ChordFactor
+                ScaleFactor, X, Y, Z = parent.FitScaleLocation(XScaleFactor, X, Y, Z, base_xlength)
             else:
                 X = Y = Z = 0
 
             P = (X, Y, Z)
             # Instantiate the class
-            try:
-                lsurf_functs = LSURF_FUNCTIONS[Type]
-            except TypeError:
-                # Assume that Type is already a dictionary of 'name': function
-                # params to pass to the wing class: do nothing
-                lsurf_functs = Type
             wing = liftingsurface.LiftingSurface(P,
                                                  SegmentNo=NSeg,
                                                  ScaleFactor=ScaleFactor,

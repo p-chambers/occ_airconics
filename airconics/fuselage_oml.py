@@ -707,7 +707,7 @@ class Fuselage(AirconicsShape):
 
         return WinStbd, WinPort
 
-    def FitScaleLocation(self, oldscaling, oldx, oldy, oldz):
+    def FitScaleLocation(self, oldscaling, oldx, oldy, oldz, base_xlength):
         """Given an old scaling and old position (this will be a random number
         between 0 and 1 using the DEAP tree I have set up elsewhere), a new
         scaling and position is returned allowing the resulting shape to 'fit'

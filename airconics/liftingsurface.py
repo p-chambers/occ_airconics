@@ -759,20 +759,18 @@ class LiftingSurface(AirconicsShape):
 
         return Winglet
 
-    def FitScaleLocation(self, oldscaling, oldx, oldy, oldz):
+    def FitScaleLocation(self, XScaleFactor, oldx, oldy, oldz, base_xlength):
         """Given an old scaling and old position (this will be a random number
         between 0 and 1 using the DEAP tree I have set up elsewhere), a new
         scaling and position is returned allowing the resulting shape to 'fit'
         to its parent
         """
-        parentscalefactor = self.ScaleFactor
-
         # The interpolation along the curve: this could be done better
         # Essentially, this is the length of the vector normalised by
         # the diagonal of a 1 by 1 by 1 cube
         curve = self.LECurve.GetObject()
-        interp_C = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
-        newapex = curve.Value(interp_C)
+        epsilon = np.linalg.norm([oldx, oldy, oldz]) / np.sqrt(3)
+        newapex = curve.Value(epsilon)
         newx, newy, newz = newapex.X(), newapex.Y(), newapex.Z()
 
         # Ensure that the oldscaled and oldposition fractions does give
@@ -782,13 +780,14 @@ class LiftingSurface(AirconicsShape):
 
         # The scaling is some percentage of parent (assumes components get
         # smaller)
-        newscaling = oldscaling * parentscalefactor
-
+        Chord = self.get_spanstation_chord(epsilon)
+        fitting_length = abs(Chord.StartPoint.X() - Chord.EndPoint.X()) * XScaleFactor
+        newscaling = fitting_length / base_xlength
 
         return newscaling, newx, newy, newz
 
     def get_spanstation_chord(self, SpanStation):
         """
         """
-        EngineSection, HChord = act.CutSect(self['Surface'], SpanStation)
+        Section, HChord = act.CutSect(self['Surface'], SpanStation)
         return HChord
