@@ -53,8 +53,10 @@
   {
     "primitive": "engine0",
       "args": {
-          "SpanStation": 0.35,
-          "XChordFactor": 0.9,
+          "X": 0.35,
+          "Y": 0.35,
+          "Z": 0.35,
+          "XScaleFactor": 0.9,
           "DiameterLenRatio": 0.51,
           "PylonSweep": 0.78,
           "PylonLenRatio": 0.7,

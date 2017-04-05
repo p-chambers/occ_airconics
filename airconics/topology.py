@@ -531,7 +531,7 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
 
 
 @wrap_shapeN
-def engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
+def engineN(SpanStation, XScaleFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
         Rotation, *args):
     """Passes args obtained from the GP primitive set attributed to this
     object to the CURRENT _topology attribute.
@@ -552,7 +552,7 @@ def engineN(SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRat
     # Interpolate normalised variables between allowable limits. Note that
     # PylonSweep intentionally backwards, as the engine chord is defined from
     # TE to LE
-    arglimits = {'XChordFactor': (0.1, 1.0),
+    arglimits = {'XScaleFactor': (0.1, 1.0),
              'DiameterLenRatio': (0.2, 1.0),
              'Rotation': (0, np.pi),
              'PylonSweep': (np.pi/4., -np.pi/4) 
@@ -628,7 +628,7 @@ class Topology(AirconicsCollection):
     ComponentTypes = {'fuselage': (fuselageN, [float] * 7, ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio']),
                       'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'XScaleFactor', 'Rotation', 'Type']),
-                      'engine': (engineN, [float] * 6, ['SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
+                      'engine': (engineN, [float] * 6, ['X', 'Y', 'Z', 'XScaleFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
                       'mirror': (mirrorN, [], [])
                       }
     # ArgLimits = {'fuselage' {'X': (0,1), 'Y'(0,1): , 'Z'(0,1): ,
@@ -856,7 +856,7 @@ class Topology(AirconicsCollection):
                 self.mirror=False
         return None
 
-    def engineN(self, SpanStation, XChordFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
+    def engineN(self, X, Y, Z, XScaleFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
         Rotation, N):
         """
         parameters
@@ -892,21 +892,34 @@ class Topology(AirconicsCollection):
             from OCC.GC import GC_MakeSegment
             if len(self.parent_nodes) > 0:
                 parent = self[self.parent_nodes.keys()[-1]]
+
                 # obtain chord for fitting engine to - this is different for a 
                 # wing and a fuselage
                 # TODO: wrap this into class method for fuselage and liftinsurface
                 if isinstance(parent, Fuselage):
+
+                    parent_apex = parent.BowPoint
+                    xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
+
+                    X = parent_apex.X() + (parent.SternPoint.X() - parent_apex.X()) * X
+                    Y = parent_apex.Y() + (ymax - ymin) / 2. * Y
+                    Z = parent_apex.Z() + (zmax - zmin) / 2. * Z
+
                     HMainChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
                     MainChord = HMainChord.GetObject()
-                    CEP = MainChord.Value(MainChord.LastParameter() * SpanStation)
-                    NacelleLength = XChordFactor * parent.BowPoint.Distance(parent.SternPoint)
-                    HChord = GC_MakeSegment(CEP.Translated(gp_Vec(NacelleLength, 0, 0)), CEP).Value()
+                    CSP = gp_Pnt(X,Y,Z)
+                    NacelleLength = XScaleFactor * parent.BowPoint.Distance(parent.SternPoint)
+
+                    CEP = CSP.Translated(gp_Vec(NacelleLength, 0, 0))
+                    HChord = GC_MakeSegment(CSP, CEP).Value()
 
                 elif isinstance(parent, LiftingSurface):
+                    SpanStation = np.linalg.norm([X, Y, Z]) / np.sqrt(3)
                     HChord = parent.get_spanstation_chord(SpanStation)
                     Chord = HChord.GetObject()
                     CEP = Chord.EndPoint()
-                    NacelleLength = XChordFactor * (CEP.Distance(Chord.StartPoint()))
+                    NacelleLength = XScaleFactor * (CEP.Distance(Chord.StartPoint()))
+
             else:
                 HChord = 0
                 NacelleLength = 1
@@ -1488,29 +1501,3 @@ class Topology_GPTools(object):
 
         tree = self._creator.Individual(expr)
         return tree
-
-    # def from_file(self, fname, loader='json'):
-    #     """Opens file 'fname' and attempts to load the Topology described
-    #     within.
-    #     Currently only supports json files.
-    #     Parameters
-    #     ----------
-    #     fname : string
-    #     loader : string (default 'json')
-    #         Defines the loading method used to extract the files contents.
-    #         Currently only allows json
-    #     Notes
-    #     -----
-    #     the 'loader' parameter is used instead of a file extension method as
-    #     JSON formatted files do not require the extension to be '.json'
-    #     See Also
-    #     --------
-    #     from_JSON
-    #     """
-    #     if loader == "json":
-    #         with open(fname, 'r') as fin:
-    #             json_array = json.load(fin)
-    #         return self.from_json(json_array)
-    #     else:
-    #         raise ValueError(
-    #             "{} is not a known file loading method".format(loader))
