@@ -531,7 +531,7 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
 
 
 @wrap_shapeN
-def engineN(SpanStation, XScaleFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
+def engineN(X, Y, Z, XScaleFactor, DiameterLenRatio, PylonSweep, PylonLenRatio,
         Rotation, *args):
     """Passes args obtained from the GP primitive set attributed to this
     object to the CURRENT _topology attribute.
@@ -628,7 +628,7 @@ class Topology(AirconicsCollection):
     ComponentTypes = {'fuselage': (fuselageN, [float] * 7, ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio']),
                       'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'XScaleFactor', 'Rotation', 'Type']),
-                      'engine': (engineN, [float] * 6, ['X', 'Y', 'Z', 'XScaleFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
+                      'engine': (engineN, [float] * 8, ['X', 'Y', 'Z', 'XScaleFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
                       'mirror': (mirrorN, [], [])
                       }
     # ArgLimits = {'fuselage' {'X': (0,1), 'Y'(0,1): , 'Z'(0,1): ,
