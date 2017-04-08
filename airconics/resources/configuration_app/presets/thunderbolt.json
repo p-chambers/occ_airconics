@@ -17,13 +17,13 @@
   {
     "primitive": "engine0",
     "args": {
-        "X": 0.52,
+        "X": 0.7,
         "Y": 0.0,
         "Z": 0.4,
         "XScaleFactor": 0.16,
         "DiameterLenRatio": 0.4,
-        "PylonSweep": -0.6,
-        "PylonLenRatio": 0.6,
+        "PylonSweep": 0.5,
+        "PylonLenRatio": 0.7,
         "Rotation": 2.36
     }
   }, 

@@ -473,7 +473,7 @@ def liftingsurfaceN(X, Y, Z, XScaleFactor, ChordFactor,
     # ScaleFactor = np.interp(ScaleFactor, [0, 1], [0.2, 3.0])
 
     arglimits = {'Rotation': (-np.pi/2., np.pi/2.),
-             'XScaleFactor': (0.3, 3.0),
+             'XScaleFactor': (0.1, 3.0),
              'ChordFactor': (0.2, 1.0)
              }
     argspec = inspect.getargvalues(inspect.currentframe())
@@ -509,7 +509,7 @@ def fuselageN(X, Y, Z, XScaleFactor, NoseLengthRatio,
 
     arglimits = {'NoseLengthRatio': (0.18, 0.4),
                  'TailLengthRatio': (0.2, 0.55),
-                 'XScaleFactor': (0.3, 3.0),
+                 'XScaleFactor': (0.1, 3.0),
                  'FinenessRatio': (0.2, 1.0)
                  }
     argspec = inspect.getargvalues(inspect.currentframe())
@@ -828,6 +828,7 @@ class Topology(AirconicsCollection):
                 ScaleFactor, X, Y, Z = parent.FitScaleLocation(XScaleFactor, X, Y, Z, base_xlength)
             else:
                 X = Y = Z = 0
+                ScaleFactor = 1
 
             P = (X, Y, Z)
             # Instantiate the class
@@ -884,7 +885,6 @@ class Topology(AirconicsCollection):
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
-
         if self.construct_geometry:
             # Allowing these to be fixed for now
             Scarf_deg = 0
@@ -898,19 +898,18 @@ class Topology(AirconicsCollection):
                 # TODO: wrap this into class method for fuselage and liftinsurface
                 if isinstance(parent, Fuselage):
 
-                    parent_apex = parent.BowPoint
                     xmin, ymin, zmin, xmax, ymax, zmax = parent.Extents()
 
-                    X = parent_apex.X() + (parent.SternPoint.X() - parent_apex.X()) * X
-                    Y = parent_apex.Y() + (ymax - ymin) / 2. * Y
-                    Z = parent_apex.Z() + (zmax - zmin) / 2. * Z
+                    X = parent.BowPoint.X() + abs(parent.SternPoint.X() - parent.BowPoint.X()) * X
+                    Y = parent.BowPoint.Y() + (ymax - ymin) / 2. * Y
+                    Z = parent.BowPoint.Z() + (zmax - zmin) / 2. * Z
 
-                    HMainChord = GC_MakeSegment(parent.BowPoint, parent.SternPoint).Value()
-                    MainChord = HMainChord.GetObject()
-                    CSP = gp_Pnt(X,Y,Z)
                     NacelleLength = XScaleFactor * parent.BowPoint.Distance(parent.SternPoint)
+                    CEP = gp_Pnt(X,Y,Z)
 
-                    CEP = CSP.Translated(gp_Vec(NacelleLength, 0, 0))
+                    CSP = CEP.Translated(gp_Vec(NacelleLength, 0, 0))
+                    print(CEP.X(), CSP.X())
+
                     HChord = GC_MakeSegment(CSP, CEP).Value()
 
                 elif isinstance(parent, LiftingSurface):
@@ -927,14 +926,16 @@ class Topology(AirconicsCollection):
 
             EngineDia = DiameterLenRatio * NacelleLength
 
-            pylon_project_vec = gp_Vec(0, 0, -1*PylonLenRatio*NacelleLength)
+            pylon_length = PylonLenRatio * NacelleLength
+            print(Rotation, PylonSweep)
+            pylon_project_vec = gp_Vec(0, 0, -1*pylon_length)
 
             # perform the general translation and rotation of the leading edge
             # point where the pylon starts to obtain the engine start loc
             LE_X = gp_Ax1(CEP, gp_Dir(1, 0, 0))
             LE_Y = gp_Ax1(CEP, gp_Dir(0, 1, 0))
 
-            CentrePt = CEP.Translated(pylon_project_vec).Rotated(LE_X, Rotation).Rotated(LE_Y, PylonSweep)
+            CentrePt = CEP.Translated(pylon_project_vec).Rotated(LE_Y, PylonSweep).Rotated(LE_X, Rotation)
 
 
             Centreloc = [CentrePt.X(), CentrePt.Y(), CentrePt.Z()]
