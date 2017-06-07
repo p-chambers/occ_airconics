@@ -2,17 +2,18 @@
 # MainWindow class and most of this file are edited from OCC.Display.SimpleGui
 # @Author: p-chambers
 # @Date:   2016-08-23 14:43:28
-# @Last Modified by:   p-chambers
-# @Last Modified time: 2017-02-22 11:57:32
+# @Last Modified by:   Paul Chambers
+# @Last Modified time: 2017-06-07 11:48:43
 import logging
 import os
 import sys
 import datetime
+import copy
 
 from OCC import VERSION
 from OCC.Display.backend import load_backend, get_qt_modules
 import airconics
-from airconics.topology import Topology_GPTools
+from airconics.topology import Topology_GPTools, Topology
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
@@ -84,7 +85,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         grid.setMargin(10)
 
         # Add the viewer spanning 3/4 of the width of the widget
-        grid.addWidget(viewer, 0, 0, 1, 1)
+        grid.addWidget(viewer, 0, 0, 1, 2)
 
         self.InitDataCanvas()
 
@@ -96,7 +97,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
 
         data_group.setLayout(data_box)
 
-        grid.addWidget(data_group, 0, 1)
+        grid.addWidget(data_group, 0, 2)
 
         self.select_button = QtGui.QPushButton('Select', self)
 
@@ -161,7 +162,7 @@ class Airconics_Viewgrid(QtWidgets.QWidget):
         self.radar_factory = radar_factory(Nvars, frame='polygon')
 
         # This initialises some data in the radar plot: remove this later!
-        data = np.random.random(Nvars)
+        data = np.zeros(Nvars)
 
         self._fig = plt.figure(facecolor="white")
         self._ax = self._fig.add_subplot(111, projection='radar')
@@ -330,17 +331,24 @@ class MainWindow(QtWidgets.QMainWindow):
         fname = QtGui.QFileDialog.getOpenFileName(
             self, 'Open File', self.examples_dir, "JSON files (*.json)")
         if fname:
-            loaded_topo = self.topo_tools.from_file(fname)
+            loaded_topo = Topology()
+            loaded_topo.from_file(fname)
+
+            # The normalised individual/deap tree needs to be created for mutation
+            normed_tree = self.topo_tools.getNormalisedIndividual(loaded_topo)
+
             # reset the evolution:
             self._gen = 0
             self.stats_textEdit.append("Opening file {}...".format(fname))
             self.stats_textEdit.append("Resetting evolution")
 
+            self.mutate_fromIndividual(normed_tree)
+
             record = self.stats.compile(self.topo_tools.population)
             self.logbook.record(gen=0, **record)
             self.stats_textEdit.append(self.logbook.stream)
-            print(self.topo_tools.population[0].fitness)
-            self.mutate_fromIndividual(loaded_topo._deap_tree)
+
+
 
     def centerOnScreen(self):
         '''Centers the window on the screen.'''
@@ -382,12 +390,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # for viewer in self.viewer_grids:
         # viewer.Topology =
         log.debug("Selection triggered on geometry {}".format(identifier))
-        selected = self.viewer_grids[identifier].Topology._deap_tree
+        selected = self.viewer_grids[identifier].Topology
 
-        self.mutate_fromIndividual(selected)
+        norm_tree = self.topo_tools.getNormalisedIndividual(selected)
+        self.mutate_fromIndividual(norm_tree)
 
     def mutate_fromIndividual(self, individual):
         self._gen += 1
+
+        log.info("Attempting mutation...")
 
         # MANUAL SELECTION?
         # Select the next generation individuals
@@ -396,15 +407,29 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Vary the pool of individuals, using mutation only: this is based on
         # the deap.algorithms.easimple example, with mutation only
+
         for i in range(len(self.topo_tools.population)):
             # For some reason, deap.gp.mutUniform returns a tuple of length 1
-            ind, = self.topo_tools._toolbox.mutate(individual)
+            ind = copy.deepcopy(individual)
+            new_ind, = self.topo_tools._toolbox.mutate(ind)
+            new_ind = self.topo_tools._creator.Individual(new_ind)
+            print(type(new_ind))
+            self.topo_tools.population[i] = new_ind
 
-            # All individuals have an invalid fitness, so update:
-            ind.fitness.values = \
-                self.topo_tools._toolbox.evaluate(ind)
-
-            self.topo_tools.population[i] = ind
+        # Evaluate the individuals with an invalid fitness
+        # invalid_ind = [
+            # ind for ind in self.topo_tools.population if not ind.fitness.valid]
+        # fitnesses = self.topo_tools._toolbox.map(
+            # self.topo_tools._toolbox.evaluate, invalid_ind)
+        # for ind, fit in zip(invalid_ind, fitnesses):
+            # ind.fitness.values = fit
+        
+        topos = [self.topo_tools.spawn_topology(ind) for ind in self.topo_tools.population]
+        # fitnesses = self.topo_tools._toolbox.map(self.topo_tools.fitness_funct, topos)
+        # Temporary fix: store all fitnesses as zeros
+        fitnesses = np.zeros(len(topos))
+        for ind, fit in zip(self.topo_tools.population, fitnesses):
+            ind.fitness.values = fit,
 
         # Update the hall of fame with the generated individuals
         self.hof.update(self.topo_tools.population)
@@ -416,7 +441,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Display the new population (using Topology setter, no addition reqd):
         for i, individual in enumerate(self.topo_tools.population):
-            self.viewer_grids[i].Topology = self.topo_tools.run(individual)
+            self.viewer_grids[i].Topology = topos[i]
+
 
     def initEvolution(self, verbose=__debug__):
         """"""
@@ -437,20 +463,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logbook.header = ['gen', 'nevals'] + self.stats.fields
 
         # Evaluate the individuals with an invalid fitness
-        invalid_ind = [
-            ind for ind in self.topo_tools.population if not ind.fitness.valid]
-        fitnesses = self.topo_tools._toolbox.map(
-            self.topo_tools._toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+        # invalid_ind = [
+            # ind for ind in self.topo_tools.population if not ind.fitness.valid]
+        # fitnesses = self.topo_tools._toolbox.map(
+            # self.topo_tools._toolbox.evaluate, invalid_ind)
+        # for ind, fit in zip(invalid_ind, fitnesses):
+            # ind.fitness.values = fit
 
-        self.hof.update(self.topo_tools.population)
+        # self.hof.update(self.topo_tools.population)
 
-        record = self.stats.compile(self.topo_tools.population)
-        self.logbook.record(gen=0, **record)
+        # record = self.stats.compile(self.topo_tools.population)
+        # self.logbook.record(gen=0, **record)
 
-        if verbose:
-            self.stats_textEdit.append(self.logbook.stream)
+        # if verbose:
+            # self.stats_textEdit.append(self.logbook.stream)
+
+    # def evaluate(self):
+
 
 
 if __name__ == '__main__':
@@ -489,7 +518,7 @@ if __name__ == '__main__':
 
     for i, viewer_grid in enumerate(win.viewer_grids):
         viewer_grid.viewer.InitDriver()
-        viewer_grid.Topology = win.topo_tools.run(win.topo_tools.population[i])
+        # viewer_grid.Topology = win.topo_tools.spawn_topology(win.topo_tools.population[i])
         progressBar.setValue((1. / len(win.viewer_grids)) * i * 100)
         app.processEvents()
 
