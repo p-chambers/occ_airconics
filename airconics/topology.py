@@ -276,7 +276,7 @@ def generate_topology(pset, min_, max_, type_=None):
 
 
 def eaSimple_logbest(population, toolbox, cxpb, mutpb, ngen, stats=None,
-             halloffame=None, local_evolve=False, start_nsteps=2, end_nsteps=10
+             halloffame=None, local_evolve=False, start_nsteps=2, end_nsteps=10,
              verbose=__debug__):
     """This algorithm is directly copied and edited from
     deap.algorithms.eaSimple, and reproduce the simplest evolutionary algorithm

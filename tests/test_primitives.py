@@ -7,7 +7,7 @@ Tests for airconics airfoil primitives.
 @author: pchambers
 """
 import pytest
-from airconics.primitives import Airfoil
+from airconics.primitives import Airfoil, approxThickness
 import numpy as np
 import OCC.Geom
 
@@ -225,3 +225,16 @@ def roll_matrix(gamma):
                      [0., np.cos(gamma), -np.sin(gamma)],
                      [0., np.sin(gamma),  np.cos(gamma)]])
 # ---------------------------------------------------------------------------
+
+def test_approxThickness():
+    # Test a basic NACA4 profile
+    Af = Airfoil(ChordLength=1, Naca4Profile='0012')
+    assert(approxThickness(Af._points) - 0.12 < (0.12) * 0.001)
+
+    # Test low thickness airfoils
+    Af = Airfoil(ChordLength=1, SeligProfile='naca16006')
+    assert(abs(approxThickness(Af._points) - 0.06) < (0.06) * 0.001)
+
+    # Test high thickness airfoils
+    Af = Airfoil(ChordLength=1, SeligProfile='naca16018')
+    assert(abs(approxThickness(Af._points) - 0.18) < (0.18) * 0.001)

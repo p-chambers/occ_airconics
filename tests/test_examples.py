@@ -48,7 +48,8 @@ def test_examples():
 def json_fnames(request):
     return request.param
 
-
+@pytest.mark.skipif(not pytest.config.getvalue('--examples'),
+                    reason="--examples was not specified")
 def test_json_topologies(json_fnames):
     fname = json_fnames
     from OCC.Display.SimpleGui import init_display

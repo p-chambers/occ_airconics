@@ -625,6 +625,7 @@ class LiftingSurface(AirconicsShape):
 
         # Scale the area
         LSP_area *= self.ScaleFactor ** 2.0
+
         return LSP_area
 
     def CalculateSemiSpan(self):
