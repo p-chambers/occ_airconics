@@ -440,6 +440,7 @@ class Airfoil(object):
         ChordLine.Translate(gp_Vec(*self.LE))
 
         self.ChordLine = ChordLine.GetHandle()
+        self.quarterChord = ChordLine.Value(0.25)
 
         return None
 

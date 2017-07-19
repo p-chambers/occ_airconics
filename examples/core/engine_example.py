@@ -56,4 +56,7 @@ if __name__ == "__main__":
 #    Display Engine Components:
     eng1.Display(display)
 
+    eng1.DisplayBBox(display)
+
+
     start_display()

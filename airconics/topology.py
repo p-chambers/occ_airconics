@@ -19,6 +19,7 @@ from .examples.straight_wing import *
 from .examples.tapered_wing import *
 from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt, gp_Vec
 
+import copy
 import types
 import functools
 from functools import partial
@@ -791,8 +792,17 @@ class Topology(AirconicsCollection):
             self[name] = fus, N
 
             if self.mirror:
+                mirror_fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
+                           TailLengthRatio=TailLengthRatio,
+                           Scaling=[XScaleFactor, ScalingYZ, ScalingYZ],
+                           NoseCoordinates=[X, Y, Z],
+                           SimplificationReqd=self.SimplificationReqd,
+                           MirrorComponentsXZ=True,
+                           construct_geometry=False
+                           )
+                mirror_fus._Components = copy.deepcopy(fus._Components)
                 super(Topology, self).__setitem__(
-                    name + '_mirror', fus.MirrorComponents(plane='xz'))
+                    name + '_mirror', mirror_fus)
                 self.mirror_count += N-1
             if self.mirror_count == 0:
                 self.mirror=False
@@ -836,22 +846,26 @@ class Topology(AirconicsCollection):
                                                  SegmentNo=NSeg,
                                                  ScaleFactor=ScaleFactor,
                                                  ChordFactor=ChordFactor,
+                                                 BaseRotation=Rotation,
                                                  **lsurf_functs)
-
-            # Rotate the component if necessary:
-            # if surfacetype in ['AirlinerFin', 'StraightWing']:
-            # , 90]) # V tail or vertical fin
-            RotAx = gp_Ax1(gp_Pnt(*P), gp_Dir(1, 0, 0))
-            wing.RotateComponents(RotAx, np.degrees(Rotation))
-            wing.LECurve.GetObject().Rotate(RotAx, Rotation)
 
             self['liftingsurface{}_{}'.format(
                 N, len(self))] = wing, N
 
             if self.mirror:
+                # Need to create the construction geometry again, since they
+                # cannot be copied (pythonocc swigpy pickling errors)
+                mirror_wing = liftingsurface.LiftingSurface(P,
+                                                 SegmentNo=NSeg,
+                                                 ScaleFactor=ScaleFactor,
+                                                 ChordFactor=ChordFactor,
+                                                 BaseRotation=Rotation,
+                                                 MirrorComponentsXZ=True,
+                                                 **lsurf_functs)
+
                 super(Topology, self).__setitem__(
                     'liftingsurface{}_{}_mirror'.format(
-                        N, len(self) - 1), wing.MirrorComponents(plane='xz'))
+                        N, len(self) - 1), mirror_wing)
                 self.mirror_count += N-1
             if self.mirror_count == 0:
                 self.mirror=False
@@ -953,9 +967,23 @@ class Topology(AirconicsCollection):
                 N, len(self))] = eng, N
 
             if self.mirror:
+                # May be quicker to copy here, but copying the guide curves
+                # contained within eng throws an error: Can't pickle swigpy
+                # object
+                mirror_eng = Engine(HChord,
+                    CentreLocation=Centreloc,
+                    ScarfAngle=Scarf_deg,
+                    HighlightRadius=EngineDia/2.0,
+                    MeanNacelleLength=NacelleLength,
+                    SimplePylon=True,
+                    PylonRotation=np.degrees(Rotation-np.pi/2.),
+                    MirrorComponentsXZ=True,
+                    construct_geometry=False)
+                mirror_eng._Components = copy.deepcopy(eng._Components)
+                mirror_eng.MirrorComponents(plane='xz')
                 super(Topology, self).__setitem__(
                     'engine{}_{}_mirror'.format(
-                        N, len(self) - 1), eng.MirrorComponents(plane='xz'))
+                        N, len(self) - 1), mirror_eng)
                 self.mirror_count += N - 1
             if self.mirror_count == 0:
                 self.mirror=False

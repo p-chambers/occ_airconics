@@ -19,12 +19,15 @@ from .base import AirconicsShape
 from .primitives import Airfoil
 from . import AirCONICStools as act
 
-from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir
+from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir, gp_Ax1
 from OCC.GeomAbs import GeomAbs_C2
 from OCC.Geom import Geom_Plane
+import SUAVE
+from SUAVE.Core import Units
 
 import logging
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 def airfoilfunct(ProfileFunct):
     """Decorator function : creates and returns a functional parameter
@@ -160,6 +163,11 @@ class LiftingSurface(AirconicsShape):
     construct_geometry : bool
         If true, Build method will be called on construction
 
+    MirrorSurfacesXZ : bool (default False)
+        If True, all surfaces created by self.Build will be mirrored, following
+        construction and all other transformations (i.e. BaseRotation). Note
+        that the construction curves are not mirrored
+
     Attributes
     ----------
     self['Surface'] : TopoDS_Shape
@@ -205,6 +213,7 @@ class LiftingSurface(AirconicsShape):
                  TwistFunct=False,
                  ChordFunct=False,
                  AirfoilFunct=False,
+                 BaseRotation=None,
                  ChordFactor=1,
                  ScaleFactor=1,
                  OptimizeChordScale=0,
@@ -214,6 +223,7 @@ class LiftingSurface(AirconicsShape):
                  max_degree=8,
                  continuity=GeomAbs_C2,
                  construct_geometry=True,
+                 MirrorComponentsXZ=False
                  ):
         # convert ApexPoint from list if necessary
         try:
@@ -223,8 +233,8 @@ class LiftingSurface(AirconicsShape):
 
         if not (SweepFunct or DihedralFunct or TwistFunct or ChordFunct or
                 AirfoilFunct):
-            log.debug("Lifting Surface functional parameters not defined:")
-            log.debug("Initialising without geometry construction")
+            logger.debug("Lifting Surface functional parameters not defined:")
+            logger.debug("Initialising without geometry construction")
             construct_geometry = False
 
         self.CreateConstructionGeometry()
@@ -240,6 +250,7 @@ class LiftingSurface(AirconicsShape):
                                              _ChordFactor=ChordFactor,
                                              _ScaleFactor=ScaleFactor,
                                              _Sections=[],
+                                             BaseRotation=BaseRotation,
                                              LSP_area=None,
                                              AR=None,
                                              ActualSemiSpan=None,
@@ -251,7 +262,8 @@ class LiftingSurface(AirconicsShape):
                                              TipRequired=TipRequired,
                                              max_degree=max_degree,
                                              Cont=continuity,
-                                             construct_geometry=construct_geometry
+                                             construct_geometry=construct_geometry,
+                                             MirrorComponentsXZ=MirrorComponentsXZ
                                              )
 
     # Properties
@@ -413,6 +425,17 @@ class LiftingSurface(AirconicsShape):
         self.GenerateSectionCurves()
         self.GenerateLiftingSurface()
 
+        if self.BaseRotation:
+            RotAx = gp_Ax1(self.ApexPoint, gp_Dir(1, 0, 0))
+            self.RotateComponents(RotAx, np.degrees(self.BaseRotation))
+            self.LECurve.GetObject().Rotate(RotAx, self.BaseRotation)
+
+        if self.MirrorComponentsXZ:
+            logger.info('Mirroring the leading edge point and surfaces only')
+            logger.info('Construction geometry/curves will not be mirrored')
+
+            self.MirrorComponents(plane='xz')
+
         # Also store the tip leading edge point (for fitting tip devices)?
         # self.TipLE = self.Sections[-1].Chord.
 
@@ -542,7 +565,7 @@ class LiftingSurface(AirconicsShape):
 
         # TODO: Optimize chord scale ...
         # if self.OptimizeChordScale:
-            # self.ChordScaleOptimizer()
+        # self.ChordScaleOptimizer()
 
         if LS is None:
             raise ValueError("Failed to generate Lofted Surface")
@@ -559,14 +582,14 @@ class LiftingSurface(AirconicsShape):
 
         if self.TipRequired:
             # TODO: retrieve wing tip
-            log.warning("Tip Required currently does nothing")
+            logger.warning("Tip Required currently does nothing")
             WingTip = None
             # self["Tip"] = WingTip
 
         # Scaling (w.r.t. origin)
         if self.ScaleFactor != 1:
             self.ScaleComponents_Uniformal(self.ScaleFactor)
-            self.LECurve.GetObject().Scale(gp_Pnt(0,0,0), self.ScaleFactor)
+            self.LECurve.GetObject().Scale(gp_Pnt(0, 0, 0), self.ScaleFactor)
 
         # Position the Components at the apex:
         vec = gp_Vec(gp_Pnt(0., 0., 0.), self.ApexPoint)
@@ -580,7 +603,7 @@ class LiftingSurface(AirconicsShape):
         self.AR = self.CalculateAspectRatio()
         self.SA = act.CalculateSurfaceArea(self['Surface'])
 
-        log.info("""Lifting Surface complete. Key features:
+        logger.info("""Lifting Surface complete. Key features:
     Proj.area: {},
     Wet.area: {},
     Span:{},
@@ -618,13 +641,24 @@ class LiftingSurface(AirconicsShape):
                 SA = act.CalculateSurfaceArea(LSPsegment)
                 LSP_area += SA
         except:
-            log.warning("""Failed to compute projected area. Using half of surface
+            logger.warning("""Failed to compute projected area. Using half of surface
                 area instead.""")
             LS_area = act.CalculateSurfaceArea(self['Surface'])
             LSP_area = 0.5 * LS_area
 
         # Scale the area
         LSP_area *= self.ScaleFactor ** 2.0
+
+        # Add a mean aerodynamic chord, estimated from the discrete wing sections:
+        # using a non uniform trapezoidal integration of c^2 dy.
+        # note: numerical integration of self.ChordFunct may work here, but the
+        # wing is constructed from discrete sections, so this makes more sense:
+        s = 0
+        for i in range(len(self.Sections) - 1):
+            s += (self.Sections[i + 1].LE[1] - self.Sections[i].LE[1]) *\
+                (self.Sections[i + 1].ChordLength ** 2 +
+                 self.Sections[i].ChordLength)
+        self.MAC = s * self.ScaleFactor / (2 * LSP_area)
 
         return LSP_area
 
@@ -675,6 +709,12 @@ class LiftingSurface(AirconicsShape):
         AR = ((ActualSemiSpan) ** 2.0) / (LSP_area)
         return AR
 
+    def AvgQuarterChordSweep(self):
+        v = gp_Vec(self.Sections[0].quarterChord,
+                   self.Sections[-1].quarterChord)
+        avgQuarterChord = np.arctan(v.X() / v.Y())
+        return avgQuarterChord
+
     def Fit_BlendedTipDevice(self, rootchord_norm, spanfraction=0.1, cant=40,
                              transition=0.1, sweep=40, taper=0.7):
         """Fits a blended wing tip device [1],
@@ -694,7 +734,7 @@ class LiftingSurface(AirconicsShape):
         transition : scalar
             The percentage along the span at which the transition to a straight
             segment is located
-        
+
         sweep : scalar
             Sweep angle of the wing tip (uniform along the straight section)
 
@@ -738,8 +778,9 @@ class LiftingSurface(AirconicsShape):
             return self.Sections[-1].Profile
 
         apex_array = np.array([self.ApexPoint.X(), self.ApexPoint.Y(),
-            self.ApexPoint.Z()])
-        Winglet_apex = apex_array + np.array(self.LEPoints[-1]) * self.ScaleFactor
+                               self.ApexPoint.Z()])
+        Winglet_apex = apex_array + \
+            np.array(self.LEPoints[-1]) * self.ScaleFactor
 
         # Scale the entire wing to get the span as a percentage of this wing
         scalefactor = self.ScaleFactor * spanfraction
@@ -782,7 +823,8 @@ class LiftingSurface(AirconicsShape):
         # The scaling is some percentage of parent (assumes components get
         # smaller)
         Chord = self.get_spanstation_chord(epsilon).GetObject()
-        fitting_length = abs(Chord.StartPoint().X() - Chord.EndPoint().X()) * XScaleFactor
+        fitting_length = abs(Chord.StartPoint().X() -
+                             Chord.EndPoint().X()) * XScaleFactor
         newscaling = fitting_length / float(base_xlength)
 
         return newscaling, newx, newy, newz
@@ -792,3 +834,47 @@ class LiftingSurface(AirconicsShape):
         """
         Section, HChord = act.CutSect(self['Surface'], SpanStation)
         return HChord
+
+    def ToSuave(self, main=False, high_lift=False, tag=None):
+        if main:
+            wing = SUAVE.Components.Wings.Main_Wing()
+        else:
+            wing = SUAVE.Components.Wings.Wing()
+        wing.tag = tag
+
+        wing.aspect_ratio = self.AR
+        # Take an average of root and tip, since there's not much else we can
+        # do here:
+        wing.thickness_to_chord = (self.Sections[0].thicknessToChord +
+                                   self.Sections[-1].thicknessToChord) / 2.  # Not set
+        wing.taper = self.Sections[
+            0].ChordLength + self.Sections[0].ChordLength
+        # Could probably calculate span efficiency, but I'll leave it as
+        # constant for now
+        wing.span_efficiency = 0.9
+
+        wing.spans.projected = self.ActualSemiSpan
+
+        wing.chords.root = self.Sections[0].ChordLength * Units.meter
+        wing.chords.tip = self.Sections[-1].ChordLength * Units.meter
+        wing.chords.mean_aerodynamic = self.MAC
+
+        wing.areas.reference = self.LSP_area
+        wing.sweeps.quarter_chord = self.AvgQuarterChordSweep() * Units.degrees
+
+        wing.twists.root = self.TwistFunct(0) * Units.degrees
+        wing.twists.tip = self.TwistFunct(1) * Units.degrees
+        # Approximate dihedral as the average between root and tip:
+        wing.dihedral = (self.DihedralFunct(
+            0) + self.DihedralFunct(1)) * Units.degrees
+
+        wing.origin = [self.ApexPoint.X(), self.ApexPoint.Y(),
+                       self.ApexPoint.Z()]
+        wing.aerodynamic_center = [0, 0, 0]
+
+        wing.vertical = (self.BaseRotation - np.pi / 2. < 1e-3)
+        wing.symmetric = self.MirrorComponentsXZ
+        wing.high_lift = high_lift
+
+        wing.dynamic_pressure_ratio = 1.0
+        return wing
