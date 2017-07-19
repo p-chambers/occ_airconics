@@ -18,7 +18,6 @@ from .examples.tailplane_example_transonic_airliner import *
 from .examples.straight_wing import *
 from .examples.tapered_wing import *
 from OCC.gp import gp_Ax2, gp_Ax1, gp_Dir, gp_Pnt, gp_Vec
-
 import copy
 import types
 import functools
@@ -628,18 +627,24 @@ class Topology(AirconicsCollection):
     """
     ComponentTypes = {'fuselage': (fuselageN, [float] * 7, ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
                              'FinenessRatio']),
-                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'ChordFactor', 'XScaleFactor', 'Rotation', 'Type']),
+                      'liftingsurface': (liftingsurfaceN, [float] * 6 + [str], ['X', 'Y', 'Z', 'XScaleFactor', 'ChordFactor', 'Rotation', 'Type']),
                       'engine': (engineN, [float] * 8, ['X', 'Y', 'Z', 'XScaleFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation']),
                       'mirror': (mirrorN, [], [])
                       }
-    # ArgLimits = {'fuselage' {'X': (0,1), 'Y'(0,1): , 'Z'(0,1): ,
-    #                          'XScaleFactor':(0, 1) ,
-    #                          'NoseLengthRatio':(0.2, 0.55) ,
-    #                          'TailLengthRatio': (0.2, 0.55),
-    #                          'FinenessRatio': (0.0, 1)},
-    #              'liftingsurface' : {'X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'}
-    #              'engine': {'SpanStation', 'XChordFactor', 'DiameterLenRatio', 'PylonSweep', 'PylonLenRatio', 'Rotation'}
-    #             }
+
+    ArgLimits = {'fuselage': {'NoseLengthRatio': (0.18, 0.4),
+                             'TailLengthRatio': (0.2, 0.55),
+                             'XScaleFactor': (0.1, 3.0),
+                             'FinenessRatio': (0.2, 1.0)},
+                 'liftingsurface' : {'Rotation': (-np.pi/2., np.pi/2.),
+                                     'XScaleFactor': (0.1, 3.0),
+                                     'ChordFactor': (0.2, 1.0)
+                                     },
+                 'engine': {'XScaleFactor': (0.1, 1.0),
+             'DiameterLenRatio': (0.2, 1.0),
+             'Rotation': (0, np.pi),
+             'PylonSweep': (np.pi/4., -np.pi/4)}
+                }
 
     # varNames = {'liftingsurface': ['X', 'Y', 'Z', 'ChordFactor', 'ScaleFactor', 'Rotation', 'Type'], 
     #             'fuselage': ['X', 'Y', 'Z', 'XScaleFactor', 'NoseLengthRatio', 'TailLengthRatio',
@@ -738,6 +743,8 @@ class Topology(AirconicsCollection):
         # The second argument here (Primitive argtypes) is a bit of a
         # hack: there are no arguments to the mirror primitive, but this allows
         # the primitive tree to be constructed
+        log.debug('Adding mirror to Topology...')
+
         self._deap_tree.append(gp.Primitive('mirror'+str(N), [None] * N, None))
 
         if self.construct_geometry:
@@ -751,6 +758,7 @@ class Topology(AirconicsCollection):
 
     def fuselageN(self, X, Y, Z, XScaleFactor, NoseLengthRatio,
                   TailLengthRatio, FinenessRatio, N):
+        log.debug('Adding Fuselage to Topology...')
         """Parameter descriptions can be found from the airconics.Fuselage
         class, all are floats"""
         # Need to add constraints here so that the Fuselage has a good chance
@@ -763,7 +771,7 @@ class Topology(AirconicsCollection):
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
             # print(name, argspec.locals[name])
-            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, type(argspec.locals[name])))
 
         if self.construct_geometry:
 
@@ -812,15 +820,22 @@ class Topology(AirconicsCollection):
     def liftingsurfaceN(self, X, Y, Z, XScaleFactor, ChordFactor,
                         Rotation, Type, N):
         # Append to the deap tree
+        log.debug('Adding Lifting Surface to Topology...')
+
         self._deap_tree.append(gp.Primitive('liftingsurface'+str(N),
             Topology.ComponentTypes['liftingsurface'][1] + [None]*N, None))
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
-            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+
+            arg = argspec.locals[name]
+            if isinstance(arg, unicode):
+                arg = arg.encode('ascii', 'ignore')
+
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, type(arg)))
 
         try:
             lsurf_functs = LSURF_FUNCTIONS[Type]
-        except TypeError:
+        except KeyError:
             # Assume that Type is already a dictionary of 'name': function
             # params to pass to the wing class: do nothing
             lsurf_functs = Type
@@ -893,12 +908,14 @@ class Topology(AirconicsCollection):
 
         Engines are always in the x direction, hence y-length cuts
         """
+        log.debug('Adding engine to Topology...')
+
         # Append to the deap tree
         self._deap_tree.append(gp.Primitive('engine'+str(N), 
             Topology.ComponentTypes['engine'][1] + [None]*N, None))
         argspec=inspect.getargvalues(inspect.currentframe())
         for name in argspec.args[1:-1]:
-            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, None))
+            self._deap_tree.append(gp.Terminal(argspec.locals[name], name, type(argspec.locals[name])))
         if self.construct_geometry:
             # Allowing these to be fixed for now
             Scarf_deg = 0
@@ -922,7 +939,6 @@ class Topology(AirconicsCollection):
                     CEP = gp_Pnt(X,Y,Z)
 
                     CSP = CEP.Translated(gp_Vec(NacelleLength, 0, 0))
-                    print(CEP.X(), CSP.X())
 
                     HChord = GC_MakeSegment(CSP, CEP).Value()
 
@@ -941,7 +957,6 @@ class Topology(AirconicsCollection):
             EngineDia = DiameterLenRatio * NacelleLength
 
             pylon_length = PylonLenRatio * NacelleLength
-            print(Rotation, PylonSweep)
             pylon_project_vec = gp_Vec(0, 0, -1*pylon_length)
 
             # perform the general translation and rotation of the leading edge
@@ -1269,6 +1284,30 @@ class Topology_GPTools(object):
 
         # Need to bind the fitness function to the object here:
         self.fitness_funct = types.MethodType(wrap_fitnessfunct(fitness_funct), self)
+
+    def getNormalisedIndividual(self, topology):
+        ind = []
+
+        for item in topology._deap_tree:
+            if isinstance(item, gp.Primitive):
+                ind.append(item)
+                compType = re.sub(r'\d+', '', item.name)
+                compArgs = itertools.cycle(Topology.ComponentTypes[compType][2])
+                if compType in Topology.ArgLimits:
+                    arglimits = Topology.ArgLimits[compType]
+            else:
+                compArg = compArgs.next()
+                newitem = copy.deepcopy(item)
+                # Limits of the parameter (lower bound, upper bound)
+                if compArg in arglimits:
+                    lb, ub = arglimits[compArg]
+                    factor = (item.value - lb) / float(ub - lb)
+                    newitem.value = factor
+                    newitem.name = str(factor)
+                ind.append(newitem)
+
+        ind = self._creator.Individual(ind)
+        return ind
 
     def spawn_topology(self, tree=None, *args, **kwargs):
         """
