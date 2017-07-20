@@ -19,9 +19,11 @@ from OCC.TopoDS import TopoDS_Shape
 from OCC.StlAPI import StlAPI_Writer
 from OCC.AIS import AIS_Shape
 from OCC.gp import gp_Pnt
+import SUAVE
+from SUAVE.Core import Units
 
 import logging
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AirconicsBase(MutableMapping, object):
@@ -57,6 +59,9 @@ class AirconicsBase(MutableMapping, object):
     def Build(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def ToSuave(self, *args, **kwargs):
+        pass
 
 # class AirconicsContainer(MutableMapping):
 #     """Simple container class which behaves as a dictionary, with all
@@ -145,6 +150,7 @@ class AirconicsShape(AirconicsBase):
     """
 
     def __init__(self, components={}, construct_geometry=False,
+                 MirrorComponentsXZ=False,
                  *args, **kwargs):
         # Set the components dictionary (default empty)
         self._Components = {}
@@ -157,11 +163,12 @@ class AirconicsShape(AirconicsBase):
             self.__setattr__(key, value)
 
         self.construct_geometry = construct_geometry
+        self.MirrorComponentsXZ = MirrorComponentsXZ
 
         if self.construct_geometry:
             self.Build()
         else:
-            log.debug("Skipping geometry construction for {}".format(
+            logger.debug("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -200,7 +207,7 @@ class AirconicsShape(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        log.debug("Attempting to construct {} geometry...".format(
+        logger.debug("Attempting to construct {} geometry...".format(
             type(self).__name__))
 
     def AddComponent(self, component, name=None):
@@ -388,12 +395,10 @@ class AirconicsShape(AirconicsBase):
         be required or meaningful after mirroring, however this behaviour
         may change in future versions
         """
-        mirrored = AirconicsShape()
         for name, component in self.items():
-            mirrored[name] = act.mirror(component,
-                                        plane,
-                                        copy=True)
-        return mirrored
+            self[name] = act.mirror(component,
+                                    plane,
+                                    copy=True)
 
     def Write(self, filename, single_export=True):
         """Writes the Components in this Airconics shape to filename using
@@ -457,6 +462,9 @@ class AirconicsShape(AirconicsBase):
 
         return status
 
+    def ToSuave(self, *args, **kwargs):
+        pass
+
 
 class AirconicsCollection(AirconicsBase):
     """Base class from which collections of parts defined by other Airconics
@@ -517,7 +525,7 @@ class AirconicsCollection(AirconicsBase):
         if self.construct_geometry:
             self.Build()
         else:
-            log.debug("Skipping geometry construction for {}".format(
+            logger.debug("Skipping geometry construction for {}".format(
                 type(self).__name__))
 
     def __getitem__(self, name):
@@ -618,8 +626,8 @@ class AirconicsCollection(AirconicsBase):
         * If Class.Build is not redefined in a derived class, confusion may
         arise as no geometry will result from passing construct_geometry=True
         """
-        log.debug("Attempting to construct {} geometry...".format(
-            type(self).__name__))
+        for name, component in self.items():
+            component.Build()
 
     def Display(self, context, material=Graphic3d_NOM_ALUMINIUM, color=None):
         """Displays all Parts of the engine to input context
@@ -640,7 +648,7 @@ class AirconicsCollection(AirconicsBase):
                 try:
                     context.DisplayShape(component)
                 except:
-                    log.warning("Could not display shape type {}: skipping".format(
+                    logger.warning("Could not display shape type {}: skipping".format(
                         type(component)))
 
     def AddPart(self, part, name=None):
@@ -686,3 +694,26 @@ class AirconicsCollection(AirconicsBase):
                 pass
         return act.ObjectsExtents(shape_list, tol=tol, as_vec=as_vec)
 
+    def ToSuave(self, *args, **kwargs):
+        vehicle = SUAVE.Vehicle()
+        vehicle.tag = 'Boeing_787_airconics'
+
+        vehicle.mass_properties.cargo = 10000. * Units.kilogram
+        vehicle.mass_properties.takeoff = 79015.8     # kg
+        vehicle.mass_properties.max_zero_fuel = 0.9 * vehicle.mass_properties.max_takeoff
+
+        # envelope properties
+        vehicle.envelope.ultimate_load = 2.5
+        vehicle.envelope.limit_load = 1.5
+
+        # basic parameters
+        # vehicle.reference_area = 124.862   # Don't know what this is (could be largest wing area)  
+        vehicle.reference_area = sum(comp.LSP_area for comp in self.values() if hasattr(comp, 'LSP_area'))   
+        vehicle.passengers = 170
+        vehicle.systems.control = "fully powered" 
+        vehicle.systems.accessories = "medium range"
+        for label, comp in self.items():
+            if not comp.MirrorComponentsXZ:
+                suave_comp = comp.ToSuave(tag=label)
+                vehicle.append_component(suave_comp)
+        return vehicle

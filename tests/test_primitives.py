@@ -169,6 +169,14 @@ def test_Airfoil_emptystring():
     assert(not Af.Curve)
 
 
+def test_Airfoil_quarterChord():
+    Af = Airfoil(ChordLength=1, LeadingEdgePoint=(0, 0, 0),
+                 Naca4Profile='0012')
+    assert(Af.quarterChord.X() == 0.25)
+    assert(Af.quarterChord.Y() == 0.0)
+    assert(Af.quarterChord.Z() == 0.0)
+
+
 def test_NACA4_Airfoil_Assertions():
     # Test that a non-string raises a type error
     with pytest.raises(TypeError):

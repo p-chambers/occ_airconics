@@ -1,113 +1,81 @@
-[
-  {
-    "primitive": "fuselage1", 
-    "args": {
-        "X": 0.0, 
-        "Y": 0.0, 
-        "Z": 0.0,
-        "XScaleFactor": 1.0,
-        "NoseLengthRatio": 0.182,
-        "TailLengthRatio": 0.293,
-        "FinenessRatio": 1.0
-      }
-  },
-  {
-    "primitive": "mirror3"
-  }, 
-  {
-    "primitive": "liftingsurface0",
-    "args": {
-        "X": 0.27, 
-        "Y": 0.0, 
-        "Z": 0.68,     
-        "ScaleFactor": 0.42,
-        "ChordFactor": 0.22,
-        "Rotation": 0.05, 
-        "Type": "StraightWing"
-    }
-  },
-  {
-    "primitive": "engine0",
-    "args": {
-        "SpanStation": 0.7,
-        "XChordFactor": 0.16,
-        "DiameterLenRatio": 0.21,
-        "PylonSweep": 0.5,
-        "PylonLenRatio": 0.5,
-        "Rotation": 0.75
-    }
-  },
+[{
+  "args": {"FinenessRatio": 1.0,
+   "NoseLengthRatio": 0.18,
+   "TailLengthRatio": 0.29,
+   "X": 0.0,
+   "XScaleFactor": 1.0,
+   "Y": 0.0,
+   "Z": 0.0},
+  "primitive": "fuselage1"
+},
+{
+  "args": {}, "primitive": "mirror3"
+},
+ {
+  "args": {"ChordFactor": 0.21,
+   "Rotation": 0.05,
+   "XScaleFactor": 0.1,
+   "Type": "StraightWing",
+   "X": 0.3,
+   "Y": 0.0,
+   "Z": 0.68},
+  "primitive": "liftingsurface0"
+},
+ {"args": {"DiameterLenRatio": 0.23,
+   "PylonLenRatio": 0.55,
+   "PylonSweep": 0.5,
+   "Rotation": 2.36,
+   "X": 0.7,
+   "Y": 0.0,
+   "Z": 0.0,
+   "XScaleFactor": 0.18},
+  "primitive": "engine0"},
 
-  {
-    "primitive": "liftingsurface1", 
-    "args": {
-        "X": 0.77,
-        "Y": 0.0, 
-        "Z": 0.3, 
-        "ChordFactor": 0.8, 
-        "ScaleFactor": 0.14,
-        "Rotation": 0.09, 
-        "Type": "StraightWing"
-    }
-  },
-  {
-    "primitive": "fuselage3", 
-    "args": {
-        "X": 1.0, 
-        "Y": 1.0, 
-        "Z": 1.0,
-        "XScaleFactor": 2.8,
-        "NoseLengthRatio": 0.182,
-        "TailLengthRatio": 0.293,
-        "FinenessRatio": 1.0
-    }
-  },
-  {
-    "primitive": "liftingsurface1",
-    "args": {
-        "X": 0.0, 
-        "Y": 0.0, 
-        "Z": 0.0,     
-        "ScaleFactor": 0.9,
-        "ChordFactor": 0.31,
-        "Rotation": 0.09, 
-        "Type": "StraightWing"
-    }
-  },
-  {
-    "primitive": "liftingsurface0",
-    "args": {
-        "X": 1.0,
-        "Y": 1.0, 
-        "Z": 1.0, 
-        "ChordFactor": 0.42,
-        "ScaleFactor": 0.7,
-        "Rotation": -0.16, 
-        "Type": "TaperedWing"
-    }
-  }, 
-  {
-    "primitive": "liftingsurface0",
-    "args": {
-        "X": 0.67,
-        "Y": 0.0, 
-        "Z": 0.1, 
-        "ChordFactor": 1.0,
-        "ScaleFactor": 0.4,
-        "Rotation": -1.0, 
-        "Type": "AirlinerFin"
-    }
-  }, 
-  {
-    "primitive": "liftingsurface0",
-    "args": {
-        "X": 0.67,
-        "Y": 0.0, 
-        "Z": 0.9, 
-        "ChordFactor": 1.0, 
-        "ScaleFactor": 0.42,
-        "Rotation": 1, 
-        "Type": "AirlinerFin"
-    }
-  }
-]
+ {"args": {"ChordFactor": 0.4,
+   "Rotation": 0.09,
+   "XScaleFactor": 0.1,
+   "Type": "StraightWing",
+   "X": 0.77,
+   "Y": 0.0,
+   "Z": 0.3},
+  "primitive": "liftingsurface1"},
+ {"args": {"FinenessRatio": 1.0,
+   "NoseLengthRatio": 0.18,
+   "TailLengthRatio": 0.29,
+   "X": 0.98,
+   "XScaleFactor": 3.0,
+   "Y": 0.98,
+   "Z": 0.98},
+  "primitive": "fuselage3"},
+ {"args": {"ChordFactor": 0.31,
+   "Rotation": 0.09,
+   "XScaleFactor": 0.3,
+   "Type": "StraightWing",
+   "X": 0.0,
+   "Y": 0.0,
+   "Z": 0.0},
+  "primitive": "liftingsurface1"},
+ {"args": {"ChordFactor": 0.48,
+   "Rotation": -0.16,
+   "XScaleFactor": 1.0,
+   "Type": "TaperedWing",
+   "X": 0.98,
+   "Y": 0.98,
+   "Z": 0.98},
+  "primitive": "liftingsurface0"},
+ {"args": {"ChordFactor": 1.0,
+   "Rotation": -1.57,
+   "XScaleFactor": 0.55,
+   "Type": "AirlinerFin",
+   "X": 0.55,
+   "Y": 0.0,
+   "Z": 0.5},
+  "primitive": "liftingsurface0"},
+ {"args": {"ChordFactor": 1.0,
+   "Rotation": 1.57,
+   "XScaleFactor": 0.58,
+   "Type": "AirlinerFin",
+   "X": 0.53,
+   "Y": 0.0,
+   "Z": 0.5},
+  "primitive": "liftingsurface0"}]

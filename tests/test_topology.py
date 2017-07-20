@@ -6,7 +6,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-21 16:25:37
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-01-17 16:44:50
+# @Last Modified time: 2017-03-28 11:04:04
 import pytest
 from airconics.topology import Topology
 from airconics.fuselage_oml import Fuselage
@@ -131,3 +131,62 @@ def test_topology_str(example_topos):
 @pytest.mark.xfail()
 def test_topology_graphviz_dot():
     raise NotImplementedError
+
+
+# def test_topology_fit_fuselage_to_fuselage():
+#     """Tests that the parent-child scaling and locating variables work"""
+#     json_array = [{'args':
+#       {'FinenessRatio': 1.0,
+#        'NoseLengthRatio': 0.2,
+#        'TailLengthRatio': 0.3,
+#        'X': 0.0,
+#        'XScaleFactor': 1.0,
+#        'Y': 0.0,
+#        'Z': 0.0},
+#        'primitive': 'fuselage1'},
+#      {'args': 
+#       {'FinenessRatio': 1.0,
+#        'NoseLengthRatio': 0.2,
+#        'TailLengthRatio': 0.3,
+#        'X': 0.5,
+#        'XScaleFactor': 1.0,
+#        'Y': 0.5,
+#        'Z': 0.5},
+#        'primitive': 'fuselage0'}]
+#     topo = Topology()
+#     topo.from_json(json_array)
+
+#     f1 = topo['fuselage1_1']
+#     f2 = topo['fuselage0_1']
+
+#     assert(f1.Apex)
+
+
+# def test_topology_fit_lsurf_to_fuselage():
+#     """Tests that the parent-child scaling and locating variables work"""
+#     json_array = [{'args':
+#       {'FinenessRatio': 1.0,
+#        'NoseLengthRatio': 0.2,
+#        'TailLengthRatio': 0.3,
+#        'X': 0.0,
+#        'XScaleFactor': 1.0,
+#        'Y': 0.0,
+#        'Z': 0.0},
+#        'primitive': 'fuselage1'},
+#      {'args': 
+#       {'FinenessRatio': 1.0,
+#        'NoseLengthRatio': 0.2,
+#        'TailLengthRatio': 0.3,
+#        'X': 0.5,
+#        'XScaleFactor': 1.0,
+#        'Y': 0.5,
+#        'Z': 0.5,
+#        'Type': },
+#        'primitive': 'liftingsurface0'}]
+#     topo = Topology()
+#     topo.from_json(json_array)
+
+#     f1 = topo['fuselage1_1']
+#     f2 = topo['fuselage0_1']
+
+#     assert(f1.Apex)

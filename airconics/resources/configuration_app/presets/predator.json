@@ -18,8 +18,8 @@
       "Y": 0.0, 
       "Z": 0.3, 
       "ChordFactor": 0.9,
-      "ScaleFactor": 0.115,
-      "Rotation": -1.0, 
+      "XScaleFactor": 0.115,
+      "Rotation": -1.57, 
       "Type": "StraightWing"
     }
   }, 
@@ -33,7 +33,7 @@
       "Y": 0.0, 
       "Z": 0.3, 
       "ChordFactor": 0.65, 
-      "ScaleFactor": 0.15,
+      "XScaleFactor": 0.15,
       "Rotation": -0.6, 
       "Type": "StraightWing"
     }
@@ -44,7 +44,7 @@
       "X": 0.4, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 0.9,
+      "XScaleFactor": 0.2,
       "ChordFactor": 0.233,
       "Rotation": -0.1, 
       "Type": "TaperedWing"

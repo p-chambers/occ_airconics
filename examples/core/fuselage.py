@@ -2,7 +2,7 @@
 # @Author: p-chambers
 # @Date:   2016-11-09 16:09:51
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-02-08 18:23:25
+# @Last Modified time: 2017-04-04 18:50:59
 from airconics import Fuselage
 
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     for pt in [Fus.SternPoint, Fus.BowPoint]:
         display.DisplayShape(pt)
 
-    print(Fus.SternPoint.X(), Fus.SternPoint.Y(), Fus.SternPoint.Z())
+    print(Fus.SternPoint.X(), Fus.BowPoint.X(), Fus.SternPoint.X() - Fus.BowPoint.X())
 
     Fus.Write('fuselage.stp')
 

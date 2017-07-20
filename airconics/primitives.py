@@ -14,8 +14,7 @@ from . import AirCONICStools as act
 from pkg_resources import resource_string, resource_exists
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.optimize import fmin
-
+from scipy.optimize import minimize_scalar
 import logging
 log = logging.getLogger(__name__)
 
@@ -41,8 +40,8 @@ def approxThickness(points=None):
     interpL = interp1d(XL[:, 0], XL[:, 1], kind='quadratic')
 
     # find the max thickness:
-    res = fmin(lambda x: -(interpU(x) - interpL(x)), x0=0.5)
-    return interpU(res[0]) - interpL(res[0])
+    res = minimize_scalar(lambda x: -(interpU(x) - interpL(x)), bounds=(XU[-1][0], XU[0][0]), method='bounded')
+    return interpU(res.x) - interpL(res.x)
 
 
 # Classes
@@ -164,7 +163,8 @@ class Airfoil(object):
         # Initialise the x and z airfoil surface points as None
         self._points = None
 
-        self.thicknessToChord = None
+
+        self._thicknessToChord = None
 
         self._make_airfoil(SeligProfile, Naca4Profile, Naca5Profile,
                            CRMProfile, CRM_Epsilon,
@@ -182,6 +182,18 @@ class Airfoil(object):
         self._fitAirfoiltoPoints()
         self.thicknessToChord = (approxThickness(newpoints) /
             np.max(newpoints[:, 0]) - np.min(np.max(newpoints[:, 0])))
+
+    @property
+    def thicknessToChord(self):
+        if not self._thicknessToChord:
+            assert(self._points is not None), \
+                "No thicknessToChord or points found for approximation: Ensure this airfoil is not empty."
+            self._thicknessToChord = approxThickness(self._points)
+        return self._thicknessToChord
+
+    @thicknessToChord.setter
+    def thicknessToChord(self, new_thicknessToChord):
+        self._thicknessToChord = new_thicknessToChord
 
     def _make_airfoil(self, SeligProfile, Naca4Profile, Naca5Profile,
                       CRMProfile, CRM_Epsilon,
@@ -430,6 +442,7 @@ class Airfoil(object):
         ChordLine.Translate(gp_Vec(*self.LE))
 
         self.ChordLine = ChordLine.GetHandle()
+        self.quarterChord = ChordLine.Value(0.25)
 
         return None
 
@@ -463,8 +476,6 @@ class Airfoil(object):
         x, z = self._AirfoilPointsSeligFormat(SeligProfile)
 
         self._points = np.column_stack([x, z])
-
-        self.thicknessToChord = approxThickness(self._points)
 
         self.Curve = self._fitAirfoiltoPoints()
 
@@ -514,7 +525,6 @@ class Airfoil(object):
                                  MaxCamberLocTenthChord,
                                  MaxThicknessPercChord)
         self._points = np.column_stack([x, z])
-        self.thicknessToChord = approxThickness(self._points)
 
         self.Curve = self._fitAirfoiltoPoints()
 #        if 'Smoothing' in locals():
@@ -546,7 +556,6 @@ class Airfoil(object):
         self.Profile = {'CRM_Epsilon': str(CRM_Epsilon)}
         x, z = CRMfoil.CRMlinear(CRM_Epsilon)
         self._points = np.column_stack([x, z])
-        self.thicknessToChord = approxThickness(self._points)
 
         self.Curve = self._fitAirfoiltoPoints()
         # TODO: Smoothing..
@@ -602,7 +611,6 @@ class Airfoil(object):
         else:
             self.Profile = {'Interp': (Eps, Af1.Profile, Eps1, Af2.Profile, Eps2)}
         self._points = np.column_stack([x, z])
-        self.thicknessToChord = approxThickness(self._points)
 
         self.Curve = self._fitAirfoiltoPoints()
         self._TransformAirfoil()

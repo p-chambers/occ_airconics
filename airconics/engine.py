@@ -15,8 +15,12 @@ from OCC.gp import gp_Pnt, gp_Vec, gp_OY, gp_Dir
 from OCC.Geom import Handle_Geom_Circle
 from OCC.GC import GC_MakeSegment
 import logging
+import SUAVE
+from SUAVE.Core import Units
+from SUAVE.Methods.Propulsion.turbofan_sizing import turbofan_sizing
+from SUAVE.Methods.Geometry.Two_Dimensional.Cross_Section.Propulsion import compute_turbofan_geometry
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Engine(AirconicsShape):
@@ -81,14 +85,17 @@ class Engine(AirconicsShape):
                  MeanNacelleLength=5.67,
                  construct_geometry=True,
                  SimplePylon=False,
-                 PylonRotation=90
+                 PylonRotation=90,
+                 MirrorComponentsXZ=False
                  ):
 
         if HChord == 0:
-            log.warning("No HChord specified to fit engine to: creating default")
+            logger.warning("No HChord specified to fit engine to: creating default")
             SP = gp_Pnt(MeanNacelleLength * 2.2, 0, HighlightRadius * 1.75)
             EP = gp_Pnt(MeanNacelleLength * 0.5, 0, HighlightRadius * 1.75)
             HChord = GC_MakeSegment(SP, EP).Value()
+
+        self.NacelleDiameter = None
 
         # Add all kwargs as attributes
         super(Engine, self).__init__(components={},
@@ -99,7 +106,8 @@ class Engine(AirconicsShape):
                                      HighlightRadius=HighlightRadius,
                                      MeanNacelleLength=MeanNacelleLength,
                                      SimplePylon=SimplePylon,
-                                     PylonRotation=PylonRotation
+                                     PylonRotation=PylonRotation,
+                                     MirrorComponentsXZ=MirrorComponentsXZ
                                      )
 
     def Build(self):
@@ -111,6 +119,11 @@ class Engine(AirconicsShape):
         """
         super(Engine, self).Build()
         self.BuildTurbofanNacelle()
+        if self.MirrorComponentsXZ:
+            logger.info('Mirroring the leading edge point and surfaces only')
+            logger.info('Construction geometry/curves will not be mirrored')
+
+            self.MirrorComponents(plane='xz')
         return None
 
     def BuildTurbofanNacelle(self):
@@ -301,6 +314,202 @@ class Engine(AirconicsShape):
 
         return None
 
+    def ToSuave(self, tag=None):
+        """Note: This method is currently returning a standard fuselage, with
+        no information from this occ-airconics shape! This is for development
+        use only
+        """
+        #instantiate the gas turbine network
+        turbofan = SUAVE.Components.Energy.Networks.Turbofan()
+        turbofan.tag = tag
+
+        # setup
+        if self.MirrorComponentsXZ:
+            turbofan.number_of_engines = 2.0
+            centre_mirror = copy.copy(self.CentreLocation)
+            centre_mirror[1] = -centre_mirror[1]
+            turbofan.origin = [self.CentreLocation, centre_mirror]
+        else:
+            turbofan.number_of_engines = 1.0
+            turbofan.origin = [self.CentreLocation]
+
+        turbofan.bypass_ratio = 5.4
+        turbofan.engine_length = self.MeanNacelleLength
+        turbofan.nacelle_diameter = self.HighlightRadius * 2.   # This is an approximation for now.
+
+        # working fluid
+        turbofan.working_fluid = SUAVE.Attributes.Gases.Air()
+
+        # ------------------------------------------------------------------
+        #   Component 1 - Ram
+        # to convert freestream static to stagnation quantities
+        # instantiate
+        ram = SUAVE.Components.Energy.Converters.Ram()
+        ram.tag = 'ram'
+
+        # add to the network
+        turbofan.append(ram)
+        # ------------------------------------------------------------------
+        #  Component 2 - Inlet Nozzle
+        # instantiate
+        inlet_nozzle = SUAVE.Components.Energy.Converters.Compression_Nozzle()
+        inlet_nozzle.tag = 'inlet_nozzle'
+
+        # setup
+        inlet_nozzle.polytropic_efficiency = 0.98
+        inlet_nozzle.pressure_ratio        = 0.98
+
+        # add to network
+        turbofan.append(inlet_nozzle)
+        # ------------------------------------------------------------------
+        #  Component 3 - Low Pressure Compressor
+
+        # instantiate 
+        compressor = SUAVE.Components.Energy.Converters.Compressor()    
+        compressor.tag = 'low_pressure_compressor'
+
+        # setup
+        compressor.polytropic_efficiency = 0.91
+        compressor.pressure_ratio        = 1.14    
+
+        # add to network
+        turbofan.append(compressor)
+
+
+        # ------------------------------------------------------------------
+        #  Component 4 - High Pressure Compressor
+
+        # instantiate
+        compressor = SUAVE.Components.Energy.Converters.Compressor()    
+        compressor.tag = 'high_pressure_compressor'
+
+        # setup
+        compressor.polytropic_efficiency = 0.91
+        compressor.pressure_ratio        = 13.415    
+
+        # add to network
+        turbofan.append(compressor)
+
+
+        # ------------------------------------------------------------------
+        #  Component 5 - Low Pressure Turbine
+
+        # instantiate
+        turbine = SUAVE.Components.Energy.Converters.Turbine()   
+        turbine.tag='low_pressure_turbine'
+
+        # setup
+        turbine.mechanical_efficiency = 0.99
+        turbine.polytropic_efficiency = 0.93     
+
+        # add to network
+        turbofan.append(turbine)
+
+
+        # ------------------------------------------------------------------
+        #  Component 6 - High Pressure Turbine
+
+        # instantiate
+        turbine = SUAVE.Components.Energy.Converters.Turbine()   
+        turbine.tag='high_pressure_turbine'
+
+        # setup
+        turbine.mechanical_efficiency = 0.99
+        turbine.polytropic_efficiency = 0.93     
+
+        # add to network
+        turbofan.append(turbine)
+
+
+        # ------------------------------------------------------------------
+        #  Component 7 - Combustor
+
+        # instantiate    
+        combustor = SUAVE.Components.Energy.Converters.Combustor()   
+        combustor.tag = 'combustor'
+
+        # setup
+        combustor.efficiency                = 0.99 
+        combustor.alphac                    = 1.0     
+        combustor.turbine_inlet_temperature = 1450
+        combustor.pressure_ratio            = 0.95
+        combustor.fuel_data                 = SUAVE.Attributes.Propellants.Jet_A()    
+
+        # add to network
+        turbofan.append(combustor)
+
+
+        # ------------------------------------------------------------------
+        #  Component 8 - Core Nozzle
+
+        # instantiate
+        nozzle = SUAVE.Components.Energy.Converters.Expansion_Nozzle()   
+        nozzle.tag = 'core_nozzle'
+
+        # setup
+        nozzle.polytropic_efficiency = 0.95
+        nozzle.pressure_ratio        = 0.99    
+
+        # add to network
+        turbofan.append(nozzle)
+
+
+        # ------------------------------------------------------------------
+        #  Component 9 - Fan Nozzle
+
+        # instantiate
+        nozzle = SUAVE.Components.Energy.Converters.Expansion_Nozzle()   
+        nozzle.tag = 'fan_nozzle'
+
+        # setup
+        nozzle.polytropic_efficiency = 0.95
+        nozzle.pressure_ratio        = 0.99    
+
+        # add to network
+        turbofan.append(nozzle)
+
+
+        # ------------------------------------------------------------------
+        #  Component 10 - Fan
+
+        # instantiate
+        fan = SUAVE.Components.Energy.Converters.Fan()   
+        fan.tag = 'fan'
+
+        # setup
+        fan.polytropic_efficiency = 0.93
+        fan.pressure_ratio        = 1.7    
+
+        # add to network
+        turbofan.append(fan)
+
+
+        # ------------------------------------------------------------------
+        #Component 10 : thrust (to compute the thrust)
+        thrust = SUAVE.Components.Energy.Processes.Thrust()       
+        thrust.tag ='compute_thrust'
+
+        #total design thrust (includes all the engines)
+        thrust.total_design             = turbofan.number_of_engines * 24000. * Units.N #Newtons
+
+        #design sizing conditions
+        altitude      = 35000.0*Units.ft
+        mach_number   = 0.78 
+        isa_deviation = 0.
+
+        # add to network
+        turbofan.thrust = thrust
+
+        #size the turbofan
+        turbofan_sizing(turbofan,mach_number,altitude)   
+
+        #computing the engine length and diameter
+        compute_turbofan_geometry(turbofan,None)
+
+        print("sls thrust : ",turbofan.sealevel_static_thrust)
+        print("engine length : ",turbofan.engine_length)
+
+        return turbofan
 
 if __name__ == "__main__":
     from OCC.Display.SimpleGui import init_display

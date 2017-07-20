@@ -2,12 +2,12 @@
   {
     "primitive": "fuselage2", 
     "args": {
-      "X": 0.3, 
+      "X": 0.0, 
       "Y": 0.0, 
       "Z": 0.0,
       "XScaleFactor": 1.0,
-      "NoseLengthRatio": 0.182,
-      "TailLengthRatio": 0.293,
+      "NoseLengthRatio": 0.18,
+      "TailLengthRatio": 0.29,
       "FinenessRatio": 0.8
     }
   }, 
@@ -18,8 +18,8 @@
       "Y": 0.0,
       "Z": 0.6, 
       "ChordFactor": 1.0,
-      "ScaleFactor": 0.45,
-      "Rotation": 1.0,
+      "XScaleFactor": 0.32,
+      "Rotation": 1.57,
       "Type": "AirlinerFin"
     }
   }, 
@@ -33,7 +33,7 @@
       "Y": 0.0, 
       "Z": 0.5, 
       "ChordFactor": 1.0, 
-      "ScaleFactor": 0.35,
+      "XScaleFactor": 0.22,
       "Rotation": 0.0, 
       "Type": "AirlinerTP"
     }
@@ -44,8 +44,8 @@
       "X": 0.15, 
       "Y": 0.0, 
       "Z": 0.05,     
-      "ScaleFactor": 0.8,
-      "ChordFactor": 0.71,
+      "XScaleFactor": 0.3,
+      "ChordFactor": 0.78,
       "Rotation": 0.0, 
       "Type": "AirlinerWing"
     }
@@ -53,11 +53,13 @@
   {
     "primitive": "engine0",
       "args": {
-          "SpanStation": 0.35,
-          "XChordFactor": 0.9,
-          "DiameterLenRatio": 0.513,
-          "PylonSweep": 0.0,
-          "PylonLenRatio": 0.8,
+          "X": 0.35,
+          "Y": 0.35,
+          "Z": 0.35,
+          "XScaleFactor": 0.9,
+          "DiameterLenRatio": 0.51,
+          "PylonSweep": 0.78,
+          "PylonLenRatio": 0.7,
           "Rotation": 0.0
       }
   }
