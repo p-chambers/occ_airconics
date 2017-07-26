@@ -856,24 +856,25 @@ class LiftingSurface(AirconicsShape):
 
         wing.spans.projected = self.ActualSemiSpan
 
-        wing.chords.root = self.Sections[0].ChordLength * Units.meter
-        wing.chords.tip = self.Sections[-1].ChordLength * Units.meter
+        wing.chords.root = self.Sections[0].ChordLength * self.ChordFactor * self.ScaleFactor * Units.meter
+        wing.chords.tip = self.Sections[-1].ChordLength * self.ChordFactor * self.ScaleFactor * Units.meter
         wing.chords.mean_aerodynamic = self.MAC
 
         wing.areas.reference = self.LSP_area
+        wing.areas.wetted = self.SA
         wing.sweeps.quarter_chord = self.AvgQuarterChordSweep() * Units.degrees
 
         wing.twists.root = self.TwistFunct(0) * Units.degrees
         wing.twists.tip = self.TwistFunct(1) * Units.degrees
         # Approximate dihedral as the average between root and tip:
         wing.dihedral = (self.DihedralFunct(
-            0) + self.DihedralFunct(1)) * Units.degrees
+            0) + self.DihedralFunct(1))/2.0 * Units.degrees
 
         wing.origin = [self.ApexPoint.X(), self.ApexPoint.Y(),
                        self.ApexPoint.Z()]
         wing.aerodynamic_center = [0, 0, 0]
 
-        wing.vertical = (self.BaseRotation - np.pi / 2. < 1e-3)
+        wing.vertical = (abs(self.BaseRotation - np.pi / 2.) < 1e-3)
         wing.symmetric = self.MirrorComponentsXZ
         wing.high_lift = high_lift
 

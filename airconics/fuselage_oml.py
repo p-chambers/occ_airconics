@@ -115,6 +115,8 @@ class Fuselage(AirconicsShape):
 
         self.MirrorComponents(plane='xz')
 
+    self.SA = act.CalculateSurfaceArea(self['OML'])
+
   def AirlinerFuselagePlanView(self, NoseLengthRatio, TailLengthRatio):
     """Internal function. Defines the control
     polygons of the fuselage in side view"""
@@ -786,7 +788,7 @@ class Fuselage(AirconicsShape):
     fuselage.heights.at_wing_root_quarter_chord = 3.76
 
     fuselage.areas.side_projected = 142.1948
-    fuselage.areas.wetted = 446.718
+    fuselage.areas.wetted = self.SA
     fuselage.areas.front_projected = 12.57
 
     fuselage.effective_diameter = 3.76
