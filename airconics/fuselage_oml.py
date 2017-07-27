@@ -311,6 +311,12 @@ class Fuselage(AirconicsShape):
     FSVUCurve = act.points_to_BezierCurve(FSVU)
     FSVLCurve = act.points_to_BezierCurve(FSVL)
 
+    # Build the side profile:
+    FSVUEdge = act.make_edge(FSVUCurve)
+    FSVLEdge = act.make_edge(FSVLCurve)
+    FSV_TE = act.make_edge(FSVUCurve.EndPoint(), FSVLCurve.EndPoint())
+    self.XZProj = act.make_face(act.make_wire([FSVUEdge, FSVLEdge, FSV_TE]))
+
     FSVMean = (FSVU + FSVL) / 2.
 
     FSVMeanCurve = act.points_to_BezierCurve(FSVMean)
@@ -438,6 +444,13 @@ class Fuselage(AirconicsShape):
     HStarboardCurve, HPortCurve, FSVUCurve, FSVLCurve, FSVMeanCurve, \
         NoseEndX, TailStartX, EndX = self.FuselageLongitudinalGuideCurves(self.NoseLengthRatio,
                                                                           self.TailLengthRatio)
+
+    # Build the side profile:
+    print(type(FSVUCurve))
+    FSVUEdge = act.make_edge(FSVUCurve.GetHandle())
+    FSVLEdge = act.make_edge(FSVLCurve.GetHandle())
+    FSV_TE = act.make_edge(FSVUCurve.EndPoint(), FSVLCurve.EndPoint())
+    self.XZProj = act.make_face(act.make_wire([FSVUEdge, FSVLEdge, FSV_TE]))
 
     # Returning the PortCurve and StarboardCurve as Geom_BSplineCurve
     # makes kernel freeze in pythonocc 0.16.5, so needed to carry around a
@@ -766,8 +779,8 @@ class Fuselage(AirconicsShape):
     fuselage = SUAVE.Components.Fuselages.Fuselage()
     fuselage.tag = tag
 
-    fuselage.seats_abreast = 6
-    fuselage.seat_pitch = 1
+    # fuselage.seats_abreast = 6
+    # fuselage.seat_pitch = 1
 
     fuselage.fineness.nose = 1.57
     fuselage.fineness.tail = 3.2
@@ -776,8 +789,8 @@ class Fuselage(AirconicsShape):
     fuselage.lengths.tail = 12.
     fuselage.lengths.cabin = 28.85
     fuselage.lengths.total = 38.02
-    fuselage.lengths.fore_space = 6.
-    fuselage.lengths.aft_space = 5.
+    fuselage.lengths.fore_space = fuselage.lengths.nose / 2.
+    fuselage.lengths.aft_space = fuselage.length.tail / 2.
     fuselage.origin = [[self.BowPoint.X(), self.BowPoint.Y(), self.BowPoint.Z()]]
 
     fuselage.width = 3.76
