@@ -8,7 +8,6 @@ Created on Mon Jan 18 11:27:08 2016
 # Orlando, FL.
 
 @author: pchambers
-Testing Wafflebot
 """
 # ==============================================================================
 # AirCONICS
