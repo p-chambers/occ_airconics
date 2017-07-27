@@ -446,7 +446,6 @@ class Fuselage(AirconicsShape):
                                                                           self.TailLengthRatio)
 
     # Build the side profile:
-    print(type(FSVUCurve))
     FSVUEdge = act.make_edge(FSVUCurve.GetHandle())
     FSVLEdge = act.make_edge(FSVLCurve.GetHandle())
     FSV_TE = act.make_edge(FSVUCurve.EndPoint(), FSVLCurve.EndPoint())
@@ -557,6 +556,9 @@ class Fuselage(AirconicsShape):
       except:
         OMLSurf = None
 
+      # Obtain the YZ (frontal area) as the max area from the straight section:
+      self.SectionAreas = [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
+
       if OMLSurf is not None:
         logger.debug("Network surface fit succesful on attempt {}\n"
                   .format(i_attempt))
@@ -598,6 +600,8 @@ class Fuselage(AirconicsShape):
     ) * ScalingF[0], self.SternPoint.Y(), self.SternPoint.Z() * ScalingF[2])
     self.SternPoint.Translate(gp_Vec(*MoveVec))
 
+    self.Area_XZ = act.CalculateSurfaceArea(self.XZProj) * ScalingF[0] * ScalingF[2]
+    self.Area_YZ = max(self.SectionAreas) * ScalingF[1] * ScalingF[2]
 
 #        SternPoint[0] = SternPoint[0]*ScalingF[0]
 #        SternPoint[1] = SternPoint[1]*ScalingF[1]
