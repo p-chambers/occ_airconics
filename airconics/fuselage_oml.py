@@ -312,8 +312,8 @@ class Fuselage(AirconicsShape):
     FSVLCurve = act.points_to_BezierCurve(FSVL)
 
     # Build the side profile:
-    FSVUEdge = act.make_edge(FSVUCurve)
-    FSVLEdge = act.make_edge(FSVLCurve)
+    FSVUEdge = act.make_edge(FSVUCurve.GetHandle())
+    FSVLEdge = act.make_edge(FSVLCurve.GetHandle())
     FSV_TE = act.make_edge(FSVUCurve.EndPoint(), FSVLCurve.EndPoint())
     self.XZProj = act.make_face(act.make_wire([FSVUEdge, FSVLEdge, FSV_TE]))
 
@@ -391,6 +391,10 @@ class Fuselage(AirconicsShape):
             C, continuity=GeomAbs_C2, solid=False)
       Surfaces.append(partial_oml)
       # self['surf' + str(npart)] = partial_oml
+
+      sections = [act.make_wire(act.make_edge(curve)) for curve in C]
+      self.SectionAreas = [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
+
 
     from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
     sewing = BRepBuilderAPI_Sewing()
@@ -492,6 +496,9 @@ class Fuselage(AirconicsShape):
       StationRange = np.hstack([Stations01[:-1], Stations12[:-1],
                                 Stations23[:-1], Stations34[:-1],
                                 Stations45])
+
+      self.StationRange = StationRange
+      Widths = []
       C = []
       FirstTime = True
 
@@ -602,6 +609,9 @@ class Fuselage(AirconicsShape):
 
     self.Area_XZ = act.CalculateSurfaceArea(self.XZProj) * ScalingF[0] * ScalingF[2]
     self.Area_YZ = max(self.SectionAreas) * ScalingF[1] * ScalingF[2]
+
+    self.Length = (self.SternPoint.X() - self.BowPoint.X())
+    self.Width = 2 * (self.Area_YZ / np.pi) ** 0.5 
 
 #        SternPoint[0] = SternPoint[0]*ScalingF[0]
 #        SternPoint[1] = SternPoint[1]*ScalingF[1]
@@ -786,30 +796,35 @@ class Fuselage(AirconicsShape):
     # fuselage.seats_abreast = 6
     # fuselage.seat_pitch = 1
 
-    fuselage.fineness.nose = 1.57
-    fuselage.fineness.tail = 3.2
+    # Approximate the equivalent circular width based on the maximum cross
+    # sectional area:
+    fuselage.width = self.Width
+    fuselage.effective_diameter = fuselage.width
 
-    fuselage.lengths.nose = 8.0
-    fuselage.lengths.tail = 12.
-    fuselage.lengths.cabin = 28.85
-    fuselage.lengths.total = 38.02
-    fuselage.lengths.fore_space = fuselage.lengths.nose / 2.
-    fuselage.lengths.aft_space = fuselage.length.tail / 2.
+
+    fuselage.lengths.nose = self.Length * self.NoseLengthRatio
+    fuselage.lengths.tail = self.Length * self.TailLengthRatio
+    fuselage.lengths.cabin = self.Length * (1 - (self.NoseLengthRatio + self.TailLengthRatio))
+    fuselage.lengths.total = self.Length
+    # fuselage.lengths.fore_space = fuselage.lengths.nose / 2.
+    # fuselage.lengths.aft_space = fuselage.lengths.tail / 2.
+    
+    fuselage.fineness.nose = fuselage.lengths.nose / fuselage.width
+    fuselage.fineness.tail = self.TailLengthRatio
+
+    
     fuselage.origin = [[self.BowPoint.X(), self.BowPoint.Y(), self.BowPoint.Z()]]
 
-    fuselage.width = 3.76
+    fuselage.heights.maximum = fuselage.width
+    # fuselage.heights.at_quarter_length = 3.76
+    # fuselage.heights.at_three_quarters_length = 3.65
+    # fuselage.heights.at_wing_root_quarter_chord = 3.76
 
-    fuselage.heights.maximum = 3.76
-    fuselage.heights.at_quarter_length = 3.76
-    fuselage.heights.at_three_quarters_length = 3.65
-    fuselage.heights.at_wing_root_quarter_chord = 3.76
-
-    fuselage.areas.side_projected = 142.1948
+    fuselage.areas.side_projected = self.Area_XZ
     fuselage.areas.wetted = self.SA
-    fuselage.areas.front_projected = 12.57
+    fuselage.areas.front_projected = self.Area_YZ
 
-    fuselage.effective_diameter = 3.76
-
+    # This is currently a constant for all fuselages
     fuselage.differential_pressure = 5.0e4 * \
         Units.pascal  # Maximum differential pressure
     return fuselage

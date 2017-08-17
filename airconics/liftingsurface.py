@@ -832,7 +832,6 @@ class LiftingSurface(AirconicsShape):
     def get_spanstation_chord(self, SpanStation):
         """
         """
-        print(SpanStation)
         Section, HChord = act.CutSect(self['Surface'], SpanStation)
         return HChord
 

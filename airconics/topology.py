@@ -806,9 +806,9 @@ class Topology(AirconicsCollection):
                            NoseCoordinates=[X, Y, Z],
                            SimplificationReqd=self.SimplificationReqd,
                            MirrorComponentsXZ=True,
-                           construct_geometry=False
+                           construct_geometry=True
                            )
-                mirror_fus._Components = copy.deepcopy(fus._Components)
+                # mirror_fus._Components = copy.deepcopy(fus._Components)
                 super(Topology, self).__setitem__(
                     name + '_mirror', mirror_fus)
                 self.mirror_count += N-1
@@ -1410,7 +1410,7 @@ class Topology_GPTools(object):
         """
         if not self._pset:
             self._pset = self.create_pset()
-
+        self.fitness_weights = fitness_weights
         creator.create("Fitness", base.Fitness, weights=fitness_weights)
         creator.create("Individual", gp.PrimitiveTree,
                        fitness=creator.Fitness)
@@ -1503,7 +1503,13 @@ class Topology_GPTools(object):
         return population, logbook, hof, gen_best
 
     def evalTopology(self, individual):
-        topo = self.spawn_topology(individual)
+        try:
+            topo = self.spawn_topology(individual)
+        except TypeError:
+            # This error can occur when geometry construction failed. For now,
+            # simply treat this case as a penalty, since the randomness of the
+            # problem may lead to geometries that fail construction
+            return np.ones_like(self.fitness_weights) * -100
         return self.fitness_funct(topo),
 
     def from_string(self, config_string=None, preset=None):

@@ -501,13 +501,13 @@ class Engine(AirconicsShape):
         turbofan.thrust = thrust
 
         #size the turbofan
-        turbofan_sizing(turbofan,mach_number,altitude)   
+        # turbofan_sizing(turbofan,mach_number,altitude)   
 
         #computing the engine length and diameter
-        compute_turbofan_geometry(turbofan,None)
+        # compute_turbofan_geometry(turbofan,None)
 
-        print("sls thrust : ",turbofan.sealevel_static_thrust)
-        print("engine length : ",turbofan.engine_length)
+        # print("sls thrust : ",turbofan.sealevel_static_thrust)
+        # print("engine length : ",turbofan.engine_length)
 
         return turbofan
 
