@@ -866,8 +866,8 @@ class LiftingSurface(AirconicsShape):
         wing.twists.root = self.TwistFunct(0) * Units.degrees
         wing.twists.tip = self.TwistFunct(1) * Units.degrees
         # Approximate dihedral as the average between root and tip:
-        wing.dihedral = (self.DihedralFunct(
-            0) + self.DihedralFunct(1))/2.0 * Units.degrees
+        wing.dihedral = self.BaseRotation + (self.DihedralFunct(
+            0) + self.DihedralFunct(1)) / 2.0 * Units.degrees
 
         wing.origin = [self.ApexPoint.X(), self.ApexPoint.Y(),
                        self.ApexPoint.Z()]
