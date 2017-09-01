@@ -786,7 +786,7 @@ class Topology(AirconicsCollection):
                 X = Y = Z = 0
 
             ScalingYZ = XScaleFactor / FinenessRatio
-            
+
             # Fits N new components to this box layout
             fus = Fuselage(NoseLengthRatio=NoseLengthRatio,
                            TailLengthRatio=TailLengthRatio,

@@ -2,7 +2,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-14 16:38:17
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2016-10-07 17:23:24
+# @Last Modified time: 2017-09-01 14:52:26
 import pytest
 from airconics.fuselage_oml import Fuselage
 import airconics.AirCONICStools as act
@@ -165,3 +165,12 @@ def test_MakeWindow():
 @pytest.mark.xfail
 def test_CockpitwindowContours():
     raise(NotImplementedError)
+
+
+def test_fuselage_station_range_area_length():
+    """Tests that the fuselage class produces the same number of station points
+    and section areas for all construction methods"""
+    f = Fuselage(SimplificationReqd=True)
+    assert(np.shape(f.SectionAreas) == np.shape(f.StationRange))
+    f = Fuselage(SimplificationReqd=False)
+    assert(np.shape(f.SectionAreas) == np.shape(f.StationRange))

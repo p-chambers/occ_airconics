@@ -865,16 +865,24 @@ class LiftingSurface(AirconicsShape):
 
         wing.twists.root = self.TwistFunct(0) * Units.degrees
         wing.twists.tip = self.TwistFunct(1) * Units.degrees
-        # Approximate dihedral as the average between root and tip:
-        wing.dihedral = self.BaseRotation + (self.DihedralFunct(
-            0) + self.DihedralFunct(1)) / 2.0 * Units.degrees
+
+        # Approximate dihedral as the average between root and tip (positive):
+        wing_angle = (self.BaseRotation + (self.DihedralFunct(
+            0) + self.DihedralFunct(1)) / 2.0 * Units.degrees)
+
+        if abs(wing_angle) < np.pi / 4 and abs(wing_angle) < 3*np.pi/4:
+            wing.vertical = True
+            wing.dihedral = wing_angle - np.pi/2.
+        else:
+            wing.dihedral = wing_angle
+            wing.vertical = False
 
         wing.origin = [self.ApexPoint.X(), self.ApexPoint.Y(),
                        self.ApexPoint.Z()]
         wing.aerodynamic_center = [0, 0, 0]
 
-        wing.vertical = (abs(self.BaseRotation - np.pi / 2.) < 1e-3)
-        wing.symmetric = self.MirrorComponentsXZ
+        # wing.vertical = (abs(self.BaseRotation - np.pi / 2.) < 1e-3)
+        wing.symmetric = False
         wing.high_lift = high_lift
 
         wing.dynamic_pressure_ratio = 1.0

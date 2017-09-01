@@ -94,7 +94,7 @@ class Fuselage(AirconicsShape):
                                    SimplificationReqd=SimplificationReqd,
                                    Max_attempt=Maxi_attempt,
                                    construct_geometry=construct_geometry,
-                                   MirrorComponentsXZ=False)
+                                   MirrorComponentsXZ=MirrorComponentsXZ)
 
   def Build(self):
     """Overrides the AirconicsShape empty Build method.
@@ -112,7 +112,6 @@ class Fuselage(AirconicsShape):
     if self.MirrorComponentsXZ:
         logger.info('Mirroring the leading edge point and surfaces only')
         logger.info('Construction geometry/curves will not be mirrored')
-
         self.MirrorComponents(plane='xz')
 
     self.SA = act.CalculateSurfaceArea(self['OML'])
@@ -358,6 +357,11 @@ class Fuselage(AirconicsShape):
     # Make the part from several lofts and fuse them later
     Surfaces = []
 
+    self.StationRange = np.hstack([Stations01[:-1], Stations12[:-1],
+                                  Stations23[:-1], Stations34[:-1],
+                                  Stations45])
+
+    C_global = []
     for npart, station in enumerate([Stations01[1:], Stations12, Stations23, Stations34, Stations45]):
       C = []
 
@@ -368,7 +372,6 @@ class Fuselage(AirconicsShape):
 
         IPoint2 = act.points_from_intersection(P, FSVUCurve)
         IPoint3 = act.points_from_intersection(P, FSVLCurve)
-  #
         IPointCentre = act.points_from_intersection(P,
                                                     FSVMeanCurve)
 
@@ -389,12 +392,17 @@ class Fuselage(AirconicsShape):
       else:
         partial_oml = act.AddSurfaceLoft(
             C, continuity=GeomAbs_C2, solid=False)
+
       Surfaces.append(partial_oml)
       # self['surf' + str(npart)] = partial_oml
 
-      sections = [act.make_wire(act.make_edge(curve)) for curve in C]
-      self.SectionAreas = [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
+      C_global.extend(C[:-1])
 
+    C_global.append(C[-1])
+
+    sections = (act.make_wire(act.make_edge(c)) for c in C_global)
+
+    self.SectionAreas = [0] + [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
 
     from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
     sewing = BRepBuilderAPI_Sewing()
@@ -564,7 +572,7 @@ class Fuselage(AirconicsShape):
         OMLSurf = None
 
       # Obtain the YZ (frontal area) as the max area from the straight section:
-      self.SectionAreas = [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
+      self.SectionAreas = [0] + [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
 
       if OMLSurf is not None:
         logger.debug("Network surface fit succesful on attempt {}\n"
@@ -612,6 +620,10 @@ class Fuselage(AirconicsShape):
 
     self.Length = (self.SternPoint.X() - self.BowPoint.X())
     self.Width = 2 * (self.Area_YZ / np.pi) ** 0.5 
+
+    self.Height_at_quarter_length = ScalingF[1] * np.sqrt(4 * np.interp(0.25 * self.StationRange[-1], self.SectionAreas, self.StationRange)) / np.pi
+    self.Height_at_three_quarters_length = ScalingF[1] * np.sqrt(4 * np.interp(0.75 * self.StationRange[-1], self.SectionAreas, self.StationRange)) / np.pi
+
 
 #        SternPoint[0] = SternPoint[0]*ScalingF[0]
 #        SternPoint[1] = SternPoint[1]*ScalingF[1]
@@ -801,24 +813,25 @@ class Fuselage(AirconicsShape):
     fuselage.width = self.Width
     fuselage.effective_diameter = fuselage.width
 
-
     fuselage.lengths.nose = self.Length * self.NoseLengthRatio
     fuselage.lengths.tail = self.Length * self.TailLengthRatio
-    fuselage.lengths.cabin = self.Length * (1 - (self.NoseLengthRatio + self.TailLengthRatio))
+    fuselage.lengths.cabin = self.Length * (1 -
+        (self.NoseLengthRatio + self.TailLengthRatio))
     fuselage.lengths.total = self.Length
     # fuselage.lengths.fore_space = fuselage.lengths.nose / 2.
     # fuselage.lengths.aft_space = fuselage.lengths.tail / 2.
-    
-    fuselage.fineness.nose = fuselage.lengths.nose / fuselage.width
-    fuselage.fineness.tail = self.TailLengthRatio
 
-    
     fuselage.origin = [[self.BowPoint.X(), self.BowPoint.Y(), self.BowPoint.Z()]]
 
     fuselage.heights.maximum = fuselage.width
-    # fuselage.heights.at_quarter_length = 3.76
-    # fuselage.heights.at_three_quarters_length = 3.65
-    # fuselage.heights.at_wing_root_quarter_chord = 3.76
+
+    # Equivalent diameter for section areas
+    fuselage.heights.at_quarter_length = self.Height_at_quarter_length
+    fuselage.heights.at_three_quarters_length = self.Height_at_three_quarters_length
+    fuselage.heights.at_wing_root_quarter_chord = fuselage.heights.maximum
+
+    fuselage.fineness.nose = fuselage.lengths.nose / fuselage.width
+    fuselage.fineness.tail = fuselage.lengths.tail / fuselage.width
 
     fuselage.areas.side_projected = self.Area_XZ
     fuselage.areas.wetted = self.SA

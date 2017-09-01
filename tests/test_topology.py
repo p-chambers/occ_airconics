@@ -6,11 +6,13 @@
 # @Author: p-chambers
 # @Date:   2016-07-21 16:25:37
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-03-28 11:04:04
+# @Last Modified time: 2017-08-31 18:10:54
 import pytest
 from airconics.topology import Topology
 from airconics.fuselage_oml import Fuselage
 from airconics.engine import Engine
+import os
+import airconics
 from airconics.liftingsurface import LiftingSurface
 from OCC.gp import gp_Ax2
 
@@ -190,3 +192,75 @@ def test_topology_graphviz_dot():
 #     f2 = topo['fuselage0_1']
 
 #     assert(f1.Apex)
+
+def test_topology_to_suave_mirrorwing():
+    json = [
+    {
+        "primitive": "mirror1",
+        "args": {}
+    },
+    {
+        "args": {"ChordFactor": 1.0,
+                 "Rotation": 0.0,
+                 "XScaleFactor": 1.0,
+                 "Type": "StraightWing",
+                 "X": 0.0,
+                 "Y": 0.0,
+                 "Z": 0.0},
+        "primitive": "liftingsurface0"
+    }]
+    topo = Topology()
+    topo.from_json(json)
+    suave_vehicle = topo.ToSuave()
+
+    assert(len(suave_vehicle.wings) == 2)
+    assert(all(not wing.symmetric for wing in suave_vehicle.wings))
+    assert(len(suave_vehicle.propulsors) == 0)
+    assert(len(suave_vehicle.fuselages) == 0)
+
+
+def test_topology_to_suave_airliner():
+    fname = os.path.join(os.path.dirname(airconics.__file__),
+                         'resources/configuration_app/presets/airliner.json')
+    topo = Topology()
+    topo.from_file(fname)
+    suave_vehicle = topo.ToSuave()
+
+    assert(len(suave_vehicle.wings) == 5)
+    assert(len(suave_vehicle.propulsors) == 2)
+    assert(all(eng.number_of_engines == 1 for eng in suave_vehicle.propulsors))
+    assert(len(suave_vehicle.fuselages) == 1)
+
+def test_topology_to_suave_vertical_wing():
+    json =   {
+    "primitive": "liftingsurface0",
+    "args": {
+      "X": 0.0,
+      "Y": 0.0, 
+      "Z": 0.0, 
+      "ChordFactor": 1.0,
+      "XScaleFactor": 1.0,
+      "Rotation": 1.57, 
+      "Type": "StraightWing"
+    }
+  }, 
+    topo = Topology()
+    topo.from_json(json)
+    vehicle = topo.ToSuave()
+
+    json =   {
+    "primitive": "liftingsurface0",
+    "args": {
+      "X": 0.0,
+      "Y": 0.0, 
+      "Z": 0.0, 
+      "ChordFactor": 1.0,
+      "XScaleFactor": 1.0,
+      "Rotation": -1.57, 
+      "Type": "StraightWing"
+    }
+  }, 
+    topo = Topology()
+    topo.from_json(json)
+    vehicle = topo.ToSuave()
+    assert(vehicle.wings['liftingsurface0_0'].vertical)

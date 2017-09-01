@@ -19,6 +19,7 @@ import SUAVE
 from SUAVE.Core import Units
 from SUAVE.Methods.Propulsion.turbofan_sizing import turbofan_sizing
 from SUAVE.Methods.Geometry.Two_Dimensional.Cross_Section.Propulsion import compute_turbofan_geometry
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -325,13 +326,13 @@ class Engine(AirconicsShape):
 
         # setup
         if self.MirrorComponentsXZ:
-            turbofan.number_of_engines = 2.0
             centre_mirror = copy.copy(self.CentreLocation)
             centre_mirror[1] = -centre_mirror[1]
             turbofan.origin = [self.CentreLocation, centre_mirror]
         else:
-            turbofan.number_of_engines = 1.0
             turbofan.origin = [self.CentreLocation]
+
+        turbofan.number_of_engines = 1.0
 
         turbofan.bypass_ratio = 5.4
         turbofan.engine_length = self.MeanNacelleLength

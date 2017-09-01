@@ -6,7 +6,7 @@ Created on Fri Dec  4 16:30:02 2015
 """
 
 __all__ = ['base', 'primitives', 'AirCONICStools', 'liftingsurface',
-           'fuselage_oml', 'engine', 'topology']
+           'fuselage_oml', 'engine', 'topology', 'objectives']
 
 import pkg_resources
 __version__ = pkg_resources.require("airconics")[0].version
@@ -19,6 +19,7 @@ from . import examples
 from . import fuselage_oml
 from . import engine
 from . import topology
+from . import objectives
 #from . import aircraft
 
 # Also allow module level imports for the primary classes (neater API)
