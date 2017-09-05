@@ -712,13 +712,17 @@ class AirconicsCollection(AirconicsBase):
         vehicle.passengers = 170
         vehicle.systems.control = "fully powered" 
         vehicle.systems.accessories = "medium range"
-        from airconics import LiftingSurface
+        from airconics import LiftingSurface, Engine
         for label, comp in ((k, v) for k, v in self.items() if not v.MirrorComponentsXZ):
             suave_comp = comp.ToSuave(tag=label)
             if (label + '_mirror') in self:
                 suave_comp.symmetric = True
                 if isinstance(comp, LiftingSurface):
                     suave_comp.spans.projected *= 2.
+                    suave_comp.areas.reference *= 2
+                    suave_comp.aspect_ratio *= 2
+                if isinstance(comp, Engine):
+                    suave_comp.number_of_engines += 1
 
             vehicle.append_component(suave_comp)
 

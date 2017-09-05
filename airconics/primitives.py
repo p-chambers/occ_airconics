@@ -518,7 +518,7 @@ class Airfoil(object):
             MaxCamberPercChord *= -1
         MaxCamberLocTenthChord = int(Naca4Profile[1])
         MaxThicknessPercChord  = int(Naca4Profile[2:])
-        self.thicknessToChord = MaxThicknessPercChord
+        self.thicknessToChord = MaxThicknessPercChord / 100.
 
         x, z, xu, zu, xl, zl, RLE = \
             self._NACA4digitPnts(MaxCamberPercChord,

@@ -2,12 +2,23 @@
 # @Author: p-chambers
 # @Date:   2017-08-31 11:34:16
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-09-01 17:02:20
+# @Last Modified time: 2017-09-04 18:56:03
 import SUAVE
 from SUAVE.Attributes.Gases.Air import Air
 import numpy as np
 import matplotlib.pyplot as plt
-from SUAVE.Core import Data
+from SUAVE.Core import Data, Units
+import logging
+
+# logger = logging.getLogger(__name__)
+
+try:
+    import vsp_g as vsp
+except ImportError:
+    # VSP not available on path is not a catastrophic, so allow airconics to
+    # build without it
+    logger.warning("VSP modules not found in path. ")
+    pass
 
 
 def occ_to_suave(topo):
@@ -141,7 +152,7 @@ def plot_CL_CD(topo, analyses=SUAVE.Analyses.Aerodynamics.Fidelity_Zero):
     """Calculates and plots the CL/CD curves for a range of angles
     """
     suave_vehicle = occ_to_suave(topo)
-    results, aoa, aerodynamics, state = suave_aero_analysis(suave_vehicle, analyses)
+    results, aoa, aerodynamics, state = suave_aero_analysis(suave_vehicle, analyses=analyses)
 
     # build a polar for the markup aero
     polar = Data()

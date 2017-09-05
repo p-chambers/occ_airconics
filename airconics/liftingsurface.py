@@ -96,6 +96,38 @@ def airfoilfunct(ProfileFunct):
     return uniform_parametric_function
 
 
+def occ_to_suave_rotation(wing_dihedral):
+    """
+    Parameters
+    ----------
+    wing_dihedral : scalar
+        Dihedral angle (rad), normalized between 0 and 2 pi
+
+    Returns
+    -------
+    suave_dihedral: scalar
+        The dihedral angle of the resulting suave wing
+    suave_vertical: bool
+        returns True if the occ wing is in the +- (pi/4 < angle < 3*pi/4)
+        quadrant, meaning that the suave wing will have be rotated by pi/2, and
+        it's airfoil sections will be vertical
+
+    See Also
+    --------
+    airconics.liftingsurface.Liftingsurface
+    """
+    if wing_dihedral > np.pi:
+        wing_dihedral -= np.pi * 2
+
+    if abs(wing_dihedral) < np.pi / 4 or abs(wing_dihedral) > 3 * np.pi / 4:
+        suave_vertical = False
+        suave_dihedral = wing_dihedral
+    else:
+        suave_dihedral = wing_dihedral - np.pi / 2.
+        suave_vertical = True
+    return suave_dihedral, suave_vertical
+
+
 class LiftingSurface(AirconicsShape):
     """Airconics class for defining lifting surface shapes
 
@@ -846,7 +878,7 @@ class LiftingSurface(AirconicsShape):
         # Take an average of root and tip, since there's not much else we can
         # do here:
         wing.thickness_to_chord = (self.Sections[0].thicknessToChord +
-                                   self.Sections[-1].thicknessToChord) / 2.  # Not set
+                                   self.Sections[-1].thicknessToChord) / 2. # Not set
         wing.taper = self.Sections[
             0].ChordLength + self.Sections[0].ChordLength
         # Could probably calculate span efficiency, but I'll leave it as
@@ -868,14 +900,9 @@ class LiftingSurface(AirconicsShape):
 
         # Approximate dihedral as the average between root and tip (positive):
         wing_angle = (self.BaseRotation + (self.DihedralFunct(
-            0) + self.DihedralFunct(1)) / 2.0 * Units.degrees)
+            0) + self.DihedralFunct(1)) / 2.0 * Units.degrees) % (np.pi * 2)
 
-        if abs(wing_angle) < np.pi / 4 and abs(wing_angle) < 3*np.pi/4:
-            wing.vertical = True
-            wing.dihedral = wing_angle - np.pi/2.
-        else:
-            wing.dihedral = wing_angle
-            wing.vertical = False
+        wing.dihedral, wing.vertical = occ_to_suave_rotation(wing_angle)
 
         wing.origin = [self.ApexPoint.X(), self.ApexPoint.Y(),
                        self.ApexPoint.Z()]

@@ -6,7 +6,7 @@
 # @Author: p-chambers
 # @Date:   2016-07-21 16:25:37
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-08-31 18:10:54
+# @Last Modified time: 2017-09-04 14:42:57
 import pytest
 from airconics.topology import Topology
 from airconics.fuselage_oml import Fuselage
@@ -213,8 +213,8 @@ def test_topology_to_suave_mirrorwing():
     topo.from_json(json)
     suave_vehicle = topo.ToSuave()
 
-    assert(len(suave_vehicle.wings) == 2)
-    assert(all(not wing.symmetric for wing in suave_vehicle.wings))
+    assert(len(suave_vehicle.wings) == 1)
+    assert(suave_vehicle.wings['liftingsurface0_0'].symmetric)
     assert(len(suave_vehicle.propulsors) == 0)
     assert(len(suave_vehicle.fuselages) == 0)
 
@@ -226,41 +226,8 @@ def test_topology_to_suave_airliner():
     topo.from_file(fname)
     suave_vehicle = topo.ToSuave()
 
-    assert(len(suave_vehicle.wings) == 5)
-    assert(len(suave_vehicle.propulsors) == 2)
-    assert(all(eng.number_of_engines == 1 for eng in suave_vehicle.propulsors))
+    # Note that all items do not include the symmetric part!
+    assert(len(suave_vehicle.wings) == 3)
+    assert(sum(wing.symmetric for wing in suave_vehicle.wings) == 2)
+    assert(suave_vehicle.propulsors.values()[0].number_of_engines == 2)
     assert(len(suave_vehicle.fuselages) == 1)
-
-def test_topology_to_suave_vertical_wing():
-    json =   {
-    "primitive": "liftingsurface0",
-    "args": {
-      "X": 0.0,
-      "Y": 0.0, 
-      "Z": 0.0, 
-      "ChordFactor": 1.0,
-      "XScaleFactor": 1.0,
-      "Rotation": 1.57, 
-      "Type": "StraightWing"
-    }
-  }, 
-    topo = Topology()
-    topo.from_json(json)
-    vehicle = topo.ToSuave()
-
-    json =   {
-    "primitive": "liftingsurface0",
-    "args": {
-      "X": 0.0,
-      "Y": 0.0, 
-      "Z": 0.0, 
-      "ChordFactor": 1.0,
-      "XScaleFactor": 1.0,
-      "Rotation": -1.57, 
-      "Type": "StraightWing"
-    }
-  }, 
-    topo = Topology()
-    topo.from_json(json)
-    vehicle = topo.ToSuave()
-    assert(vehicle.wings['liftingsurface0_0'].vertical)

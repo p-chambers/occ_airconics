@@ -5,7 +5,7 @@ Created on Thu Jan 14 15:10:50 2016
 @author: pchambers
 """
 import numpy as np
-from airconics.liftingsurface import LiftingSurface, airfoilfunct
+from airconics.liftingsurface import LiftingSurface, airfoilfunct, occ_to_suave_rotation
 from airconics.primitives import Airfoil
 import airconics.AirCONICStools as act
 from airconics.examples.wing_example_transonic_airliner import *
@@ -254,3 +254,19 @@ def test_update_ApexPoint():
 #         Winglet.ChordFunct(0) * Winglet.ScaleFactor * Winglet.ChordFactor)
 
 #     # Test the length of the LE curve is the correct spanfraction
+
+def test_occ_to_suave_rotation():
+    assert(occ_to_suave_rotation(0) == (0, False))
+    assert(occ_to_suave_rotation(np.pi / 12.) == (np.pi / 12., False))
+
+    assert(occ_to_suave_rotation(np.pi / 2.) == (0, True))
+    assert(occ_to_suave_rotation(np.pi / 4.) == (- np.pi / 4, True))
+    assert(occ_to_suave_rotation(3 * np.pi / 4) == (np.pi / 4, True))
+
+    assert(occ_to_suave_rotation(np.pi) == (np.pi, False))
+
+    assert(occ_to_suave_rotation(-np.pi / 12.) == (-np.pi / 12., False))
+
+    assert(occ_to_suave_rotation(-np.pi / 2.) == (-np.pi, True))
+    assert(occ_to_suave_rotation(-np.pi / 4.) == (- 3 * np.pi / 4, True))
+    assert(occ_to_suave_rotation(-11 * np.pi / 12) == (-11 * np.pi / 12, False))
