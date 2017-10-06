@@ -53,9 +53,9 @@
   {
     "primitive": "engine0",
       "args": {
-          "X": 0.35,
-          "Y": 0.35,
-          "Z": 0.35,
+          "X": 0.4,
+          "Y": 0.4,
+          "Z": 0.4,
           "XScaleFactor": 0.9,
           "DiameterLenRatio": 0.51,
           "PylonSweep": 0.78,
