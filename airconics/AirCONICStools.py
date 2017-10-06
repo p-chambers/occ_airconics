@@ -1180,7 +1180,7 @@ def points_from_intersection(plane, curve):
 #         return face
 
 
-def CutSect(Shape, SpanStation):
+def CutSect(Shape, SpanStation, CutFace=None):
     """
     Parameters
     ----------
@@ -1189,6 +1189,9 @@ def CutSect(Shape, SpanStation):
 
     SpanStation : scalar in range (0, 1)
         y-direction location at which to cut Shape
+
+    CutPlnDihed : scalar (default 0)
+        Inclination angle of the cut plane (rad)
 
     Returns
     -------
@@ -1199,17 +1202,21 @@ def CutSect(Shape, SpanStation):
     Chord : result of OCC.GC.GC_MakeSegment.Value (Geom_TrimmedCurve)
         The Chord line between x direction extremeties
     """
-    (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Shape])
+    if not CutFace:
+        (Xmin, Ymin, Zmin, Xmax, Ymax, Zmax) = ObjectsExtents([Shape])
 
-    YStation = Ymin + (Ymax - Ymin) * SpanStation
-    OriginX = Xmin - 1
-    OriginZ = Zmin - 1
+        YStation = Ymin + (Ymax - Ymin) * SpanStation
+        OriginX = Xmin - 1
+        OriginZ = Zmin - 1
 
-    P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ), gp_Dir(gp_Vec(0, 1, 0)))
-    # Note: using 2*extents here as previous +1 trimmed plane too short
-    CutPlaneSrf = make_face(P, 0, Zmax + 2, 0, Xmax +2)
+        P = gp_Pln(gp_Pnt(OriginX, YStation, OriginZ),
+                   gp_Dir(gp_Vec(0, 1, 0))
+                   )
 
-    I = BRepAlgoAPI_Section(Shape, CutPlaneSrf)
+        # Note: using 2*extents here as previous +1 trimmed plane too short
+        CutFace = make_face(P, 0, Zmax + 2, 0, Xmax + 2)
+
+    I = BRepAlgoAPI_Section(Shape, CutFace)
     I.ComputePCurveOn1(True)
     I.Approximation(True)
     I.Build()

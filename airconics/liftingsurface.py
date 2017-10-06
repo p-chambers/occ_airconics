@@ -19,7 +19,7 @@ from .base import AirconicsShape
 from .primitives import Airfoil
 from . import AirCONICStools as act
 
-from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir, gp_Ax1
+from OCC.gp import gp_Pnt, gp_Vec, gp_XOY, gp_Ax3, gp_Dir, gp_Ax1, gp_Pln
 from OCC.GeomAbs import GeomAbs_C2
 from OCC.Geom import Geom_Plane
 import SUAVE
@@ -864,7 +864,26 @@ class LiftingSurface(AirconicsShape):
     def get_spanstation_chord(self, SpanStation):
         """
         """
-        Section, HChord = act.CutSect(self['Surface'], SpanStation)
+        crv = self.LECurve.GetObject()
+
+        cutpln_origin = crv.Value(crv.LastParameter() * SpanStation)
+        cutpln_dihedral = (np.radians(self.DihedralFunct(SpanStation)) +
+            self.BaseRotation)
+
+        P = gp_Pln(cutpln_origin,
+            gp_Dir(gp_Vec(0, np.cos(cutpln_dihedral),
+                np.sin(cutpln_dihedral)))
+        )
+        chord = (self.ChordFunct(SpanStation) * self.ChordFactor *
+                 self.ScaleFactor)
+        twist = self.TwistFunct(SpanStation)
+        umax = abs(1.5 * chord * np.cos(-twist))
+        vmax = abs(1.5 * chord * np.sin(-twist)) + umax * 0.7
+
+        CutFace = act.make_face(P, -umax, umax, -vmax, vmax)
+
+        Section, HChord = act.CutSect(self['Surface'], SpanStation,
+            CutFace=CutFace)
         return HChord
 
     def ToSuave(self, main=False, high_lift=False, tag=None):
