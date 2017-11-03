@@ -595,6 +595,9 @@ class LiftingSurface(AirconicsShape):
                                 continuity=self.Cont,
                                 solid=False)
 
+        Root_face, _ = act.curve_to_closed_face(self.Sections[0].Curve)
+        Tip_face, _ = act.curve_to_closed_face(self.Sections[-1].Curve)
+
         # TODO: Optimize chord scale ...
         # if self.OptimizeChordScale:
         # self.ChordScaleOptimizer()
@@ -608,6 +611,9 @@ class LiftingSurface(AirconicsShape):
 
         #  Update instance components:
         self.AddComponent(LS, 'Surface')
+        self.AddComponent(Root_face, 'Root')
+        self.AddComponent(Tip_face, 'Tip')
+
 
         # Calculate projected area
         self.LSP_area = self.CalculateProjectedArea()
@@ -906,8 +912,8 @@ class LiftingSurface(AirconicsShape):
 
         wing.spans.projected = self.ActualSemiSpan
 
-        wing.chords.root = self.Sections[0].ChordLength * self.ChordFactor * self.ScaleFactor * Units.meter
-        wing.chords.tip = self.Sections[-1].ChordLength * self.ChordFactor * self.ScaleFactor * Units.meter
+        wing.chords.root = self.Sections[0].ChordLength * self.ScaleFactor * Units.meter
+        wing.chords.tip = self.Sections[-1].ChordLength * self.ScaleFactor * Units.meter
         wing.chords.mean_aerodynamic = self.MAC
 
         wing.areas.reference = self.LSP_area
@@ -932,4 +938,11 @@ class LiftingSurface(AirconicsShape):
         wing.high_lift = high_lift
 
         wing.dynamic_pressure_ratio = 1.0
+
+
+        # TODO: Set up the SUAVE wing airfoil (Note: this doesn't change the
+        # output of fidelity zero analysis, but does change higher fidelity
+        # or OpenVSP geometry output)
+        # wing.Airfoil = 
+        
         return wing
