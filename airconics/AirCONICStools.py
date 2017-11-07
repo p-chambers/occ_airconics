@@ -45,7 +45,9 @@ from OCC.BRepAdaptor import BRepAdaptor_Curve
 from OCC.BRepFeat import BRepFeat_SplitShape
 from OCC.TopTools import TopTools_ListIteratorOfListOfShape
 from OCC.BRepProj import BRepProj_Projection
-
+from OCC.BRepGProp import brepgprop_VolumeProperties
+from OCC.GProp import GProp_GProps
+from OCC.BRepGProp import brepgprop_SurfaceProperties
 # FileIO libraries:
 from OCC.STEPCAFControl import STEPCAFControl_Writer
 from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs
@@ -990,13 +992,51 @@ def CalculateSurfaceArea(shape):
     Area : scalar
         Calculated surface area
     """
-    from OCC.BRepGProp import brepgprop_SurfaceProperties
-    from OCC.GProp import GProp_GProps
     System = GProp_GProps()
     brepgprop_SurfaceProperties(shape, System)
     Area = System.Mass()
     return Area
 
+
+def CalculateVolume(shape, eps=1e-4, *args):
+    """Calculates the surface area of input shape
+
+    Parameters
+    ----------
+    shape : TopoDS_Shape
+
+    eps : scalar
+        Tolerance of the volume integration (passed to OCC
+        brepgprop_VolumeProperties)
+
+    Returns
+    -------
+    Area : scalar
+        Calculated surface area
+    """
+    system = GetVolumeProps(shape, eps=eps)
+    # Need an absolute value as reversed faces return a negative volume
+    vol = abs(system.Mass())
+    return vol
+
+def GetVolumeProps(shape, eps=1e-4, *args):
+    """Calculates the mass properties of the shape.
+
+    Assumes the shape forms a closed volume
+
+    Parameters
+    ----------
+    shape : TopoDS_Shape
+    eps : scalar
+        The tolerance for volume integration (default: {1e-4})
+
+    Returns
+    -------
+    OCC.GProp.GProp_GProps
+    """
+    System = GProp_GProps()
+    brepgprop_VolumeProperties(shape, System, eps, *args)
+    return System
 
 def PlanarSurf(geomcurve):
     """Adds a planar surface to curve
@@ -1327,3 +1367,34 @@ def boolean_cut(shapeToCutFrom, cuttingShape, debug=False):
     except:
         print('FAILED TO BOOLEAN CUT')
         return shapeToCutFrom
+
+
+def curve_to_closed_face(curve):
+    """Transforms a curve to wire and a face, closing it with a
+    straight line if necessary
+
+    [description]
+
+    Parameters:
+        curve {OCC.Geom.Handle_Geom_BSplineCurve} -- The curve
+
+    Returns
+    -------
+    face, wire
+    """
+    try:
+        obj = curve.GetObject()
+        h = curve
+    except AttributeError:
+        # Assume in this case that the object has been passed directly, i.e.,
+        # not as a handle:
+        obj = curve
+        h = obj.GetHandle()
+    edges = [make_edge(h)]
+    if not obj.IsClosed():
+        # Add Finite TE edge
+        TE = make_edge(obj.StartPoint(), obj.EndPoint())
+        edges.append(TE)
+    w = BRepBuilderAPI_MakeWire(*edges).Wire()
+    f = make_face(w)
+    return f, w

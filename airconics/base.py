@@ -19,6 +19,11 @@ from OCC.TopoDS import TopoDS_Shape
 from OCC.StlAPI import StlAPI_Writer
 from OCC.AIS import AIS_Shape
 from OCC.gp import gp_Pnt
+from OCC.TopExp import TopExp_Explorer
+from OCC.TopAbs import TopAbs_FACE
+from OCC.TopoDS import topods, topods_Face
+from OCC.BRepBuilderAPI import BRepBuilderAPI_MakeSolid
+from OCC.BRepBuilderAPI import BRepBuilderAPI_Sewing
 import SUAVE
 from SUAVE.Core import Units
 
@@ -463,7 +468,51 @@ class AirconicsShape(AirconicsBase):
         return status
 
     def ToSuave(self, *args, **kwargs):
-        pass
+        raise NotImplementedError()
+
+    def MakeSolid(self):
+        """Creates a solid shape from the sewing of all faces in this object
+
+        A closed solid is only guaranteed if all faces in this object form a
+        closed volume, and are also closed themselves.
+        """
+        sewing = BRepBuilderAPI_Sewing()
+        for name, comp in self.items():
+            exp = TopExp_Explorer(comp, TopAbs_FACE)
+            while exp.More():
+                current = exp.Current()
+                sewing.Add(topods_Face(current))
+                exp.Next()
+            sewing.Add(comp)
+        sewing.Perform()
+        sh = topods.Shell(sewing.SewedShape())
+        builder = BRepBuilderAPI_MakeSolid(sh)
+        builder.Build()
+        solid = builder.Solid()
+        return solid
+
+    def GetVolumeProps(self, eps=1e-3):
+        """Get the closed shape volume/mass properties of this object.
+
+        Assumes that the shapes contained in this shape form a closed volume.
+        This is ensured for the fuselage, wing and engine airconics types; user
+        defined classes should implement all closed faces
+
+        Parameters
+        ----------
+        eps : scalar
+            The tolerance used for numerical integration
+
+        Returns
+        -------
+        volume : scalar
+
+        See Also
+        --------
+        OCC.BRepGProp.brepgprop_VolumeProperties
+        """
+        solid = self.MakeSolid()
+        return act.GetVolumeProps(solid, eps)
 
 
 class AirconicsCollection(AirconicsBase):

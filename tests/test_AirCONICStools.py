@@ -8,6 +8,7 @@ import airconics.AirCONICStools as act
 import numpy as np
 from OCC.gp import gp_Pnt, gp_Dir, gp_Vec
 import pytest
+from airconics import LiftingSurface, Fuselage
 
 def test_coslin():
     abscissa = act.coslin(0.5, 8, 8)[0]
@@ -133,9 +134,91 @@ def test_CalculateSurfaceArea():
     assert(np.abs(act.CalculateSurfaceArea(sphere) - 4 * np.pi * (r**2)) < tol)
 
 
+def test_CalculateVolume():
+    """Use a few simple shapes to test the surface area function.
+
+    Notes
+    -----
+    This isnt testing the area building algorithm, just that my setup of the
+    function works for a variety of different OCC objects - PChambers
+    """
+    # A flat square edge lengths 1
+    from OCC.BRepBuilderAPI import BRepBuilderAPI_MakePolygon
+    p1 = gp_Pnt(0, 0, 0)
+    p2 = gp_Pnt(1, 0, 0)
+    p3 = gp_Pnt(1, 1, 0)
+    p4 = gp_Pnt(0, 1, 0)
+    surf1 = act.make_face(
+        BRepBuilderAPI_MakePolygon(p1, p2, p3, p4, True).Wire())
+
+
+    p5 = gp_Pnt(0, 0, 5)
+    p6 = gp_Pnt(1, 0, 5)
+    p7 = gp_Pnt(1, 1, 5)
+    p8 = gp_Pnt(0, 1, 5)
+    surf1 = act.make_wire(
+        BRepBuilderAPI_MakePolygon(p5, p6, p7, p8, True).Wire())
+
+    # The tolerance for difference between output and expected area
+    tol = 1e-8
+    assert(np.abs(act.CalculateVolume(surf1) - 0.0) < tol)
+
+    # A sphere with radius 1
+    from OCC.BRepPrimAPI import BRepPrimAPI_MakeSphere
+    r = 1
+    # The tolerance need to be relaxed a bit for this case
+    sphere = BRepPrimAPI_MakeSphere(r).Shape()
+    assert(np.abs(act.CalculateVolume(sphere) - 4 * np.pi * r**3 / 3) < tol)
+
+
+def test_CalculateVolume_LiftingSurface():
+    """Tests that the closed solid volume of a simple straight lifting surface
+    is approximately equal to the area of the root airfoil multiplied by its
+    span"""
+    from airconics.examples.straight_wing import *
+    apex = [0., 0., 0.]
+    Wing = LiftingSurface(apex, SimpleSweepFunction,
+                          SimpleDihedralFunction,
+                          SimpleTwistFunction,
+                          SimpleChordFunction,
+                          SimpleAirfoilFunction,
+                          SegmentNo=1,
+                          ScaleFactor=5.,
+                          ChordFactor=2.)
+    test_vol = act.CalculateSurfaceArea(Wing['Root']) * Wing.ActualSemiSpan
+    assert(abs(
+        (act.CalculateVolume(Wing.MakeSolid()) - test_vol) / test_vol) < 1e-2)
+
+
+def test_CalculateVolume_Fuselage():
+    """Tests that the closed solid volume of a simple straight lifting surface
+    is approximately equal to the area of the root airfoil multiplied by its
+    span"""
+    from airconics.examples.straight_wing import *
+    Fus = Fuselage(NoseLengthRatio=0.182,
+                   TailLengthRatio=0.293,
+                   Scaling=[1.0, 1.0, 1.0],
+                   NoseCoordinates=[0., 0., 0],
+                   CylindricalMidSection=False,
+                   Maxi_attempt=5)
+
+    # Perform a simple numerical optimization on the fuselage volume, using an
+    # approximation to the average area.
+    test_vol = 0
+    Scaling = np.array(Fus.Scaling) / 55.902
+    for i in range(len(Fus.SectionAreas[:-1])):
+        dx = (Fus.StationRange[i+1] - Fus.StationRange[i])
+        test_vol += ((Fus.SectionAreas[i] ** 0.5 +
+            Fus.SectionAreas[i+1] ** 0.5) / 2.) ** 2 * dx
+    test_vol *= np.prod(Scaling)
+    # Hope that at maximum 1% out...
+    assert(abs(
+        (act.CalculateVolume(Fus.MakeSolid()) - test_vol) / test_vol) < 1)
+
+
 # Misc functions
 def check_valid_object(handle):
-    """Tests that the object pointed to by input handle does break stuff"""
+    """Tests that the object pointed to by input handle doesn't break stuff"""
     # test the handle is not null
     assert(not handle.IsNull())
 
