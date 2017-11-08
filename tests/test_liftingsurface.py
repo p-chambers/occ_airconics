@@ -129,19 +129,22 @@ def test_GenerateSectionCurves_NonNumpy_ChordFunct():
 def test_AspectRatio(simple_wing):
     """For a simple straight wing with AR 5 and chord 1, calculate the
     actual aspect ratio and test the output is equal to the expected value"""
-    assert(np.abs(simple_wing.CalculateAspectRatio() - 5) < 1e-5)
+    ex_AR = 5
+    assert(np.abs(simple_wing.CalculateAspectRatio() - ex_AR) / ex_AR < 1e-3)
 
 
 def test_ProjectedArea(simple_wing):
     """For a simple straight wing with AR 5 and chord 1, calculate the
     projected area and test the output is equal to the expected value"""
-    assert(np.abs(simple_wing.CalculateProjectedArea() - 5) < 1e-5)
+    ex_area = 5
+    assert(np.abs(simple_wing.CalculateProjectedArea() - ex_area) / ex_area < 1e-3)
 
 
 def test_SemiSpan(simple_wing):
     """For a simple straight wing with AR 5 and chord 1, calculate the
     semi span and test the output is equal to the expected value"""
-    assert(np.abs(simple_wing.CalculateSemiSpan() - 5) < 1e-5)
+    ex_span = 5
+    assert(np.abs(simple_wing.CalculateSemiSpan() - ex_span) / ex_span < 1e-3)
 
 
 def test_RectangularWing():
@@ -161,7 +164,7 @@ def test_RectangularWing():
     ex_AR = 5
     span = 5
     # Test that the area and calculated aspect ratio are as expected
-    tol = 1e-5
+    tol = 1e-2
     assert(np.abs(wing.LSP_area - ex_area) < tol)
     assert(np.abs(wing.AR - ex_AR) < tol)
     assert(np.abs(wing.ActualSemiSpan - span) < tol)
@@ -176,9 +179,9 @@ def test_RectangularWing():
                           ScaleFactor=5,
                           ChordFactor=0.2,
                           SegmentNo=NSeg)
-    assert(np.abs(wing.LSP_area - ex_area) < tol)
-    assert(np.abs(wing.AR - ex_AR) < tol)
-    assert(np.abs(wing.ActualSemiSpan - span) < tol)
+    assert(np.abs(wing.LSP_area - ex_area) / ex_area < tol)
+    assert(np.abs(wing.AR - ex_AR)/ ex_AR < tol)
+    assert(np.abs(wing.ActualSemiSpan - span) / span < tol)
 
 
 def test_SweptWing():
@@ -205,10 +208,10 @@ def test_SweptWing():
     ex_area = chord * span
     ex_AR = span / float(chord)
 
-    tol = 1e-5
-    assert(np.abs(wing.LSP_area - ex_area) < tol)
-    assert(np.abs(wing.AR - ex_AR) < tol)
-    assert(np.abs(wing.ActualSemiSpan - span) < tol)
+    tol = 1e-2
+    assert(np.abs(wing.LSP_area - ex_area) / ex_area < tol)
+    assert(np.abs(wing.AR - ex_AR) / ex_AR < tol)
+    assert(np.abs(wing.ActualSemiSpan - span) / span < tol)
 
 
 def test_update_ApexPoint():

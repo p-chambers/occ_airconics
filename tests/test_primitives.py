@@ -8,7 +8,9 @@ Tests for airconics airfoil primitives.
 """
 import pytest
 from airconics.primitives import Airfoil, approxThickness
+import airconics.AirCONICStools as act
 import numpy as np
+import sympy as sp
 import OCC.Geom
 
 
@@ -246,3 +248,29 @@ def test_approxThickness():
     # Test high thickness airfoils
     Af = Airfoil(ChordLength=1, SeligProfile='naca16018')
     assert(abs(approxThickness(Af._points) - 0.18) < (0.18) * 0.001)
+
+
+def test_FaceArea():
+    """Tests that the area of a face made by a naca 4 airfoil curve is close to
+    the expected analytical result"""
+    af = Airfoil(Naca4Profile='0012', ChordLength=4)
+    a0 = 0.2969 / 0.2
+    a1 = -0.1260 / 0.2
+    a2 = -0.3516 / 0.2
+    a3 = 0.2843 / 0.2
+    a4 = -0.1015 / 0.2
+
+    # Half-thickness polynomial
+    x = sp.Symbol('x')
+    tmax = af.thicknessToChord
+    t = tmax * (a0 * x**0.5 + a1 * x + a2 * x**2.0 +
+                a3 * x**3.0 + a4 * x**4.0)
+    f_area = sp.lambdify(x, sp.integrate(t))
+    # Integral of the half-thickness is half of the area of the unit chord
+    # (symmetric), which is then scaled in the xz plane by the Wing.RootChord/1
+    # in each direction
+    area_integral = 2 * (f_area(1) - f_area(0)) * af.ChordLength ** 2
+
+    face = act.make_face(act.make_wire(act.make_edge(af.Curve)))
+    assert(abs((area_integral -
+        act.CalculateSurfaceArea(face)) / area_integral) < 1e-2)

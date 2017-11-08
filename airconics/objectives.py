@@ -2,7 +2,7 @@
 # @Author: p-chambers
 # @Date:   2017-08-31 11:34:16
 # @Last Modified by:   p-chambers
-# @Last Modified time: 2017-09-04 18:56:03
+# @Last Modified time: 2017-09-25 17:48:04
 import SUAVE
 from SUAVE.Attributes.Gases.Air import Air
 import numpy as np
@@ -66,7 +66,7 @@ def suave_aero_analysis(suave_vehicle,
                    Mc=0.85,
                    rho=0.003996,
                    mu=1.601e-5,
-                   T=297.8,
+                   T=250.2,
                    pressure=0.0287e4):
     """Calculates aerodynamic drag and lift angles of attack between
 
