@@ -574,6 +574,9 @@ class Fuselage(AirconicsShape):
       # Obtain the YZ (frontal area) as the max area from the straight section:
       self.SectionAreas = [0] + [act.CalculateSurfaceArea(act.make_face(sec)) for sec in sections]
 
+      # Add the closing face (needed for volume calculation/meshing)
+      self.AddComponent(act.make_face(sections[-1]), 'SternFace')
+
       if OMLSurf is not None:
         logger.debug("Network surface fit succesful on attempt {}\n"
                   .format(i_attempt))
