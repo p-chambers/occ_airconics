@@ -777,3 +777,33 @@ class AirconicsCollection(AirconicsBase):
 
         # 'Fixing' step for engines:
         return vehicle
+
+    def GetVolumeProps(self, eps=1e-3):
+        """Get the closed shape volume/mass properties of this object.
+
+        Assumes that the shapes contained in this shape form a closed volume.
+        This is ensured for the fuselage, wing and engine airconics types; user
+        defined classes should implement all closed faces
+
+        Parameters
+        ----------
+        eps : scalar
+            The tolerance used for numerical integration
+
+        Returns
+        -------
+        volume : scalar
+
+        See Also
+        --------
+        OCC.BRepGProp.brepgprop_VolumeProperties
+        """
+        vprops = {}
+        for name, part in self.items():
+            try:
+                vprops[name] = part.GetVolumeProps()
+            except RuntimeError as e:
+                # This branch is for when the solid construction fails, as is
+                # the case for engines
+                logger.exception(e, exc_info=True)
+        return vprops
