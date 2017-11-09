@@ -167,14 +167,14 @@ def transonic_airliner(display=None,
         WBF = AirconicsShape(components={'WBF': WBF_shape})
 
 #        Trim wing inboard section
-        CutCirc = act.make_circle3pt([0,WTBFwidth/4.,-45], [0,WTBFwidth/4.,45], [90,WTBFwidth/4.,0])
-        CutCircDisk = act.PlanarSurf(CutCirc)
-        Wing['Surface'] = act.TrimShapebyPlane(Wing['Surface'], CutCircDisk)
-    elif Topology == 2:
+#        CutCirc = act.make_circle3pt([0,WTBFwidth/4.,-45], [0,WTBFwidth/4.,45], [90,WTBFwidth/4.,0])
+#        CutCircDisk = act.PlanarSurf(CutCirc)
+#        Wing['Surface'] = act.TrimShapebyPlane(Wing['Surface'], CutCircDisk)
+#    elif Topology == 2:
 #        Overlapping wing tips
-        CutCirc = act.make_circle3pt((0,0,-45), (0,0,45), (90,0,0))
-        CutCircDisk = act.PlanarSurf(CutCirc)
-        Wing['Surface'] = act.TrimShapebyPlane(Wing['Surface'], CutCircDisk)
+#        CutCirc = act.make_circle3pt((0,0,-45), (0,0,45), (90,0,0))
+#        CutCircDisk = act.PlanarSurf(CutCirc)
+#        Wing['Surface'] = act.TrimShapebyPlane(Wing['Surface'], CutCircDisk)
 
 
 #   Engine installation (nacelle and pylon)
@@ -343,16 +343,27 @@ def transonic_airliner(display=None,
 
 
 #     Mirror the geometry as required
-    Wing2 = Wing.MirrorComponents(plane='xz')
+    Wing2 = liftingsurface.LiftingSurface(Wing.ApexPoint, Wing.SweepFunct,
+                           Wing.DihedralFunct, Wing.TwistFunct, Wing.ChordFunct,
+                           Wing.AirfoilFunct, SegmentNo=Wing.NSegments, 
+                           ChordFactor=Wing.ChordFactor,
+                           ScaleFactor=Wing.ScaleFactor, MirrorComponentsXZ=True)
     try:
         # this try section allows box wing i.e. no tailplane
-        TP2 = TP.MirrorComponents(plane='xz')
+        TP2 = liftingsurface.LiftingSurface(TP.ApexPoint, TP.SweepFunct,
+                           TP.DihedralFunct, TP.TwistFunct, TP.ChordFunct,
+                           TP.AirfoilFunct, SegmentNo=TP.NSegments, 
+                           ChordFactor=TP.ChordFactor,
+                           ScaleFactor=TP.ScaleFactor, MirrorComponentsXZ=True)
     except:
         pass
 
     engines_left = []
     for eng in engines:
-        engines_left.append(eng.MirrorComponents(plane='xz'))
+        engines_left.append(engine.Engine(eng.HChord, eng.CentreLocation,
+                                          eng.ScarfAngle, eng.HighlightRadius,
+                                          eng.MeanNacelleLength,
+                                          MirrorComponentsXZ=True))
 
 #    Build the return assembly (note the three methods of assignment: using
 #     the parts keyword, using assignment i.e. airliner[name] = value, and
@@ -401,7 +412,7 @@ def transonic_airliner(display=None,
         airliner['WBF'].Display(display, color=white,  material=painted)
     except:
         pass
-
+    print(airliner['Wing_left'])
     airliner['Wing_left'].Display(display, color=white,  material=painted)
     airliner['Wing_right'].Display(display, color=white,  material=painted)
     airliner['Fuselage'].Display(display, color=white,  material=painted)    
